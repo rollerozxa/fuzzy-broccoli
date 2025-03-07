@@ -1,0 +1,18 @@
+
+buildscript {
+	repositories {
+		google()
+		mavenCentral()
+	}
+	dependencies {
+		classpath 'de.undercouch:gradle-download-task:4.1.1'
+	}
+}
+
+plugins {
+    id 'com.android.application' version '8.8.1' apply false
+}
+
+tasks.register('clean', Delete) {
+	delete rootProject.buildDir
+}
