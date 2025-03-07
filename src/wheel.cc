@@ -10,10 +10,6 @@ wheel::wheel()
     this->set_flag(ENTITY_IS_MOVEABLE, true);
     this->set_flag(ENTITY_ALLOW_AXIS_ROT, true);
     this->set_flag(ENTITY_DO_TICK, true);
-    if (W->level.version >= LEVEL_VERSION_1_4) {
-        this->set_flag(ENTITY_HAS_CONFIG, true);
-        this->dialog_id = DIALOG_RUBBER;
-    }
 
     if (W->level.version >= LEVEL_VERSION_1_1_6) {
         m_wheel.friction = 2.5f;

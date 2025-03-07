@@ -1,25 +1,8 @@
 #include "edevice.hh"
 #include "world.hh"
 #include "game.hh"
-#include "mini_transmitter.hh"
 
 uint64_t edev_step_count = 0;
-
-bool
-socket_out::written_mt()
-{
-    mini_transmitter *mt = static_cast<mini_transmitter*>(this->p);
-
-    return (mt->edev_step == edev_step_count);
-}
-
-void
-socket_out::write_mt(float v)
-{
-    mini_transmitter *mt = static_cast<mini_transmitter*>(this->p);
-    mt->edev_step = edev_step_count;
-    mt->set_value(v);
-}
 
 uint8_t
 edevice::get_socket_index(isocket *s)
@@ -46,8 +29,6 @@ socket_out::write(float v)
                 s->step_count = edev_step_count;
                 s->value = v;
             }
-        } else if (this->p->plug_type == PLUG_MINI_TRANSMITTER) {
-            this->write_mt(v);
         }
     }
 }

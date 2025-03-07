@@ -415,7 +415,7 @@ pscreen::init()
 void
 pscreen::refresh_username()
 {
-    char tmp[256];
+    /*char tmp[256];
 
     if (P.username) {
         if (P.num_unread_messages) {
@@ -429,5 +429,5 @@ pscreen::refresh_username()
 
     pscreen::text_username->set_text(tmp);
 
-    tms_infof("USERNAME REFRESHED ---------------");
+    tms_infof("USERNAME REFRESHED ---------------");*/
 }

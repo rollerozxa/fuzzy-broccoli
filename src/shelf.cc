@@ -4,7 +4,6 @@
 
 shelf::shelf()
 {
-    this->set_flag(ENTITY_IS_MAGNETIC, true);
     this->set_flag(ENTITY_IS_STATIC, true);
 
     this->width = 4.f;
@@ -13,7 +12,7 @@ shelf::shelf()
     this->update_method = ENTITY_UPDATE_STATIC;
 
     this->set_mesh(mesh_factory::get_mesh(MODEL_WALLTHING2));
-    this->set_material(&m_rackhouse); /* TODO: specific material? */
+    this->set_material(&m_metal); /* TODO: specific material? */
     //this->set_uniform("~color", .1f, .1f, .1f, 1.f);
 
     this->num_sliders = 1;

@@ -167,11 +167,6 @@ cylinder::find_pairs()
             if (c->pending) {
                 c->type = CONN_GROUP;
                 c->typeselect = this->find_pivot(0,false) == 0 && this->find_pivot(1, false) == 0;
-
-                if (W->level.type == LCAT_ADVENTURE && !W->is_paused()) {
-                    c->typeselect = false;
-                    c->option = 1;
-                }
                 c->o_data = cb.result->get_fixture_connection_data(cb.result_fx);
                 c->o = cb.result;
                 c->p = p;

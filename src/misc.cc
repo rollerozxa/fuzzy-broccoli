@@ -16,27 +16,3 @@ get_mtime(const char *path)
 
     return mtime;
 }
-
-std::vector<char*>
-p_split(const char *str, size_t len, const char *delim)
-{
-    char *tmp = strdup(str);
-    std::vector<char*> ret;
-
-    char *pch = strtok(tmp, ";");
-
-    if (pch == NULL && len > 0) {
-        ret.push_back(strdup(tmp));
-    } else {
-        while (pch != NULL) {
-            if (strlen(pch)) {
-                ret.push_back(strdup(pch));
-            }
-            pch = strtok(NULL, ";");
-        }
-    }
-
-    free(tmp);
-
-    return ret;
-}

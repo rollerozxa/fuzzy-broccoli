@@ -1,19 +1,14 @@
 #include "entity.hh"
 #include "world.hh"
 #include "group.hh"
-#include "gear.hh"
 #include "game.hh"
 #include "rubberband.hh"
-#include "pivot.hh"
 #include "damper.hh"
-#include "model.hh"
 #include "world.hh"
-#include "ui.hh"
 
 entity::entity()
     : m_scale(1.0f)
     , properties(0)
-    , entity_health(ENTITY_MAX_HEALTH)
 {
     this->protection_status = ENTITY_NOT_SEARCHED;
     this->flags = 0;
@@ -32,7 +27,6 @@ entity::entity()
     this->set_flag(ENTITY_DO_UPDATE, true);
     this->set_flag(ENTITY_FADE_ON_ABSORB, true);
     this->set_flag(ENTITY_CAN_MOVE, true);
-    this->set_flag(ENTITY_CAN_BE_GRABBED, true);
 
     this->dialog_id = -1;
 
@@ -484,9 +478,7 @@ entity::gather_connected_entities(std::set<entity*> *entities, bool include_cabl
     if (include_custom_conns) {
         entity *other = 0;
 
-        if (this->g_id == O_OPEN_PIVOT) other = ((pivot_1*)this)->dconn.o;
-        else if (this->g_id == O_OPEN_PIVOT_2) other = ((pivot_2*)this)->p1;
-        else if (this->g_id == O_DAMPER) other = ((damper_1*)this)->dconn.o;
+        if (this->g_id == O_DAMPER) other = ((damper_1*)this)->dconn.o;
         else if (this->g_id == O_DAMPER_2) other = ((damper_2*)this)->d1;
         else if (this->g_id == O_RUBBERBAND) other = ((rubberband_1*)this)->dconn.o;
         else if (this->g_id == O_RUBBERBAND_2) other = ((rubberband_2*)this)->d1;
@@ -595,7 +587,7 @@ entity::restore()
 
 #ifdef DEBUG
     if (this->get_num_bodies() > 1) {
-        tms_warnf("!!! entity::restore() called on %s with more than 1 body, verify this is correct", of::get_object_name_by_gid(this->g_id));
+        tms_warnf("!!! entity::restore() called on object with more than 1 body, verify this is correct");
     }
 
     tms_debugf("applying state for entity %u, vel %f %f, avel %f", this->id, this->state[0], this->state[1], this->state[2]);
@@ -616,7 +608,7 @@ entity::write_state(lvlinfo *lvl, lvlbuf *lb)
 
 #ifdef DEBUG
     if (this->get_num_bodies() > 1) {
-        tms_warnf("!!! entity::write_state() called on %s with more than 1 body, verify this is correct", of::get_object_name_by_gid(this->g_id));
+        tms_warnf("!!! entity::write_state() called on object with more than 1 body, verify this is correct");
     }
 
     tms_debugf("writing state for entity %u", this->id);
@@ -639,7 +631,7 @@ entity::read_state(lvlinfo *lvl, lvlbuf *lb)
 
 #ifdef DEBUG
     if (this->get_num_bodies() > 1) {
-        tms_warnf("!!! entity::read_state() called on %s with more than 1 body, verify this is correct", of::get_object_name_by_gid(this->g_id));
+        tms_warnf("!!! entity::read_state() called on object with more than 1 body, verify this is correct");
     }
 
     tms_debugf("reading state for %u", this->id);
@@ -1376,194 +1368,6 @@ property::parse(char *buf)
     }
 }
 
-ghost::ghost()
-{
-    this->set_flag(ENTITY_IS_BETA,              true);
-    this->set_flag(ENTITY_ALLOW_CONNECTIONS,    false);
-    this->set_flag(ENTITY_ALLOW_ROTATION,       false);
-    this->set_flag(ENTITY_HAS_CONFIG,           true);
-
-    this->dialog_id = DIALOG_SHAPEEXTRUDER;
-
-    this->set_mesh(mesh_factory::get_mesh(MODEL_BOX0));
-    this->set_material(&m_red);
-    this->layer_mask = 1;
-    this->update_method = ENTITY_UPDATE_CUSTOM;
-
-    this->set_num_properties(4);
-
-    this->properties[0].type = P_FLT;
-    this->properties[0].v.f = 0.f; /* extra right */
-
-    this->properties[1].type = P_FLT;
-    this->properties[1].v.f = 0.f; /* extra up */
-
-    this->properties[2].type = P_FLT;
-    this->properties[2].v.f = 0.f; /* extra left */
-
-    this->properties[3].type = P_FLT;
-    this->properties[3].v.f = 1.f; /* extra down */
-
-    this->c.init_owned(0, this);
-    this->c.type = CONN_CUSTOM;
-}
-
-connection*
-ghost::load_connection(connection &conn)
-{
-    this->c = conn;
-    return &this->c;
-}
-
-void
-ghost::update()
-{
-    if (G && !W->is_paused()) {
-        memset(this->M, 0, sizeof(float)*16);
-    } else  {
-        entity *ths = static_cast<entity*>(this);
-
-        /*if (this->conn_ll) {
-            tms_infof("rendering with conn_ll");
-            entity *e = this->c.o;
-            b2Vec2 pos = e->get_position();
-            tmat4_load_identity(ths->M);
-            tmat4_translate(ths->M, pos.x, pos.y, 0);
-            tmat3_copy_mat4_sub3x3(ths->N, ths->M);
-        } else */if (ths->body) {
-            //tms_infof("rendering with body");
-            b2Transform t;
-            t = ths->body->GetTransform();
-
-            tmat4_load_identity(ths->M);
-            ths->M[0] = t.q.c;
-            ths->M[1] = t.q.s;
-            ths->M[4] = -t.q.s;
-            ths->M[5] = t.q.c;
-            ths->M[12] = t.p.x;
-            ths->M[13] = t.p.y;
-            ths->M[14] = ths->prio * LAYER_DEPTH;
-
-            tmat3_copy_mat4_sub3x3(ths->N, ths->M);
-        } else {
-            //tms_infof("rendering with _pos");
-            tmat4_load_identity(ths->M);
-            tmat4_translate(ths->M, ths->_pos.x, ths->_pos.y, 0);
-            tmat4_rotate(ths->M, ths->_angle * (180.f/M_PI), 0, 0, -1);
-            tmat3_copy_mat4_sub3x3(ths->N, ths->M);
-            /* XXX rotate */
-        }
-    }
-}
-
-void
-ghost::connection_create_joint(connection *c)
-{
-    c->j = (b2Joint*)1;
-    c->max_force = INFINITY;
-
-    if (W->is_paused()) {
-        b2WeldJointDef wjd;
-        wjd.localAnchorA = c->e->local_to_body(b2Vec2(0.f, 0.f), c->f[0]);
-        wjd.localAnchorB = c->o->local_to_body(b2Vec2(0.f, 0.f), c->f[1]);
-
-        wjd.bodyA = c->e->get_body(c->f[0]);
-        wjd.bodyB = c->o->get_body(c->f[1]);
-        wjd.referenceAngle = c->o->get_body(c->f[1])->GetAngle() - c->e->get_body(c->f[0])->GetAngle();
-        wjd.collideConnected = false;
-        wjd.frequencyHz = 0.f;
-
-        c->j = W->b2->CreateJoint(&wjd);
-    }
-}
-
-bool
-ghost::connection_destroy_joint(connection *c)
-{
-    return !(c->j != (void*)1 && c->j != 0);
-}
-
-bool
-ghost::ReportFixture(b2Fixture *f)
-{
-    entity *e = static_cast<entity*>(f->GetUserData());
-
-    if (e && e != this) {
-        uint8_t frame = (uint8_t)(uintptr_t)(f->GetBody()->GetUserData());
-        if (this->c.pending && frame == 0 && e->get_body(frame)->GetFixtureList()[0].TestPoint(this->get_position())
-                    && e->flag_active(ENTITY_IS_COMPOSABLE)
-            && e->get_layer() == this->get_layer()) {
-            this->c.type = CONN_CUSTOM;
-            this->c.o = e;
-            this->c.p = e->get_position();
-            this->c.o_data = e->get_fixture_connection_data(f);
-            G->add_pair(this, e, &this->c);
-        }
-    }
-
-    return true;
-}
-
-void
-ghost::init()
-{
-    //this->create_rect(w, b2_dynamicBody, .5f, .5, this->material);
-
-    if (this->conn_ll && this->c.o && this->c.o->flag_active(ENTITY_IS_COMPOSABLE)) {
-        composable *other = static_cast<composable*>(this->c.o);
-
-        if (other) {
-            float w = other->get_width();
-            float h = other->height;
-
-            b2Filter f = other->fx->GetFilterData();
-            f.groupIndex = 1+this->get_layer();
-            other->fx->SetFilterData(f);
-            //other->fx->SetSensor(true);
-
-            b2PolygonShape sh;
-
-            b2Vec2 vertices[4] = {
-                other->local_to_body(b2Vec2(w+this->properties[0].v.f, h+this->properties[1].v.f), 0),
-                other->local_to_body(b2Vec2(-(w+this->properties[2].v.f), h+this->properties[1].v.f), 0),
-                other->local_to_body(b2Vec2(-(w+this->properties[2].v.f), -(h+this->properties[3].v.f)), 0),
-                other->local_to_body(b2Vec2(w+this->properties[0].v.f, -(h+this->properties[3].v.f)), 0)
-            };
-
-            sh.Set(vertices, 4);
-
-            b2FixtureDef fd;
-            fd.shape = &sh;
-            fd.density = 0.00001f;
-            fd.friction = other->fd.friction;
-            fd.restitution = other->fd.restitution;
-            fd.filter = other->fd.filter;
-            fd.filter.groupIndex = -(1+this->get_layer());
-
-            other->get_body(0)->CreateFixture(&fd)->SetUserData(other);
-        }
-    }
-}
-
-void
-ghost::find_pairs()
-{
-    b2AABB aabb;
-    b2Vec2 p = this->get_position();
-    aabb.lowerBound = b2Vec2(p.x-.1f, p.y-.1f);
-    aabb.upperBound = b2Vec2(p.x+.1f, p.y+.1f);
-    W->b2->QueryAABB(this, aabb);
-}
-
-void
-ghost::add_to_world()
-{
-    if (W->is_paused()) {
-        this->create_rect(b2_dynamicBody, .25f, .25f, this->material);
-        this->body->GetFixtureList()[0].SetSensor(true);
-    }
-}
-
 /**
  * If no personalized tooltip is defined, output the objects name.
  **/
@@ -1727,88 +1531,6 @@ entity::prepare_fadeout()
         this->update();*/
 
     //this->M[14]+=.01f;
-}
-
-void
-entity::entity_damage(float dmg)
-{
-    this->entity_health -= dmg;
-
-    G->add_hp(this, this->entity_health / ENTITY_MAX_HEALTH, TV_HP_GRAY, 0.5f, true);
-
-    if (this->entity_health <= 0.f) {
-        G->lock();
-        this->drop_worth();
-        this->disconnect_all();
-        G->absorb(this);
-        G->unlock();
-    }
-}
-
-void
-entity::drop_worth()
-{
-    const struct worth &w = this->worth;
-
-    for (int x=0; x<NUM_RESOURCES; ++x) {
-        uint32_t num = w.resources[x];
-
-        if (num) {
-            uint32_t split = 1;
-
-            if (num > 5) {
-                split = 15;
-            }
-
-            while (num > 0) {
-                uint32_t out = std::min(split, num);
-
-                resource *r = static_cast<resource*>(of::create(O_RESOURCE));
-                if (r) {
-                    r->set_resource_type(x);
-                    r->set_amount(out);
-                    r->set_position(this->get_position().x, this->get_position().y);
-                    r->set_layer(this->get_layer());
-                    G->emit(r, this, b2Vec2(((rand()%100)-50)/100.f, ((rand()%100)-50)/100.f));
-                }
-
-                num -= out;
-            }
-        }
-    }
-}
-
-worth::worth()
-{
-    memset(this->resources, 0, sizeof(this->resources));
-    this->oil = 0.f;
-}
-
-struct worth&
-worth::add(uint8_t resource_type, uint32_t num)
-{
-    this->resources[resource_type] = num;
-
-    return *this;
-}
-
-struct worth&
-worth::add_oil(float val)
-{
-    this->oil = val;
-
-    return *this;
-}
-
-struct worth&
-worth::add(const struct worth& worth)
-{
-    this->oil += worth.oil;
-    for (int x=0; x<NUM_RESOURCES; ++x) {
-        this->resources[x] += worth.resources[x];
-    }
-
-    return *this;
 }
 
 float

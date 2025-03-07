@@ -63,7 +63,6 @@ class level_chunk : public entity
     int min_merged[3];
 
     struct tms_entity layer_entities[3];
-    struct tms_entity grass_entity[2]; /* first entity is for layer 0+1, second entity layer 2 */
 
     int num_fixtures, num_dyn_fixtures, num_non_unloadable;
     int unload_ticks;
@@ -93,7 +92,6 @@ class level_chunk : public entity
         this->load_phase = 0;
         this->set_flag(ENTITY_ALLOW_CONNECTIONS, true);
         this->set_flag(ENTITY_IS_STATIC, true);
-        this->set_flag(ENTITY_IS_ZAPPABLE, true);
         this->g_id = O_CHUNK;
         this->set_mesh((struct tms_mesh*)0);
         this->set_material(&m_tpixel);
@@ -113,13 +111,6 @@ class level_chunk : public entity
             this->layer_entities[x].prio = x;
             this->num_merged[x] = 0;
             this->min_merged[x] = 0;
-        }
-        for (int x=0; x<2; x++) {
-            tms_entity_init(&this->grass_entity[x]);
-            tms_entity_set_material(&this->grass_entity[x], &m_grass);
-            tms_entity_set_mesh(&this->grass_entity[x], tms_mesh_alloc(0,0));
-            this->grass_entity[x].prio = x*2;
-            tms_entity_add_child(&this->layer_entities[x*2], &this->grass_entity[x]);
         }
 
         memset(pixels, 0, sizeof(pixels));
@@ -160,25 +151,8 @@ class level_chunk : public entity
     void on_paused_touch(b2Fixture *my, b2Fixture *other);
     void on_paused_untouch(b2Fixture *my, b2Fixture *other);
 
-    void make_smooth(chunk_window *win);
-
     void generate(chunk_window *win, int up_to_phase=5);
-    void generate_phase1(chunk_window *win);
-    void generate_phase2(chunk_window *win);
-    void generate_phase3(chunk_window *win);
-    void generate_phase4(chunk_window *win);
-    void generate_phase5(chunk_window *win);
-    void generate_phase6(chunk_window *win);
 
-    /* phase 3 */
-    void generate_vegetation(float *heights);
-    void generate_caves(float *heights);
-
-    /* phase 4+5 */
-    void apply_gentypes(int sorting);
-
-    void merge(int _x, int _y, int _z, int _w, int _h, int _d);
-    void remerge();
 
     void update_pixel_buffer();
     void update_heights();

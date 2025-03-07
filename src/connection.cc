@@ -3,8 +3,6 @@
 #include "material.hh"
 #include "world.hh"
 #include "object_factory.hh"
-#include "gear.hh"
-#include "rack.hh"
 #include "game.hh"
 
 void
@@ -180,51 +178,6 @@ connection::create_joint(bool add)
     if (this->e->get_body(this->f[0]) != this->o->get_body(this->f[1])) {
         switch (this->type) {
             case CONN_CUSTOM: this->e->connection_create_joint(this); break;
-
-            case CONN_RACK:{
-                gear *g = static_cast<gear*>(this->e); /* always this order */
-                rack *r = static_cast<rack*>(this->o);
-
-                gjd.bodyA = this->e->get_body(this->f[0]);
-                gjd.bodyB = this->o->get_body(this->f[1]);
-                gjd.joint1 = g->joint;
-                gjd.joint2 = r->joint;
-                gjd.ratio = 1.f/g->get_ratio();
-                this->j = b2->CreateJoint(&gjd);
-
-                r->update_limits();
-                }
-                break;
-
-            case CONN_GEAR:{
-                gear *g0 = static_cast<gear*>(this->e);
-                gear *g1 = static_cast<gear*>(this->o);
-                float ratio = 1.f;
-                if (this->e->get_layer() == this->o->get_layer()) {
-                    if (g0->properties[0].v.i != g1->properties[0].v.i) {
-                        //ratio = g1->get_ratio()/g0->get_ratio();
-                        ratio = g1->get_ratio()/g0->get_ratio();
-                    }
-                }
-
-                /*
-                if (((gear*)this->e)->get_num_gear_conns() < ((gear*)this->o)->get_num_gear_conns()) {
-                    ((gear*)this->e)->fix_position(this->o);
-                } else
-                    ((gear*)this->o)->fix_position(this->e);
-                    */
-
-                gjd.bodyA = this->e->get_body(this->f[0]);
-                gjd.bodyB = this->o->get_body(this->f[1]);
-                gjd.joint1 = ((gear*)this->e)->joint;
-                gjd.joint2 = ((gear*)this->o)->joint;
-
-                tms_infof("types %p %p: %p %p %d %d", this->e, this->o, gjd.joint1, gjd.joint2, gjd.joint1->GetType(), gjd.joint2->GetType());
-                gjd.ratio = ratio;
-                gjd.collideConnected = true;
-                this->j = b2->CreateJoint(&gjd);
-                }
-                break;
 
             case CONN_PIVOT:
                 if (this->e->is_wheel() && this->o->is_wheel() && this->e->get_layer() != this->o->get_layer()) {

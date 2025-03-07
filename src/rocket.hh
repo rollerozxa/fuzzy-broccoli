@@ -9,18 +9,17 @@ class rocket : public ecomp_multiconnect, b2QueryCallback
 {
   private:
     connection c;
-    int rtype;
     float thrustmul;
     flame_effect *flames;
 
   public:
-    rocket(int size);
+    rocket();
 
     edevice* solve_electronics(void);
     //void add_to_world();
 
     void step();
-    const char *get_name(){if (this->rtype==0)return "Thruster"; else return "Rocket";};
+    const char *get_name(){return "Rocket";};
 
     float get_slider_snap(int s);
     float get_slider_value(int s);

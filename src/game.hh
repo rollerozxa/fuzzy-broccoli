@@ -12,8 +12,6 @@
 #include "text.hh"
 #include "world.hh"
 
-#define OFFS_REPAIR_STATION 0.f, 3.f
-
 #define SS_ACTION_DISCONNECT 0
 #define SS_ACTION_SELECT     1
 
@@ -21,7 +19,6 @@ class activator;
 class game_message;
 class p_text;
 class principia_wdg;
-class robot;
 class plug;
 class edevice;
 class isocket;
@@ -50,10 +47,6 @@ enum {
 
     GW_MULTISEL_IMPORT_EXPORT,
     GW_REMOVE,
-
-    GW_BRUSH_LAYER_INCLUSION,
-    GW_BRUSH_MAT_0,
-    GW_BRUSH_MAT_END = GW_BRUSH_MAT_0 + NUM_TERRAIN_MATERIALS-1,
 
     GW_INFO,
     GW_LAYER_DOWN_CYCLE,
@@ -85,8 +78,6 @@ enum {
     GW_CLOSE_PANEL_EDIT,
     GW_PANEL_SLIDER_KNOB,
 
-    GW_SUBMIT_SCORE,
-
     GW_TOOL_HELP,
 
     GW_IGNORE
@@ -97,20 +88,6 @@ struct game_debug_line
     float x1, y1, x2, y2;
     float r, g, b;
     int64_t life;
-};
-
-namespace game_sorter
-{
-
-struct distance_to_creature {
-    creature *c;
-
-    distance_to_creature(creature *c)
-        : c(c)
-    { }
-    bool operator()(activator *a, activator *b);
-};
-
 };
 
 // dt required before normalizing camera movement
@@ -135,36 +112,20 @@ enum {
     GAME_MODE_SELECT_CONN_TYPE,
     GAME_MODE_EDIT_PANEL,
     GAME_MODE_MULTISEL,
-    GAME_MODE_EDIT_GEARBOX,
     GAME_MODE_SELECT_OBJECT,
     GAME_MODE_SELECT_CONN,
     GAME_MODE_QUICK_PLUG,
     GAME_MODE_ROTATE,
     GAME_MODE_GRAB,
-    GAME_MODE_DRAW,
     GAME_MODE_FACTORY,
     GAME_MODE_INVENTORY,
     GAME_MODE_CONN_EDIT,
-    GAME_MODE_REPAIR_STATION,
 };
-
-enum {
-    TUTORIAL_TEXT_PICKUP_EQUIPMENT,
-    TUTORIAL_TEXT_ZAP_WOOD,
-    TUTORIAL_TEXT_CAVE_FIRST_TIME,
-    TUTORIAL_TEXT_REPAIR_STATION_DROP,
-    TUTORIAL_TEXT_BUILD_LADDERS,
-
-    NUM_TUTORIAL_TEXTS,
-};
-
-#define MAX_TUTORIAL_TEXTS 2
 
 #define GAME_RESUME_NEW          0
 #define GAME_RESUME_OPEN         1
 #define GAME_RESUME_CONTINUE     2
 #define GAME_RESUME_NEW_EMPTY    3
-#define GAME_START_NEW_ADVENTURE 4
 
 #define GAME_END_PROCEED 0
 #define GAME_END_WARP    1
@@ -443,38 +404,25 @@ class game : public pscreen
     principia_wdg *wdg_mode;
     principia_wdg *wdg_advanced;
     principia_wdg *wdg_help;
-    principia_wdg *wdg_error;
     principia_wdg *wdg_default_layer;
     principia_wdg *wdg_multisel;
     principia_wdg *wdg_remove;
-    principia_wdg *wdg_layer_inclusion;
     principia_wdg *wdg_multimat;
-    principia_wdg *wdg_brush_material[NUM_TERRAIN_MATERIALS];
     principia_wdg *wdg_connstrength;
     principia_wdg *wdg_conndamping;
     principia_wdg *wdg_menu;
     principia_wdg *wdg_quickadd;
 
-    principia_wdg *wdg_submit_score;
-    principia_wdg *wdg_unable_to_submit_score;
-
-    principia_wdg *wdg_current_tool;
-
     // entity selection
     principia_wdg *wdg_info;
     principia_wdg *wdg_layer;
-    principia_wdg *wdg_layer_down;
-    principia_wdg *wdg_layer_up;
     principia_wdg *wdg_lock;
     principia_wdg *wdg_detach;
     principia_wdg *wdg_unplug;
     principia_wdg *wdg_axis;
     principia_wdg *wdg_moveable;
     principia_wdg *wdg_config;
-    principia_wdg *wdg_tracker;
     principia_wdg *wdg_cwccw;
-    principia_wdg *wdg_freq_up;
-    principia_wdg *wdg_freq_down;
     principia_wdg *wdg_selection_slider[ENTITY_MAX_SLIDERS];
     p_text        *info_label;
     principia_wdg *wdg_follow_connections;
@@ -571,7 +519,7 @@ class game : public pscreen
     bool delete_level(int id_type, uint32_t id, uint32_t save_id);
     bool delete_partial(uint32_t id);
     bool autosave();
-    bool save(bool create_icon=true, bool force=false);
+    bool save(bool force=false);
     bool save_copy(void);
     void save_state(void);
     bool upload();
@@ -598,9 +546,6 @@ class game : public pscreen
 
     tms_fb *icon_fb;
     tms_fb *main_fb;
-    tms_fb *bloom_fb;
-
-    void create_icon();
 
     tms::graph *outline_graph;
 
@@ -680,10 +625,8 @@ class game : public pscreen
     void render_sandbox_menu(void);
     void render_connections(void);
     void render_existing_connections(void);
-    void render_edev_labels(void);
     void render_activators(void);
     void render_starred(void);
-    void render_controls_help(void);
 
     entity *get_pending_ent();
 
@@ -705,7 +648,6 @@ class game : public pscreen
     void write_state(lvlinfo *lvl, lvlbuf *lb);
     void load_state();
 
-    int get_gb_pos();
     int get_menu_width();
     void set_menu_width(int new_menu_width);
     float get_bmenu_x();
@@ -717,27 +659,18 @@ class game : public pscreen
     void reset(void);
 
     void init_panel_edit(void);
-    void init_gearbox_edit(void);
     void init_sandbox_menu();
     struct tms_texture* get_sandbox_texture(int n);
-    struct tms_texture* get_item_texture();
     void add_menu_item(int cat, entity *e);
     int menu_handle_event(tms::event *ev);
     int panel_edit_handle_event(tms::event *ev);
-    int factory_handle_event(tms::event *ev);
     int inventory_handle_event(tms::event *ev);
-    void gearbox_edit_handle_event(tms::event *ev);
-    int repair_station_handle_event(tms::event *ev);
-    void render_factory(void);
-    void render_repair_station(void);
     void render_inventory(void);
     void render_panel_edit(void);
-    void render_gearbox_edit(void);
     void update_pairs();
     void panel_edit_refresh(void);
     bool panel_edit_need_scroll;
 
-    p_text *score_text;
     p_text *numfeed_text;
     float numfeed_timer;
     char numfeed_str[32];
@@ -784,9 +717,6 @@ class game : public pscreen
     tms::screen *screen_back;
     int layer_vis;
     int layer_vis_saved;
-    int brush;
-    bool brush_layer_inclusion;
-    uint8_t brush_material;
 
     int dropping;
     uint32_t drop_step;
@@ -805,25 +735,6 @@ class game : public pscreen
         tvec3 color;
         bool regen;
         hp(){time=0;e=0;regen=false;};
-    };
-
-    struct loot {
-        uint8_t resource_type;
-        const char *name;
-        int num;
-        float life;
-        float scale;
-        p_text *text;
-
-        loot(uint8_t _resource_type, const char *_name, int _num, float _life)
-            : resource_type(_resource_type)
-            , name(_name)
-            , num(_num)
-            , life(_life)
-            , scale(0.f)
-        {
-            this->text = new p_text(font::xlarge);
-        }
     };
 
     void free_fadeout(fadeout_event *ev);
@@ -847,12 +758,7 @@ class game : public pscreen
     std::set<fadeout_event*> fadeouts;
     struct hl hls[NUM_HL];
     struct hp hps[NUM_HP];
-    struct tutorial_text {
-        int what;
-        float life;
-        b2Vec2 pos;
-        entity *e;
-    } tt[MAX_TUTORIAL_TEXTS];
+
     std::set<entity*> starred;
     std::set<entity*> locked;
 
@@ -869,9 +775,6 @@ class game : public pscreen
     void init_graphs();
     void init_camera();
     void init_gui();
-
-    void set_caveview_zoom_limits(bool update=false);
-    void unset_caveview_zoom_limits();
 
 #ifdef DEBUG
     void print_stats();
@@ -894,8 +797,7 @@ class game : public pscreen
     connection* apply_connection(connection *c, int option);
     int resume(void);
     int pause(void);
-    void create_level(int type, bool empty, bool play);
-    void snap_to_camera(screenshot_marker *sm);
+    void create_level(int type);
 
     bool player_can_build();
 
@@ -948,45 +850,9 @@ class game : public pscreen
     void destroy_mover(uint8_t x, bool do_not_deselect=false);
     void remove_entity(entity *e);
     entity* editor_construct_entity(uint32_t g_id, int pid=0, bool force_on_pid=false, b2Vec2 offs=b2Vec2(0.f,0.f));
-    entity* editor_construct_item(uint32_t item_id);
-    entity* editor_construct_decoration(uint32_t decoration_id);
-    void handle_draw(int pid, int mx, int my);
 
     void check_all_entities();
     void puzzle_play(int type);
-
-    void refresh_score();
-    void add_score(int score);
-    void set_score(int new_score);
-    inline int get_score()
-    {
-        return this->state.m_score;
-    }
-
-    inline int get_real_score()
-    {
-        return W->score_helper ^ SCORE_XOR;
-    }
-
-    void render_tt();
-    bool tt_is_active(int what)
-    {
-        for (int x=0; x<MAX_TUTORIAL_TEXTS; x++) {
-            if (tt[x].life > 0.f && tt[x].what == what) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-    void close_tt(int what);
-    void add_tt(int what, entity *e, b2Vec2 pos, float life=2.f);
-    void add_hp(entity *e, float percent, tvec3 &color=TV_HP_RED, float time=1.f, bool regen=false);
-    void finished_tt(int what);
-
-    std::multimap<entity*, struct loot> loots;
-
-    void add_loot(entity *host, uint8_t resource_type, int num, float time=5.5f);
 
     inline void add_highlight_multi(entity_set *eset, uint8_t type=HL_PRESET_DEFAULT_MULTI, float t=1.f)
     {
@@ -1073,16 +939,6 @@ class game : public pscreen
 
     void apply_pending_connection(int n);
 
-    bool damage_entity(entity *e, b2Fixture *fx,
-            float dmg, const b2Vec2 &world_point,
-            damage_type damage_type, uint8_t damage_source, uint32_t attacker_id,
-            bool damage_creatures=true,
-            bool damage_blocks=true,
-            bool damage_interactive=true,
-            bool damage_plants=true
-            );
-    void damage_interactive(entity *e, b2Fixture *f, void *udata2, float dmg, const b2Vec2 &world_point, damage_type dmg_type);
-    void damage_tpixel(entity *p, b2Fixture *f, void *udata2, float dmg, const b2Vec2 &world_point, damage_type dmg_type);
     void emit_partial_from_buffer(const char *buf, uint16_t buf_len, b2Vec2 position);
     void emit(entity *e, entity *emitter=0, b2Vec2 velocity=b2Vec2(0.f,0.f),bool immediate=false);
     void post_emit(entity *e, entity *emitter=0, b2Vec2 velocity=b2Vec2(0.f,0.f));
@@ -1094,7 +950,6 @@ class game : public pscreen
     void add_destructable_joint(b2Joint *j, float max_force);
     void animate_disconnect(entity *e);
 
-    void handle_ingame_object_button(int btn);
     bool ingame_layerswitch_test(entity *e, int dir);
     bool check_placement_allowed(entity *e);
     void recheck_all_placements(void);
@@ -1141,16 +996,8 @@ class game : public pscreen
     void _multidelete();
 
     bool _restart_level;
-    bool _submit_score;
     void restart_level();
-    void submit_score();
     void destroy_possible_mover(entity *e);
-
-    void render_help_icon(const std::set<entity*> &set, float off_x, float off_y);
-    bool check_click_help_icon(const std::set<entity*> &set, float off_x, float off_y, b2Vec2 click_pos, struct principia_action click_action);
-
-    /* Helper-functions that are meant to keep the main action-handler a bit cleaner. */
-    void open_latest_state(bool require_equal_id, tms::screen *previous_screen=0);
 
     friend class selection_handler;
     friend class adventure;
@@ -1164,5 +1011,4 @@ extern int gid_to_menu_pos[256];
 extern tms_sprite *catsprites[of::num_categories+1];
 extern tms_sprite *catsprite_hints[of::num_categories];
 extern tms_sprite *filterlabel;
-extern tms_sprite *factionlabel;
 extern tvec2 move_pos;

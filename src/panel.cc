@@ -274,7 +274,7 @@ struct widget_info widget_data[NUM_PANEL_WIDGET_TYPES] = {
     },
 };
 
-panel::panel(int type)
+panel::panel()
     : activator(ATTACHMENT_JOINT)
 {
     this->set_flag(ENTITY_IS_CONTROL_PANEL,     true);
@@ -286,12 +286,7 @@ panel::panel(int type)
     this->ptype = type;
     this->scaleselect = true;
 
-    switch (this->ptype) {
-        case PANEL_BIG: this->init_bigpanel();break;
-        case PANEL_SMALL: this->init_smallpanel();break;
-        case PANEL_MEDIUM: this->init_mpanel();break;
-        case PANEL_XSMALL: this->init_xsmallpanel();break;
-    }
+    this->init_smallpanel();
 
     this->set_num_properties(4*this->num_widgets);
 
@@ -319,95 +314,10 @@ panel::panel(int type)
         this->properties[x*4+3].v.f = 0;
     }
 
-    float ww, h;
-    switch (this->ptype) {
-        case PANEL_SMALL:
-            ww = 1.5f / 2.f;
-            h  = 0.5f / 2.f;
-            break;
-
-        case PANEL_MEDIUM:
-            ww = 1.5f / 2.f;
-            h  = 1.0f / 2.f;
-            break;
-
-        case PANEL_BIG:
-            ww = 2.5f / 2.f;
-            h  = 1.7f / 2.f;
-            break;
-
-        default:
-            tms_errorf("Unknown panel type: %d", this->ptype);
-        case PANEL_XSMALL:
-            ww = .15f;
-            h = .2f;
-            break;
-    }
+    float ww = 1.5f / 2.f;
+    float h  = 0.5f / 2.f;
 
     this->set_as_rect(ww, h);
-}
-
-void
-panel::init_mpanel()
-{
-    this->num_widgets = 3;
-    this->set_mesh(mesh_factory::get_mesh(MODEL_PANEL_MEDIUM));
-    this->set_material(&m_mpanel);
-    this->menu_scale = 1.f/1.5f;
-
-    this->num_s_in = 9;
-    this->num_s_out = 6;
-
-    this->num_feed = 3;
-    this->num_set = 3;
-    this->has_focus = 1;
-
-    delete [] s_in;
-    this->s_in = new socket_in[9];
-
-    float l = 1.5f * .3f - .15f;
-    float s = .3f;
-
-    for (int x=0; x<3; x++) {
-        this->s_out[x].lpos = b2Vec2(-.6f, l - x*s);
-        this->s_out[3+x].lpos = b2Vec2(-.3f, l - x*s);
-
-        this->s_in[x].lpos = b2Vec2(.6f, l - x*s);
-        this->s_in[3+x].lpos = b2Vec2(.3f, l - x*s);
-        this->s_in[6+x].lpos = b2Vec2(.0f, l - x*s);
-
-        this->s_out[x].ctype = CABLE_RED;
-        this->s_out[x].tag = SOCK_TAG_VALUE;
-        this->s_out[3+x].ctype = CABLE_RED;
-        this->s_out[3+x].tag = SOCK_TAG_FOCUS;
-
-        this->s_in[x].ctype = CABLE_RED;
-        this->s_in[x].tag = SOCK_TAG_FEEDBACK;
-        this->s_in[3+x].ctype = CABLE_RED;
-        this->s_in[3+x].tag = SOCK_TAG_SET_VALUE;
-        this->s_in[6+x].ctype = CABLE_RED;
-        this->s_in[6+x].tag = SOCK_TAG_SET_ENABLE;
-    }
-}
-
-void
-panel::init_xsmallpanel()
-{
-    this->num_widgets = 1;
-    this->set_mesh(mesh_factory::get_mesh(MODEL_I0O1));
-    this->set_material(&m_iomisc);
-    this->menu_scale = 1.f;
-
-    this->num_feed = 0;
-    this->num_set = 0;
-    this->has_focus = 0;
-
-    this->num_s_in = 0;
-    this->num_s_out = 1;
-
-    this->s_out[0].lpos = b2Vec2(0.f, 0.f);
-    this->s_out[0].ctype = CABLE_RED;
-    this->s_out[0].tag = SOCK_TAG_VALUE;
 }
 
 void
@@ -433,103 +343,35 @@ panel::init_smallpanel()
 }
 
 void
-panel::init_bigpanel()
-{
-    this->num_widgets = 8;
-    this->set_mesh(mesh_factory::get_mesh(MODEL_PANEL_BIG));
-    this->set_material(&m_bigpanel);
-    this->menu_scale = 1.f/2.f;
-
-    this->num_feed = 8;
-    this->num_set = 8;
-    this->has_focus = 1;
-
-    delete [] s_in;
-    delete [] s_out;
-    this->s_in = new socket_in[24];
-    this->s_out = new socket_out[16];
-
-    this->num_s_in = 24;
-    this->num_s_out = 16;
-
-    float l = -4.f * .3f + .15f;
-    float s = .3f;
-
-    for (int x=0; x<8; x++) {
-        this->s_out[x].lpos = b2Vec2(l + x*s, -.7f);
-        this->s_out[8+x].lpos = b2Vec2(l + x*s, -.4f);
-
-        this->s_in[x].lpos = b2Vec2(l + x*s, .6f);
-        this->s_in[8+x].lpos = b2Vec2(l + x*s, .3f);
-        this->s_in[16+x].lpos = b2Vec2(l + x*s, .0f);
-
-        this->s_out[x].ctype = CABLE_RED;
-        this->s_out[x].tag = SOCK_TAG_VALUE;
-        this->s_out[8+x].ctype = CABLE_RED;
-        this->s_out[8+x].tag = SOCK_TAG_FOCUS;
-
-        this->s_in[x].ctype = CABLE_RED;
-        this->s_in[x].tag = SOCK_TAG_FEEDBACK;
-        this->s_in[8+x].ctype = CABLE_RED;
-        this->s_in[8+x].tag = SOCK_TAG_SET_VALUE;
-        this->s_in[16+x].ctype = CABLE_RED;
-        this->s_in[16+x].tag = SOCK_TAG_SET_ENABLE;
-    }
-}
-
-void
 panel::on_load(bool created, bool has_state)
 {
-    tms_debugf("panel on load");
-    if (W->level.version >= LEVEL_VERSION_1_5) {
-        for (int x=0; x<this->num_widgets; x++) {
-            this->widgets[x].sock[0] = (uint8_t)this->properties[x*4+0].v.i;
-            this->widgets[x].wtype = (uint8_t)this->properties[x*4+1].v.i;
-            this->widgets[x].used = this->properties[x*4+2].v.i & PANEL_WIDGET_USED;
-            this->widgets[x].owned = this->properties[x*4+2].v.i & PANEL_WIDGET_OWNED;
-            this->widgets[x].outputs = this->properties[x*4+2].v.i;
-            this->widgets[x].first_click = true;
 
-            if (this->widgets[x].used) {
-                this->widgets_in_use ++;
-                this->init_widget(&this->widgets[x]);
+    for (int x=0; x<this->num_widgets; x++) {
+        this->widgets[x].sock[0] = (uint8_t)this->properties[x*4+0].v.i;
+        this->widgets[x].wtype = (uint8_t)this->properties[x*4+1].v.i;
+        this->widgets[x].used = this->properties[x*4+2].v.i & PANEL_WIDGET_USED;
+        this->widgets[x].owned = this->properties[x*4+2].v.i & PANEL_WIDGET_OWNED;
+        this->widgets[x].outputs = this->properties[x*4+2].v.i;
+        this->widgets[x].first_click = true;
 
-                if (widget_data[this->widgets[x].wtype].can_save_default_value) {
-                    if (widget_data[this->widgets[x].wtype].num_outputs > 1) {
-                        unpackfloats(&this->properties[x*4+3].v.f, &this->widgets[x].default_value[0], &this->widgets[x].default_value[1]);
-                    } else {
-                        this->widgets[x].default_value[0] = this->properties[x*4+3].v.f;
-                        this->widgets[x].default_value[1] = this->properties[x*4+3].v.f;
-                    }
-                } else {
-                    this->widgets[x].default_value[0] = 0.f;
-                    this->widgets[x].default_value[1] = 0.f;
-                }
-            }
-        }
-    } else {
-        for (int x=0; x<this->num_widgets; x++) {
-            this->widgets[x].sock[0] = (uint8_t)this->properties[x*4+0].v.i;
-            this->widgets[x].wtype = (uint8_t)this->properties[x*4+1].v.i;
-            this->widgets[x].used = (bool)this->properties[x*4+2].v.i;
-            this->widgets[x].first_click = true;
+        if (this->widgets[x].used) {
+            this->widgets_in_use ++;
+            this->init_widget(&this->widgets[x]);
 
-            if (this->widgets[x].used) {
-                this->widgets_in_use ++;
-                this->init_widget(&this->widgets[x]);
-
-                if (this->widgets[x].wtype != PANEL_RADIAL && this->widgets[x].wtype != PANEL_BIGRADIAL &&
-                        this->widgets[x].wtype != PANEL_SLIDER && this->widgets[x].wtype != PANEL_BIGSLIDER &&
-                        this->widgets[x].wtype != PANEL_VSLIDER && this->widgets[x].wtype != PANEL_VBIGSLIDER) {
-                    this->widgets[x].default_value[0] = 0.f;
-                    this->widgets[x].default_value[1] = 0.f;
+            if (widget_data[this->widgets[x].wtype].can_save_default_value) {
+                if (widget_data[this->widgets[x].wtype].num_outputs > 1) {
+                    unpackfloats(&this->properties[x*4+3].v.f, &this->widgets[x].default_value[0], &this->widgets[x].default_value[1]);
                 } else {
                     this->widgets[x].default_value[0] = this->properties[x*4+3].v.f;
                     this->widgets[x].default_value[1] = this->properties[x*4+3].v.f;
                 }
+            } else {
+                this->widgets[x].default_value[0] = 0.f;
+                this->widgets[x].default_value[1] = 0.f;
             }
         }
     }
+
 
     this->update_panel_key_labels();
 
@@ -539,45 +381,37 @@ panel::on_load(bool created, bool has_state)
 void
 panel::pre_write(void)
 {
-    if (W->level.version >= LEVEL_VERSION_1_5) {
-        for (int x=0; x<this->num_widgets; x++) {
-            this->properties[x*4+0].v.i = (int)this->widgets[x].sock[0];
-            this->properties[x*4+1].v.i = (int)this->widgets[x].wtype;
-            uint32_t o = 0;
-            if (this->widgets[x].used) {
-                o |= PANEL_WIDGET_USED;
-            }
-            if (this->widgets[x].owned) {
-                o |= PANEL_WIDGET_OWNED;
-            }
-
-            if (widget_data[this->widgets[x].wtype].num_outputs > 1) {
-                for (int n=0; n<this->num_widgets; ++n) {
-                    if (this->widgets[x].outputs & (1ULL << (n+1))) {
-                        o |= (1ULL << (n+1));
-                    }
-                }
-            } else {
-                o |= (1ULL << (x+1));
-                // for normal widgets, the sock will be used
-            }
-
-            this->properties[x*4+2].v.i = o;
-            if (widget_data[this->widgets[x].wtype].num_outputs > 1) {
-                packfloats(&this->properties[x*4+3].v.f, &this->widgets[x].default_value[0], &this->widgets[x].default_value[1]);
-            } else {
-                // only store the first default value
-                this->properties[x*4+3].v.f = this->widgets[x].default_value[0];
-            }
+    for (int x=0; x<this->num_widgets; x++) {
+        this->properties[x*4+0].v.i = (int)this->widgets[x].sock[0];
+        this->properties[x*4+1].v.i = (int)this->widgets[x].wtype;
+        uint32_t o = 0;
+        if (this->widgets[x].used) {
+            o |= PANEL_WIDGET_USED;
         }
-    } else {
-        for (int x=0; x<this->num_widgets; x++) {
-            this->properties[x*4+0].v.i = (int)this->widgets[x].sock[0];
-            this->properties[x*4+1].v.i = (int)this->widgets[x].wtype;
-            this->properties[x*4+2].v.i = (int)this->widgets[x].used;
+        if (this->widgets[x].owned) {
+            o |= PANEL_WIDGET_OWNED;
+        }
+
+        if (widget_data[this->widgets[x].wtype].num_outputs > 1) {
+            for (int n=0; n<this->num_widgets; ++n) {
+                if (this->widgets[x].outputs & (1ULL << (n+1))) {
+                    o |= (1ULL << (n+1));
+                }
+            }
+        } else {
+            o |= (1ULL << (x+1));
+            // for normal widgets, the sock will be used
+        }
+
+        this->properties[x*4+2].v.i = o;
+        if (widget_data[this->widgets[x].wtype].num_outputs > 1) {
+            packfloats(&this->properties[x*4+3].v.f, &this->widgets[x].default_value[0], &this->widgets[x].default_value[1]);
+        } else {
+            // only store the first default value
             this->properties[x*4+3].v.f = this->widgets[x].default_value[0];
         }
     }
+
 
     entity::pre_write();
 }
@@ -951,7 +785,7 @@ panel::panel_disconnected()
 
     for (int x=0; x<this->num_widgets; x++) {
         if (this->widgets[x].used) {
-            if (this->widgets[x].type == TMS_WDG_BUTTON && (this->ptype == PANEL_SMALL || this->ptype == PANEL_XSMALL)) {
+            if (this->widgets[x].type == TMS_WDG_BUTTON && this->ptype == PANEL_SMALL) {
                 // We can only reset widget value when we can be 100% sure the value cannot be overriden
                 this->widgets[x].value[0] = this->widgets[x].default_value[0];
                 this->widgets[x].value[1] = this->widgets[x].default_value[1];
@@ -959,10 +793,4 @@ panel::panel_disconnected()
             G->get_surface()->remove_widget(&this->widgets[x]);
         }
     }
-}
-
-void
-panel::activate(creature *by)
-{
-    tms_infof("the panel has been activated!");
 }

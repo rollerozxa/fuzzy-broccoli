@@ -155,7 +155,7 @@ wireless_plug::update_effects()
     float z = this->get_layer()*LAYER_DEPTH + .65f;
     b2Vec2 p = this->get_position();
 
-    if (W->is_paused() && G->state.sandbox && G->get_zoom() < 9.f && settings["display_wireless_frequency"]->v.b) {
+    if (W->is_paused() && G->state.sandbox && G->get_zoom() < 9.f) {
         char val_str[64];
         sprintf(val_str, "%u", this->properties[0].v.i);
         textbuffer::add_text(val_str, font::medium,

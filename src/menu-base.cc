@@ -1,7 +1,6 @@
 #include "menu-base.hh"
 #include "menu_shared.hh"
 #include "menu_main.hh"
-#include "menu_create.hh"
 #include "widget_manager.hh"
 #include "gui.hh"
 #include "ui.hh"
@@ -46,10 +45,6 @@ menu_base::widget_clicked(principia_wdg *w, uint8_t button_id, int pid)
             ui::open_url(url);
 	    } break;
 
-        case BTN_BITHACK:
-            ui::open_url("https://www.bithack.com/");
-            break;
-
         case BTN_SETTINGS:
             ui::open_dialog(DIALOG_SETTINGS);
             break;
@@ -58,14 +53,6 @@ menu_base::widget_clicked(principia_wdg *w, uint8_t button_id, int pid)
             {
                 uint32_t id = VOID_TO_UINT32(w->data3);
                 COMMUNITY_URL("level/%u", id);
-                ui::open_url(url);
-            }
-            break;
-
-        case BTN_CONTEST:
-            {
-                uint32_t id = VOID_TO_UINT32(w->data3);
-                COMMUNITY_URL("contest/%u", id);
                 ui::open_url(url);
             }
             break;
@@ -103,17 +90,6 @@ menu_base::menu_base(bool _include_logo)
     this->wdg_version->priority = 1000;
     this->wdg_version->label = menu_shared::text_version;
     this->wdg_version->add();
-
-    this->wdg_message = this->wm->create_widget(
-            this->get_surface(), TMS_WDG_LABEL,
-            BTN_MESSAGE, AREA_NOMARGIN_BOTTOM_CENTER);
-    this->wdg_message->label = menu_shared::text_message;
-
-    this->wdg_bithack = this->wm->create_widget(
-            this->get_surface(), TMS_WDG_BUTTON,
-            BTN_BITHACK, AREA_NOMARGIN_BOTTOM_LEFT,
-            gui_spritesheet::get_sprite(S_BITHACK), 0, 1.0f);
-    this->wdg_bithack->add();
 
     this->wdg_settings = this->wm->create_widget(
             this->get_surface(), TMS_WDG_BUTTON,
@@ -172,9 +148,7 @@ menu_base::render()
 #endif
 
     if (!P.focused) {
-#ifndef TMS_BACKEND_IOS
         SDL_Delay(100);
-#endif
     }
 
     glDisable(GL_BLEND);
@@ -194,7 +168,6 @@ menu_base::render()
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    menu_shared::tex_vignette->render();
 
     if (this->include_logo) {
         int w = 0.75f * menu_shared::tex_principia->width*this->scale;
@@ -256,13 +229,6 @@ menu_base::step(double dt)
 void
 menu_base::refresh_widgets()
 {
-    if (!this->wdg_message->surface && menu_shared::text_message && menu_shared::text_message->text) {
-        this->wdg_message->add();
-
-        this->wdg_message->size.x = this->wdg_message->label->get_width();
-        this->wdg_message->size.y = this->wdg_message->label->get_height();
-    }
-
     if (this->wdg_username->label) {
         this->wdg_username->size.x = pscreen::text_username->get_width();
         this->wdg_username->size.y = pscreen::text_username->get_height();

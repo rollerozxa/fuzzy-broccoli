@@ -4,44 +4,14 @@
 #include "main.hh"
 #include "game.hh"
 #include "menu_main.hh"
-#include "menu-play.hh"
 #include "loading_screen.hh"
 #include "game-message.hh"
 #include "beam.hh"
 #include "wheel.hh"
-#include "pixel.hh"
-#include "command.hh"
-#include "i1o1gate.hh"
 #include "pkgman.hh"
 #include "object_factory.hh"
-#include "box.hh"
 #include "settings.hh"
-#include "fxemitter.hh"
-#include "i0o1gate.hh"
-#include "i2o0gate.hh"
-#include "display.hh"
-#include "prompt.hh"
-#include "robot_base.hh"
-#include "adventure.hh"
-#include "speaker.hh"
-#include "timer.hh"
-#include "jumper.hh"
-#include "item.hh"
-#include "escript.hh"
-#include "tpixel.hh"
-#include "factory.hh"
-#include "faction.hh"
-#include "anchor.hh"
-#include "resource.hh"
-#include "animal.hh"
 #include "simplebg.hh"
-#include "soundman.hh"
-#include "polygon.hh"
-#include "treasure_chest.hh"
-#include "decorations.hh"
-#include "sequencer.hh"
-#include "sfxemitter.hh"
-#include "key_listener.hh"
 #include "soundmanager.hh"
 
 #include <tms/core/tms.h>
@@ -139,10 +109,6 @@ void ui::alert(const char*, uint8_t/*=ALERT_INFORMATION*/) {};
 #elif defined(PRINCIPIA_BACKEND_IMGUI)
 
 #include "ui_imgui.hh"
-
-#elif defined(TMS_BACKEND_IOS)
-
-#include "ui_ios.hh"
 
 #elif defined(TMS_BACKEND_ANDROID)
 

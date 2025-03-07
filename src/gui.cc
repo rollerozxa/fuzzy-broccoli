@@ -33,7 +33,6 @@ p_text *gui_spritesheet::t_continue;
 p_text *gui_spritesheet::t_win;
 p_text *gui_spritesheet::t_lose;
 p_text *gui_spritesheet::t_player_death;
-p_text *gui_spritesheet::t_submit_score;
 
 p_text *gui_spritesheet::t_out[NUM_SOCKET_SPRITES];
 p_text *gui_spritesheet::t_in[NUM_SOCKET_SPRITES];
@@ -54,30 +53,21 @@ struct sprite_load_data gui_spritesheet::sprites[NUM_SPRITES] = {
     { "data/textures/ui/btn_export.png", &atlas },
     { "data/textures/symbols/star.png", &atlas },
     { "data/textures/symbols/lock.png", &atlas },
-    { "data/textures/symbols/warning.png", &atlas },
     { "data/textures/symbols/checkmark.png", &atlas },
     { "data/textures/ui/btn_marker.png", &atlas },
-    { "data/icons/oil_01.png", &atlas },
     { "data/textures/ui/btn_motor_axisrot.png", &atlas },
-    { "data/textures/ui/btn_conveyor_axisrot.png", &atlas },
-    { "data/textures/ui/btn_select.png", &atlas },
     { "data/textures/ui/btn_wip.png", &atlas },
     { "data/textures/ui/btn_wip_2.png", &atlas },
     { "data/textures/ui/btn_plus.png", &atlas },
-    { "data/textures/ui/btn_minus.png", &atlas },
     { "data/textures/ui/mouse.png", &atlas },
-    { "data/textures/ui/btn_tpixel_material_multi.png", &atlas },
     { "data/textures/ui/btn_right.png", &atlas },
     { "data/textures/ui/btn_left.png", &atlas },
-    { "data/textures/ui/btn_adventure_leftright.png", &atlas },
     { "data/textures/ui/btn_up.png", &atlas },
     { "data/textures/ui/btn_down.png", &atlas },
     { "data/textures/ui/dropdown_indicator.png", &atlas },
     { "data/textures/ui/btn_advup.png", &atlas },
     { "data/textures/ui/btn_advdown.png", &atlas },
     { "data/textures/ui/btn_config.png", &atlas },
-    { "data/textures/ui/btn_floor.png", &atlas },
-    { "data/textures/ui/btn_not_floor.png", &atlas },
     { "data/textures/ui/btn_info.png", &atlas },
     { "data/textures/ui/btn_help.png", &atlas },
     { "data/textures/ui/btn_dc.png", &atlas },
@@ -119,13 +109,6 @@ struct sprite_load_data gui_spritesheet::sprites[NUM_SPRITES] = {
 
     { "data/textures/menu/menu_play.png", &atlas },
     { "data/textures/menu/menu_create.png", &atlas },
-    { "data/textures/menu/bithacklogo.png", &atlas },
-
-    { "data/textures/ui/rounded_help.png", &atlas },
-
-    { "data/textures/ui/btn_l1_inclusive.png", &atlas },
-    { "data/textures/ui/btn_l2_inclusive.png", &atlas },
-    { "data/textures/ui/btn_l3_inclusive.png", &atlas },
 
     { "data/textures/ui/btn_boxselect.png", &atlas },
     { "data/textures/ui/btn_select_through.png", &atlas },
@@ -134,21 +117,6 @@ struct sprite_load_data gui_spritesheet::sprites[NUM_SPRITES] = {
     { "data/textures/ui/btn_l1.png", &atlas },
     { "data/textures/ui/btn_l2.png", &atlas },
     { "data/textures/ui/btn_l3.png", &atlas },
-
-    { "data/textures/ui/btn_tpixel_material_grass.png", &atlas },
-    { "data/textures/ui/btn_tpixel_material_dirt.png", &atlas },
-    { "data/textures/ui/btn_tpixel_material_dirt_stone.png", &atlas },
-    { "data/textures/ui/btn_tpixel_material_stone.png", &atlas },
-
-    { "data/icons/ruby_03.png", &atlas },
-    { "data/icons/sapphire_02.png", &atlas },
-    { "data/icons/emerald_01.png", &atlas },
-    { "data/icons/topaz_04.png", &atlas },
-    { "data/icons/diamond_01.png", &atlas },
-    { "data/icons/copper_01.png", &atlas },
-    { "data/icons/iron_01.png", &atlas },
-    { "data/icons/wood_01.png", &atlas },
-    { "data/icons/aluminium.png", &atlas },
 };
 
 struct atlas_layout
@@ -849,7 +817,6 @@ gui_spritesheet::init()
     t_win = new p_text(font::xlarge);
     t_lose = new p_text(font::xlarge);
     t_player_death = new p_text(font::xlarge);
-    t_submit_score = new p_text(font::large);
 
 #ifdef TMS_BACKEND_PC
     t_test_playing_back->set_text("Test-playing level. Press B to return to sandbox.");
@@ -863,7 +830,6 @@ gui_spritesheet::init()
     t_win->set_text("Level completed!");
     t_lose->set_text("Game over");
     t_player_death->set_text("You died");
-    t_submit_score->set_text("Submit score");
 
 
     char ss[64];

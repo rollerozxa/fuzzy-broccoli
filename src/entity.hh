@@ -17,25 +17,6 @@ class game;
 class world;
 class base_prompt;
 
-struct worth
-{
-    uint32_t resources[NUM_RESOURCES];
-    float oil;
-
-    worth();
-
-    /* Add num resources */
-    struct worth& add(uint8_t resource_type, uint32_t num);
-
-    /* Add oil */
-    struct worth& add_oil(float val);
-
-    /* Add resources and oil from another worth object */
-    struct worth& add(const struct worth& worth);
-};
-
-#define ENTITY_MAX_HEALTH 15.f
-
 #define ENTITY_NOT_SEARCHED         (1U << 0)
 #define ENTITY_PROT_PLATFORM        (1U << 1)
 #define ENTITY_PROT_AUTOPROTECTOR   (1U << 2)
@@ -113,14 +94,11 @@ struct worth
 #define ENTITY_ALLOW_CONNECTIONS        (1ULL << 3)  // allow other entities connecting to this entity
 #define ENTITY_IS_STATIC                (1ULL << 4)
 #define ENTITY_IS_ABSORBED              (1ULL << 5)  // entities with this flag should no longer be handled by anything!
-#define ENTITY_IS_ROBOT                 (1ULL << 6)
 #define ENTITY_IS_COMPOSABLE            (1ULL << 7)
 #define ENTITY_IS_EDEVICE               (1ULL << 8)
 #define ENTITY_IS_BRDEVICE              (1ULL << 9)
 #define ENTITY_IS_CONTROL_PANEL         (1ULL << 10)
 #define ENTITY_DISABLE_UNLOADING        (1ULL << 11)
-#define ENTITY_IS_PROMPT                (1ULL << 12)
-#define ENTITY_IS_MAGNETIC              (1ULL << 13) // specified whether the entity is affected by magnetic powers
 #define ENTITY_IS_MOVEABLE              (1ULL << 14)
 #define ENTITY_ALLOW_ROTATION           (1ULL << 15)
 #define ENTITY_DISABLE_LAYERS           (1ULL << 16) // disable manually setting this entities layer
@@ -143,12 +121,9 @@ struct worth
 #define ENTITY_CAN_MOVE                 (1ULL << 33)
 #define ENTITY_CUSTOM_GHOST_UPDATE      (1ULL << 34)
 #define ENTITY_IS_BULLET                (1ULL << 35)
-#define ENTITY_UNUSED_FLAG_2            (1ULL << 36)
 #define ENTITY_IS_DEBRIS                (1ULL << 37)
 #define ENTITY_IS_BEAM                  (1ULL << 38)
-#define ENTITY_IS_CRANE_PULLEY          (1ULL << 39)
 #define ENTITY_IS_PLUG                  (1ULL << 40)
-#define ENTITY_IS_CREATURE              (1ULL << 41)
 #define ENTITY_IS_EXPLOSIVE             (1ULL << 42)
 #define ENTITY_WAS_HIDDEN               (1ULL << 43)
 #define ENTITY_DYNAMIC_UNLOADING        (1ULL << 44) // if this entity can be unloaded from a level not sleeping
@@ -158,10 +133,6 @@ struct worth
 #define ENTITY_IS_PLASTIC               (1ULL << 48)
 #define ENTITY_HAS_ACTIVATOR            (1ULL << 49)
 #define ENTITY_STATE_SLEEPING           (1ULL << 50)
-#define ENTITY_CAN_BE_GRABBED           (1ULL << 51) // can be grabbed using Builder
-#define ENTITY_CAN_BE_COMPRESSED        (1ULL << 52) // can be compressed using Compressor
-#define ENTITY_IS_ZAPPABLE              (1ULL << 53) // can be zapped using the Zapper
-#define ENTITY_IS_DEV                   (1ULL << 54) // object is a development/unused object (displays with a DEV label)
 
 #define MATERIAL_PLASTIC 0
 
@@ -559,46 +530,19 @@ class entity : public tms::entity
         }
     }
 
-    /* Returns true if the entity has a wireless functionality, meaning it
-     * has at least one property and that first property is used for as
-     * a wireless frequency. */
-    inline bool is_wireless()
-    {
-        return (this->g_id == O_RECEIVER || this->g_id == O_TRANSMITTER || this->g_id == O_MINI_TRANSMITTER);
-    }
-
-    inline bool is_item()
-    {
-        return (this->g_id == O_ITEM);
-    }
-
-    inline bool is_prompt_compatible()
-    {
-        return this->flag_active(ENTITY_IS_PROMPT);
-    }
-
-    virtual bool is_zappable() { return this->flag_active(ENTITY_IS_ZAPPABLE); }
-
     inline bool is_explosive() { return this->flag_active(ENTITY_IS_EXPLOSIVE); }
-    inline bool is_compressable() { return this->flag_active(ENTITY_CAN_BE_COMPRESSED); }
     inline bool is_static() { return this->flag_active(ENTITY_IS_STATIC); }
     inline bool is_bullet() { return this->flag_active(ENTITY_IS_BULLET); }
-    inline bool is_creature() { return this->flag_active(ENTITY_IS_CREATURE); }
-    inline bool is_robot() { return this->flag_active(ENTITY_IS_ROBOT); }
     inline bool is_control_panel() { return this->flag_active(ENTITY_IS_CONTROL_PANEL); }
     inline bool is_rc() { return this->flag_active(ENTITY_IS_CONTROL_PANEL); }
     inline bool is_edevice() { return this->flag_active(ENTITY_IS_EDEVICE); }
     inline bool is_interactive() { return this->flag_active(ENTITY_IS_INTERACTIVE); }
     inline bool is_composable() { return this->flag_active(ENTITY_IS_COMPOSABLE); }
-    inline bool is_wheel() { return (this->type == ENTITY_WHEEL || this->type == ENTITY_GEAR); }
-    inline bool is_gearbox() { return (this->g_id == O_GEARBOX); }
+    inline bool is_wheel() { return (this->type == ENTITY_WHEEL); }
     inline bool allow_connections() { return this->flag_active(ENTITY_ALLOW_CONNECTIONS); }
     inline bool has_tracker() { return this->flag_active(ENTITY_HAS_TRACKER); }
     virtual bool is_locked() { return this->flag_active(ENTITY_IS_LOCKED); }
 
-    /* If this function returns true, then when the entity is to be deleted by
-     * pressing Delete or the "remove entity" widget, a confirmation will be shown. */
-    virtual bool requires_delete_confirmation() { return false; }
     bool is_motor();
     bool is_high_prio();
 
@@ -861,14 +805,6 @@ class entity : public tms::entity
     virtual bool allow_connection(entity *asker, uint8_t frame, b2Vec2 p){return true;};
     virtual bool enjoys_connection(uint32_t g_id) { return false; }
 
-    /* Zappable stuff */
-    float entity_health;
-
-    struct worth worth;
-
-    virtual void entity_damage(float dmg);
-    virtual void drop_worth();
-
     void set_property(uint8_t id, float v);
     void set_property(uint8_t id, uint32_t v);
     void set_property(uint8_t id, const char *v);
@@ -940,21 +876,5 @@ class entity_multiconnect : public entity
     void find_pairs();
 };
 
-class ghost : public entity, public b2QueryCallback
-{
-  public:
-    connection c;
-
-    ghost();
-    void update();
-    const char *get_name(){return "Shape Extruder";};
-    void init();
-    bool ReportFixture(b2Fixture *f);
-    void find_pairs();
-    void add_to_world();
-    connection* load_connection(connection &conn);
-    void connection_create_joint(connection *c);
-    bool connection_destroy_joint(connection *c);
-};
 
 void entity_fast_update(struct tms_entity *t);

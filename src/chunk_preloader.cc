@@ -5,7 +5,6 @@
 #include "terrain.hh"
 #include "gentype.hh"
 
-#include "pivot.hh"
 #include "damper.hh"
 #include "rubberband.hh"
 
@@ -124,11 +123,6 @@ chunk_preloader::preload(lvlinfo *lvl, lvlbuf *lb)
 
     this->read_gentypes(lvl, &this->w_lb);
     this->read_chunks(lvl, &this->w_lb);
-
-    /* auto-load the adventure robot */
-    if (W->level.type == LCAT_ADVENTURE) {
-        this->load_entity(G->state.adventure_id);
-    }
 
     this->loaded_entities.clear();
 
@@ -422,8 +416,7 @@ chunk_preloader::unload(level_chunk *chunk)
             }
 
             connection *extra_conn = 0;
-            if (en->g_id == O_OPEN_PIVOT) extra_conn = &((pivot_1*)en)->dconn;
-            else if (en->g_id == O_DAMPER) extra_conn = &((damper_1*)en)->dconn;
+            if (en->g_id == O_DAMPER) extra_conn = &((damper_1*)en)->dconn;
             else if (en->g_id == O_RUBBERBAND) extra_conn = &((rubberband_1*)en)->dconn;
 
             if (extra_conn) {

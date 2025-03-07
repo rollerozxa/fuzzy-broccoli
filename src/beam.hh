@@ -4,9 +4,6 @@
 
 #define BEAM_THICK   0
 #define BEAM_THIN    1
-#define BEAM_RUBBER  2
-#define BEAM_PLASTIC 3
-#define BEAM_SEP     4
 
 class beam_ray_cb;
 
@@ -25,9 +22,6 @@ class beam : public composable
         switch (this->btype) {
             case BEAM_THICK:   return "Thick Plank";
             case BEAM_THIN:    return "Plank";
-            case BEAM_RUBBER:  return "Rubber Beam";
-            case BEAM_PLASTIC: return "Plastic Beam";
-            case BEAM_SEP:     return "Separator";
         }
         return "";
     }
@@ -56,28 +50,7 @@ class beam : public composable
     void set_color(tvec4 c);
     tvec4 get_color();
 
-    void set_density_scale(float v)
-    {
-        if (this->btype == BEAM_PLASTIC) {
-            this->properties[4].v.f = v;
-        }
-    }
-    float get_density_scale(){if (this->btype == BEAM_PLASTIC) return this->properties[4].v.f; else return 1.f;};
+    float get_density_scale(){return 1.f;};
 
     friend class beam_ray_cb;
-};
-
-class room : public composable
-{
-  public:
-    room();
-    const char *get_name(){return "Background";};
-
-    float get_slider_snap(int s){if (s == 0) return 1.f / 4.f; else  return 1.f;};
-    float get_slider_value(int s){if (s == 0) return this->properties[0].v.i / 4.f; else return this->properties[1].v.i;};
-    const char *get_slider_label(int s){if (s == 0) return "Corners"; else return "Background";};
-    void on_slider_change(int s, float value);
-
-    void create_sensor();
-    void set_layer(int z);
 };

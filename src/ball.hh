@@ -2,8 +2,6 @@
 
 #include "entity.hh"
 
-void ball_update_customz(struct tms_entity *e);
-
 class ball : public entity
 {
   private:
@@ -29,11 +27,6 @@ class ball : public entity
 
     void add_to_world();
     const char* get_name(){
-        if (btype == 0)
-            return "Ball";
-        else if (btype == 1)
-            return "Metal ball";
-        else
-            return "Interactive ball";
+        return "Ball";
     };
 };

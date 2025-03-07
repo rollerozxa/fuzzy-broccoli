@@ -20,19 +20,7 @@ void soft_pause_curl();
 void quit_curl();
 
 int _check_version_code(void *_unused);
-int _get_featured_levels(void *_unused);
 
-#ifdef BUILD_PKGMGR
-
-/* Publish PKG variables */
-extern uint8_t       _publish_lvl_pkg_index = 0;
-extern uint32_t      _publish_pkg_id;
-extern volatile bool _publish_pkg_done = false;
-extern bool          _publish_pkg_error = false;
-
-int _publish_pkg(void *p);
-
-#endif
 
 /* Publish level variables */
 extern uint32_t      _publish_lvl_community_id;
@@ -45,10 +33,6 @@ extern bool          _publish_lvl_uploading_error;
 
 int _publish_level(void *p);
 
-/* Submit score variables */
-extern bool         _submit_score_done;
-
-int _submit_score(void *p);
 
 int _login(void *p);
 int _register(void *p);

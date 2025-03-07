@@ -27,7 +27,6 @@
 #include <algorithm>
 
 #include <tms/backend/print.h>
-#include "creature.hh"
 
 static const uint32 xTruncBits = 12;
 static const uint32 yTruncBits = 12;
@@ -165,7 +164,7 @@ int32 b2ParticleSystem::CreateParticle(const b2ParticleDef& def)
         tms_debugf("reached maximum particles");
         return b2_invalidParticleIndex;
     }
-        
+
 	if (m_count >= m_internalAllocatedCapacity)
 	{
 		int32 capacity = m_count ? 2 * m_count : b2_minParticleBufferCapacity;
@@ -834,15 +833,6 @@ void b2ParticleSystem::UpdateBodyContacts()
                     if (!((m_system->m_flagsBuffer.data[a] >> 16) & fixture->m_filter.categoryBits))
                         continue;
 
-                    {
-                        /* do not collide with robot feet */
-                        entity *e = (entity*)fixture->GetUserData();
-                        if (e) {
-                            if (e->flag_active(ENTITY_IS_CREATURE) && ((creature*)e)->is_foot_fixture(fixture))
-                                continue;
-                        }
-                    }
-
 					b2Vec2 ap = m_system->m_positionBuffer.data[a];
 					if (aabb.lowerBound.x <= ap.x && ap.x <= aabb.upperBound.x &&
 						aabb.lowerBound.y <= ap.y && ap.y <= aabb.upperBound.y)
@@ -941,15 +931,6 @@ void b2ParticleSystem::SolveCollision(const b2TimeStep& step)
                     /* check principia layer filtering */
                     if (!((m_system->m_flagsBuffer.data[a] >> 16) & fixture->m_filter.categoryBits))
                         continue;
-
-                    {
-                        /* do not collide with robot feet */
-                        entity *e = (entity*)fixture->GetUserData();
-                        if (e) {
-                            if (e->flag_active(ENTITY_IS_CREATURE) && ((creature*)e)->is_foot_fixture(fixture))
-                                continue;
-                        }
-                    }
 
 					b2Vec2 ap = m_system->m_positionBuffer.data[a];
 					if (aabb.lowerBound.x <= ap.x && ap.x <= aabb.upperBound.x &&

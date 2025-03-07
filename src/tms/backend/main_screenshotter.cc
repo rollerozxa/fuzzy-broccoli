@@ -238,52 +238,24 @@ main(int argc, char **argv)
                 P.focused = true;
 
                 tms_infof("STEP_SNAP");
-                size_t sz = W->cam_markers.size();
-                if (sz > 0) {
-                    if (first) {
-                        for (G->cam_iterator = W->cam_markers.begin(); G->cam_iterator != W->cam_markers.end(); G->cam_iterator++) {
-                            G->cam_iterator->second->hide();
-                        }
-                    }
 
-                    if (G->cam_iterator == W->cam_markers.end()) {
-                        if (first)
-                            G->cam_iterator = W->cam_markers.begin();
-                        else {
-                            step = STEP_QUIT;
-                        }
-                    } else {
-                        if (ss_id == 15) {
-                            tms_infof("Aborting, only 15 cam markers allowed.");
-                            step = STEP_QUIT;
-                        } else {
-                            tms_infof("Snapping to camera %p...", G->cam_iterator->second);
-                            G->snap_to_camera(G->cam_iterator->second);
-                            G->cam_iterator->second->hide();
-                            G->cam_iterator++;
+                /* snap to "saved position" */
+                if (first) {
+                    tms_infof("Snapping to saved pos... (%.2f/%.2f %.2f)",
+                            W->level.sandbox_cam_x,
+                            W->level.sandbox_cam_y,
+                            W->level.sandbox_cam_zoom
+                            );
+                    G->cam->_position.x = W->level.sandbox_cam_x;
+                    G->cam->_position.y = W->level.sandbox_cam_y;
+                    G->cam->_position.z = W->level.sandbox_cam_zoom;
 
-                            snap_step_num = G->state.step_num;
-                            step = STEP_SCREENSHOT;
-                        }
-                    }
+                    snap_step_num = G->state.step_num;
+                    step = STEP_SCREENSHOT;
                 } else {
-                    /* snap to "saved position" */
-                    if (first) {
-                        tms_infof("Snapping to saved pos... (%.2f/%.2f %.2f)",
-                                W->level.sandbox_cam_x,
-                                W->level.sandbox_cam_y,
-                                W->level.sandbox_cam_zoom
-                                );
-                        G->cam->_position.x = W->level.sandbox_cam_x;
-                        G->cam->_position.y = W->level.sandbox_cam_y;
-                        G->cam->_position.z = W->level.sandbox_cam_zoom;
-
-                        snap_step_num = G->state.step_num;
-                        step = STEP_SCREENSHOT;
-                    } else {
-                        step = STEP_QUIT;
-                    }
+                    step = STEP_QUIT;
                 }
+
                 first = false;
             } break;
 

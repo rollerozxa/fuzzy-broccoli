@@ -5,19 +5,9 @@
 
 #include <cstdlib>
 
-#ifdef _NO_TMS
-#define tms_infof(...)
-#define tms_errorf(...)
-#else
 #include <tms/bindings/cpp/cpp.hh>
-#endif
 
-#define WARNING_STR "Warning: if you edit this file manually, you risk losing all your game data."
-#define ID_XOR    0xfa5f0e6f
-#define O_XOR     0xaab27f1a
-#define X_XOR     0x0f81fea1
-#define A_XOR     0xdeadbeef
-#define TYPE_SEP  0x3d
+#define WARNING_STR "Warning: if you edit this file manually, you risk losing all your cuddles."
 
 std::map<uint32_t, lvl_progress*> progress::levels[3];
 
@@ -73,8 +63,6 @@ progress::init(char *custom_path/*=0*/)
             uint32_t nlevels;
             fread(&nlevels, 1, sizeof(uint32_t), fp);
 
-            nlevels ^= A_XOR;
-
             for (int l=0; l<nlevels; l++) {
                 lvl_progress p;
                 uint32_t r_nn=0, r_nnn=0;
@@ -87,7 +75,6 @@ progress::init(char *custom_path/*=0*/)
                     case 4: fread(tmp, 5, sizeof(uint8_t), fp); break;
                 }
                 fread(&id, 1, sizeof(uint32_t), fp);
-                id ^= ID_XOR;
                 id -= l;
 
                 if (crc_set < 4u) {
@@ -107,21 +94,17 @@ progress::init(char *custom_path/*=0*/)
 
                 fread(&p.top_score, 1, sizeof(uint32_t), fp);
                 r_nn += p.top_score;
-                p.top_score ^= O_XOR;
 
                 //tms_infof("reading: %u, %u", id, p.top_score);
 
                 fread(&p.last_score, 1, sizeof(uint32_t), fp);
                 r_nn += p.last_score;
-                p.last_score ^= O_XOR;
 
                 fread(&p.time, 1, sizeof(uint32_t), fp);
                 r_nn += p.time;
-                p.time ^= O_XOR;
 
                 uint32_t n;
                 fread(&n, 1, sizeof(uint32_t), fp);
-                n ^= X_XOR;
 
                 /* verify lower 16 bits of top score */
                 uint32_t t = p.top_score;
@@ -168,40 +151,6 @@ progress::init(char *custom_path/*=0*/)
             }
         }
 
-        while (crc_set < 4u) {
-            crc_pos[crc_set] = ftell(fp);
-            uint8_t t;
-            fread(&t, 1, sizeof(uint8_t), fp);
-
-            crc_v |= t << crc_set*8u;
-
-            crc_set ++;
-        }
-
-        /* verify crc32 */
-        long size = ftell(fp);
-        if (size < 0) {goto err; };
-        char *tcrc = (char*)malloc(size);
-
-        fseek(fp, 0, SEEK_SET);
-        fread(tcrc, 1, size, fp);
-        fclose(fp);
-        fp = 0;
-
-        tms_infof("crc base read: %x", crc_base);
-        tms_infof("crc sum read: %x", crc_v);
-
-        for (uint32_t x=0; x<4; x++) {
-            tcrc[crc_pos[x]] = (uint8_t)((crc_base >> (x*8u)) & 0xffu);
-        }
-
-        uint32_t crc = crc32(0L, (const Bytef*)tcrc, size);
-        free(tcrc);
-
-        if (crc != crc_v) {
-            tms_infof("crc mismatch");
-            //goto err;
-        }
         initialized = true;
         return;
 
@@ -243,7 +192,7 @@ progress::commit()
         fwrite(WARNING_STR, 1, strlen(WARNING_STR), fp);
 
         for (int x=0; x<3; x++) {
-            uint32_t t = levels[x].size() ^ A_XOR;
+            uint32_t t = levels[x].size();
             fwrite(&t, 1, sizeof(uint32_t), fp);
             uint32_t c = 0;
 
@@ -251,7 +200,7 @@ progress::commit()
                     i != levels[x].end(); i++) {
                 lvl_progress p = *i->second;
 
-                uint32_t id = (i->first+c) ^ ID_XOR;
+                uint32_t id = (i->first+c);
                 switch (c%5) {
                     case 0: fwrite(i->second, 1, sizeof(uint8_t), fp); break;
                     case 1: fwrite(i->second, 3, sizeof(uint8_t), fp); break;
@@ -270,15 +219,15 @@ progress::commit()
                 nn += n;
                 nnn += p.num_plays;
                 fwrite(&n, 1, sizeof(uint32_t), fp);
-                n = p.top_score ^ O_XOR;
+                n = p.top_score;
                 nn += n;
                 nnn += p.top_score;
                 fwrite(&n, 1, sizeof(uint32_t), fp);
-                n = p.last_score ^ O_XOR;
+                n = p.last_score;
                 nn += n;
                 nnn += p.last_score;
                 fwrite(&n, 1, sizeof(uint32_t), fp);
-                n = p.time ^ O_XOR;
+                n = p.time;
                 nn += n;
                 nnn += p.time;
                 fwrite(&n, 1, sizeof(uint32_t), fp);
@@ -295,7 +244,7 @@ progress::commit()
                   | ((uint32_t)(p.top_score < 1000) << 24)
                   | ((uint32_t)(p.top_score < 10) << 23)
                   | (p.top_score & 0xffff)
-                  ) ^ X_XOR;
+                  );
                 fwrite(&n, 1, sizeof(uint32_t), fp);
                 fwrite(&nn, 1, sizeof(uint32_t), fp);
                 switch (c%9) {
@@ -313,34 +262,6 @@ progress::commit()
 
                 c++;
             }
-        }
-
-        for (; crc_set<4; crc_set++) {
-            crc_pos[crc_set] = ftell(fp);
-            uint8_t xx = (uint8_t)levels[1].size();
-            fwrite(&xx, 1, sizeof(uint8_t), fp);
-        }
-        long size = ftell(fp);
-
-        for (uint32_t x=0; x<4; x++) {
-            fseek(fp, crc_pos[x], SEEK_SET);
-            uint8_t v = (uint8_t)((crc_val >> (x*8u)) & 0xffu);
-            fwrite(&v, 1, sizeof(uint8_t), fp);
-        }
-
-        fseek(fp, 0, SEEK_SET);
-
-        size_t bl;
-        unsigned char b[1024];
-        uint32_t crc = crc32(0L, Z_NULL, 0);
-        while ((bl = fread(b, 1, 1024, fp)) > 0) {
-            crc = crc32(crc, b, bl);
-        }
-
-        for (uint32_t x=0; x<4; x++) {
-            fseek(fp, crc_pos[x], SEEK_SET);
-            uint8_t v = (uint8_t)((crc >> (x*8u)) & 0xffu);
-            fwrite(&v, 1, sizeof(uint8_t), fp);
         }
 
         fclose(fp);

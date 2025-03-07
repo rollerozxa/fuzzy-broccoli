@@ -62,10 +62,8 @@ struct tms_mesh;
 #define tms _tms
 #endif
 
-#ifndef TMS_BACKEND_IOS
 #define opengl_width window_width
 #define opengl_height window_height
-#endif
 
 /**
  * Global singleton object that the project work against.
@@ -76,16 +74,11 @@ struct tms_mesh;
 extern struct tms_singleton {
     int window_width;
     int window_height;
-#ifdef TMS_BACKEND_IOS
-    int opengl_width;
-    int opengl_height;
-#endif
 
     float xppcm;
     float yppcm;
 
     int gamma_correct;
-    int emulating_portrait;
     int in_frame;
 
     float window_projection[16];
@@ -118,19 +111,6 @@ void tms_step(void);
 int tms_render(void);
 int tms_begin_frame(void);
 int tms_end_frame(void);
-
-static inline void tms_convert_to_portrait(int *x, int *y)
-{
-    int tmp_y = *y;
-
-    if ((*x) < _tms.window_width/2) {
-        (*y) = (*x);
-    } else {
-        (*y) = _tms.window_height - (_tms.window_width-(*x));
-    }
-
-    (*x) = _tms.window_width - tmp_y;
-}
 
 #ifdef __cplusplus
 }

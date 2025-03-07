@@ -3,7 +3,6 @@
 #include "entity.hh"
 #include "cable.hh"
 #include "composable.hh"
-#include "ifdevice.hh"
 
 #define EDEV_SOCKET_SIZE .3f
 
@@ -182,8 +181,6 @@ class socket_out : public isocket
         this->p = 0;
     }
 
-    bool written_mt();
-
     bool written()
     {
         plug_base *o;
@@ -192,8 +189,6 @@ class socket_out : public isocket
             if ((o = p->get_other()) && o->s) {
                 if (((socket_in*)o->s)->step_count == edev_step_count)
                     return true;
-            } else if (this->p->plug_type == PLUG_MINI_TRANSMITTER) {
-                return written_mt();
             } else
                 return false;
         }
@@ -206,7 +201,7 @@ class socket_out : public isocket
 
 };
 
-/** 
+/**
  * Source of electricity or red wire signal
  **/
 class edevice
@@ -319,7 +314,6 @@ class edevice
     void recreate_all_cable_joints();
 
     virtual entity *get_entity(void)=0;
-    virtual ifdevice *get_ifdevice(void){return 0;};
 
     friend class plug;
     friend class brcomp;

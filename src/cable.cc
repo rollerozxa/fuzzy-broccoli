@@ -4,7 +4,6 @@
 #include "material.hh"
 #include "model.hh"
 #include "world.hh"
-#include "ifdevice.hh"
 
 #include <cstdlib>
 
@@ -601,7 +600,6 @@ plug::plug(cable *c)
     switch (c->ctype) {
         case CABLE_RED: this->set_material(&m_cable_red); break;
         case CABLE_BLACK: this->set_material(&m_cable_black); break;
-        case CABLE_BLUE: this->set_material(&m_cable_blue); break;
         default: tms_fatalf("Invalid cable type %d", c->ctype);
     }
 }
@@ -615,10 +613,6 @@ plug::update_mesh()
             break;
         case CABLE_RED:
             /* no mesh for red cables, they are added to a render buffer */
-            break;
-
-        case CABLE_BLUE:
-            this->set_mesh(mesh_factory::get_mesh(MODEL_IFPLUG_FEMALE));
             break;
     }
 }
@@ -887,36 +881,6 @@ plug::connect(edevice *e, isocket *s)
     }
 
     return T_OK;
-}
-
-ifdevice*
-plug::find_ifdevice()
-{
-    int limit = 0;
-
-    plug *curr = this;
-    ifdevice *i;
-
-    while (curr && limit < 20 && (curr = curr->c->get_other(curr))) {
-        if (curr->plugged_edev) {
-            if ((i = curr->plugged_edev->get_ifdevice())) {
-                return i;
-            }
-
-            for (int x=0; x<curr->plugged_edev->num_s_out; x++) {
-                if (curr->plugged_edev->s_out[x].ctype == CABLE_BLUE) {
-                    curr = static_cast<plug*>(curr->plugged_edev->s_out[x].p);
-                    break;
-                }
-            }
-        } else {
-            break;
-        }
-
-        limit ++;
-    }
-
-    return 0;
 }
 
 void

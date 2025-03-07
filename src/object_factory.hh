@@ -5,8 +5,6 @@
 #include "types.hh"
 #include <vector>
 
-class item;
-
 enum {
     O_PLANK                 = 0,
     O_THICK_PLANK           = 1,
@@ -247,16 +245,13 @@ class of
   public:
     static uint32_t _id; /* global entity id counter */
 
-    static const int num_categories = 10;
-
-    static const char *get_object_name_by_gid(uint32_t gid);
+    static const int num_categories = 1;
 
     static int get_num_objects(int cat);
     static const char *get_category_name(int x);
     static const char *get_category_hint(int x);
 
     static entity *create(p_gid g_id);
-    static item *create_item(uint32_t item_id);
     static entity *create_with_id(p_gid g_id, uint32_t id);
 
     static void init(void);

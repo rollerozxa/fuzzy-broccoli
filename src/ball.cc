@@ -4,24 +4,6 @@
 #include "model.hh"
 #include "game.hh"
 
-void ball_update_customz(struct tms_entity *e)
-{
-    ball *b = (ball*)e;
-
-    b2Transform t;
-    t = b->get_body(0)->GetTransform();
-
-    //tmat4_load_identity(this->M);
-    b->M[0] = t.q.c;
-    b->M[1] = t.q.s;
-    b->M[4] = -t.q.s;
-    b->M[5] = t.q.c;
-    b->M[12] = t.p.x;
-    b->M[13] = t.p.y;
-    b->M[14] = b->z * LAYER_DEPTH;
-
-    tmat3_copy_mat4_sub3x3(b->N, b->M);
-}
 
 ball::ball(int type)
 {
@@ -40,19 +22,7 @@ ball::ball(int type)
 
     this->set_mesh(mesh_factory::get_mesh(MODEL_SPHERE));
 
-    switch (type) {
-        case 0: // Ball
-            this->set_material(&m_wood);
-            break;
-        case 1: // Metal ball
-            this->set_material(&m_iron);
-            this->set_flag(ENTITY_IS_MAGNETIC, true);
-            break;
-        case 2: // Interactive ball
-            this->set_material(&m_interactive);
-            this->set_flag(ENTITY_IS_INTERACTIVE, true);
-            break;
-    }
+    this->set_material(&m_wood);
 
     this->layer_mask = 6;
 

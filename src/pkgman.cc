@@ -56,30 +56,23 @@ lvlinfo::create(int type, uint64_t seed/*=0*/, uint32_t version/*=0*/)
     this->parent_id = 0;
     this->parent_revision = 0;
     this->pause_on_finish = true;
-    this->show_score = (type == LCAT_ADVENTURE);
+    this->show_score = false;
     this->descr_len = 0;
     this->visibility = LEVEL_VISIBLE;
 
     static const int random_bgs[] = {
-        0,1,2,4,8,9,10,11,12,13,14
-    };
-    static const int random_bgs_adventure[] = {
-        0,1,2,4,5,8,9,10,11,12,13,14
+        0
     };
 
-    if (type == LCAT_ADVENTURE) {
-        this->bg = random_bgs_adventure[rand()%(sizeof(random_bgs_adventure)/sizeof(int))];
-    } else {
-        this->bg = random_bgs[rand()%(sizeof(random_bgs)/sizeof(int))];
-    }
+    this->bg = random_bgs[rand()%(sizeof(random_bgs)/sizeof(int))];
 
     this->bg_color = 0;
 
     this->descr = 0;
-    this->size_x[0] = 40;
-    this->size_x[1] = 40;
-    this->size_y[0] = 4;
-    this->size_y[1] = 10;
+    this->size_x[0] = 100;
+    this->size_x[1] = 100;
+    this->size_y[0] = 100;
+    this->size_y[1] = 100;
     this->gravity_x = 0;
     this->gravity_y = -20.f;
     this->flags = 0;
@@ -106,30 +99,9 @@ lvlinfo::create(int type, uint64_t seed/*=0*/, uint32_t version/*=0*/)
     this->linear_damping = 0.1f;
     this->angular_damping = 0.2f;
     this->joint_friction = 0.3f;
-    if (type == LCAT_ADVENTURE) {
-        this->dead_enemy_absorb_time = 60.0f;
-    } else {
-        this->dead_enemy_absorb_time = 10.0f;
-    }
+    this->dead_enemy_absorb_time = 10.0f;
     this->time_before_player_can_respawn = 1.5f;
     this->compression_length = 0;
-
-    this->flags |= LVL_ALLOW_RESPAWN_WITHOUT_CHECKPOINT;
-
-    if (type == LCAT_ADVENTURE) {
-        this->flags |= LVL_ABSORB_DEAD_ENEMIES;
-        this->flags |= LVL_ENABLE_INTERACTIVE_DESTRUCTION;
-        this->flags |= LVL_DEAD_CREATURE_DESTRUCTION;
-
-        if (seed) {
-            this->flags |= LVL_CHUNKED_LEVEL_LOADING;
-            this->flags |= LVL_ALLOW_QUICKSAVING;
-            this->show_score = false;
-            this->seed = seed;
-            this->size_y[0] = 500;
-            this->bg = 5;
-        }
-    }
 
     this->num_groups = 0;
     this->num_entities = 0;
@@ -148,19 +120,7 @@ lvlinfo::sanity_check()
         /* remove flags added in 1.5 */
         this->flags &= ~(
                 LVL_CHUNKED_LEVEL_LOADING |
-                LVL_DISABLE_CAVEVIEW |
-                LVL_DISABLE_ROCKET_TRIGGER_EXPLOSIVES |
-                LVL_STORE_SCORE_ON_GAME_OVER |
-                LVL_ALLOW_HIGH_SCORE_SUBMISSIONS |
-                LVL_LOWER_SCORE_IS_BETTER |
-                LVL_DISABLE_ENDSCREENS |
-                LVL_ALLOW_QUICKSAVING |
-                LVL_DEAD_CREATURE_DESTRUCTION
-            );
-
-        /* add flags added in 1.5 that must be enabled by default */
-        this->flags |= (
-                LVL_ALLOW_RESPAWN_WITHOUT_CHECKPOINT
+                LVL_DISABLE_ENDSCREENS
             );
 
         this->dead_enemy_absorb_time = 10.0f;
@@ -447,10 +407,6 @@ lvlinfo::read(lvlbuf *lb, bool skip_description)
     if (this->type != LCAT_PARTIAL) {
         if (this->version >= 9) {
             this->flags = lb->r_uint64();
-
-            if (this->version < LEVEL_VERSION_1_5) {
-                this->flags |= LVL_ALLOW_RESPAWN_WITHOUT_CHECKPOINT;
-            }
         } else {
             this->flags = 0;
         }

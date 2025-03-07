@@ -7,31 +7,17 @@
 #include "menu_shared.hh"
 #include "menu_pkg.hh"
 #include "menu_main.hh"
-#include "menu_create.hh"
-#include "menu-play.hh"
 #include "settings.hh"
 #include "material.hh"
 #include "object_factory.hh"
 #include "model.hh"
 #include "cable.hh"
-#include "ledbuffer.hh"
 #include "spritebuffer.hh"
 #include "textbuffer.hh"
-#include "fluidbuffer.hh"
 #include "linebuffer.hh"
-#include "sticky.hh"
-#include "rope.hh"
-#include "polygon.hh"
 #include "progress.hh"
 #include "worker.hh"
-#include "emitter.hh"
-#include "display.hh"
 #include "group.hh"
-#include "tiles.hh"
-#include "faction.hh"
-#include "robot_base.hh"
-#include "factory.hh"
-#include "adventure.hh"
 #include "gui.hh"
 
 #include <ctime>
@@ -184,10 +170,6 @@ static int open_loader(int step);
 static int edit_loader(int step);
 static int pkg_loader(int step);
 static int publish_loader(int step);
-static int submit_score_loader(int step);
-#ifdef BUILD_PKGMGR
-static int publish_pkg_loader(int step);
-#endif
 
 static void
 gi_end(void)
@@ -292,16 +274,6 @@ end(void)
     glActiveTexture(GL_TEXTURE4);
     glBindTexture(GL_TEXTURE_2D, 0);
     glActiveTexture(GL_TEXTURE0);
-
-#if 0
-    if (settings["postprocess"]->v.b) {
-        GLenum discards[] = {GL_DEPTH_ATTACHMENT};
-        if (settings["discard_framebuffer"]->v.b && _glDiscardFramebufferEXT) {
-            _glDiscardFramebufferEXT(GL_FRAMEBUFFER, 1, discards);
-        }
-    }
-#endif
-
 }
 
 void
@@ -486,8 +458,6 @@ tproject_window_size_changed(void)
 
     if (G) G->window_size_changed();
     if (P.s_menu_main) P.s_menu_main->window_size_changed();
-    if (P.s_menu_create) P.s_menu_create->window_size_changed();
-    if (P.s_menu_play) P.s_menu_play->window_size_changed();
     if (P.s_loading_screen) P.s_loading_screen->window_size_changed();
     if (P.s_intermediary) P.s_intermediary->window_size_changed();
     if (P.s_menu_pkg) P.s_menu_pkg->window_size_changed();
@@ -581,8 +551,6 @@ intermediary::window_size_changed()
 }
 
 
-static int featured_levels_left = 0;
-
 void
 tproject_step(void)
 {
@@ -599,21 +567,6 @@ tproject_step(void)
                     break;
 
 #ifdef BUILD_CURL
-                case ACTION_GET_FEATURED_LEVELS: {
-                    uint32_t num_featured_levels = VOID_TO_UINT32(data);
-
-                    if (num_featured_levels > MAX_FEATURED_LEVELS_FETCHED) {
-                        num_featured_levels = MAX_FEATURED_LEVELS_FETCHED;
-                    }
-
-                    featured_levels_left = num_featured_levels;
-
-                    /* This thread will fetch the data */
-                    create_thread(
-                            _get_featured_levels,
-                            "_get_featured_levels",
-                            UINT_TO_VOID(num_featured_levels));
-                } break;
 
                 case ACTION_VERSION_CHECK:
                     create_thread(_check_version_code,"_version_check",  (void*)0);
@@ -627,34 +580,13 @@ tproject_step(void)
                     create_thread(_register, "_register", data);
                     break;
 
-                case ACTION_PUBLISH_PKG:
-#ifdef BUILD_PKGMGR
-                    _publish_pkg_id = VOID_TO_UINT32(data);
-                    G->resume_action = GAME_RESUME_OPEN;
-                    if (_tms.screen == &P.s_loading_screen->super) {
-                        P.s_intermediary->prepare(publish_pkg_loader, G);
-                    } else {
-                        P.s_loading_screen->load(publish_pkg_loader, G);
-                    }
-#endif
-                    break;
-
                 case ACTION_PUBLISH:
                     tms_debugf("action publish");
                     P.s_loading_screen->load(publish_loader, G);
                     G->resume_action = GAME_RESUME_CONTINUE;
                     break;
 
-                case ACTION_SUBMIT_SCORE:
-                    P.s_loading_screen->load(submit_score_loader, G);
-                    G->resume_action = GAME_RESUME_CONTINUE;
-                    break;
-
 #endif
-
-                case ACTION_RELOAD_DISPLAY:
-                    ((display*)G->selection.e)->load_symbols();
-                    break;
 
                 case ACTION_ENTITY_MODIFIED:
                     if (G) {
@@ -726,36 +658,7 @@ tproject_step(void)
                 case ACTION_CREATE_ADVENTURE_ROBOT: {
                     b2Vec2 *pos = (b2Vec2*)data;
 
-                    if (!adventure::player) {
-                        entity *e = of::create(O_ROBOT);
-                        e->_pos.x = pos->x;
-                        e->_pos.y = pos->y;
-                        e->_angle = 0.f;
-                        e->prio = 0;
-                        ((robot_base*)e)->set_faction(FACTION_FRIENDLY);
-                        e->on_load(true, false);
-                        e->set_layer(G->state.edit_layer);
-                        W->add(e);
-                        adventure::player = static_cast<robot_base*>(e);
-                        G->add_entity(e);
-
-                        W->level.set_adventure_id(e->id);
-                        G->state.adventure_id = e->id;
-                    }
-
                     free(data);
-                } break;
-
-                case ACTION_CONSTRUCT_ITEM: {
-                    uint32_t item_id = VOID_TO_UINT32(data);
-                    G->editor_construct_item(item_id);
-                    G->state.modified = true;
-                } break;
-
-                case ACTION_CONSTRUCT_DECORATION: {
-                    uint32_t decoration_id = VOID_TO_UINT32(P.actions[x].data);
-                    G->editor_construct_decoration(decoration_id);
-                    G->state.modified = true;
                 } break;
 
                 case ACTION_GOTO_MAINMENU:
@@ -764,37 +667,6 @@ tproject_step(void)
                     }
                     tms::set_screen(P.s_menu_main);
                     break;
-
-                case ACTION_GOTO_CREATE:
-                    if (!data) {
-                        sm::stop_all();
-                    }
-                    tms::set_screen(P.s_menu_create);
-                    break;
-
-                case ACTION_GOTO_PLAY:
-                    if (!data) {
-                        sm::stop_all();
-                    }
-                    tms::set_screen(P.s_menu_play);
-                    break;
-
-                case ACTION_SAVE_STATE:
-                    if (W->is_playing() && W->level.flag_active(LVL_ALLOW_QUICKSAVING)) {
-                        G->save_state();
-                        ui::message("Saved!");
-                    } else {
-                        ui::message("This level does not support quick saving.");
-                    }
-                    break;
-
-                case ACTION_MULTIEMITTER_SET: {
-                    if (G->selection.e && G->selection.e->g_id == O_MULTI_EMITTER) {
-                        uint32_t id = VOID_TO_UINT32(data);
-                        ((emitter*)G->selection.e)->set_partial(id);
-                    }
-                    G->state.modified = true;
-                } break;
 
                 case ACTION_EXPORT_OBJECT: {
                     char* name = (char*)data;
@@ -880,32 +752,11 @@ tproject_step(void)
                     }
                 } break;
 
-                case ACTION_STICKY: {
-                    if (G->selection.e && G->selection.e->g_id == O_STICKY_NOTE){
-                        static_cast<sticky*>(G->selection.e)->update_text();
-                    }
-                    G->state.modified = true;
-                } break;
-
-                case ACTION_SET_STICKY_TEXT: {
-                    if (G->selection.e && G->selection.e->g_id == O_STICKY_NOTE){
-                        static_cast<sticky*>(G->selection.e)->set_text((const char*)data);
-                    }
-                    G->state.modified = true;
-                } break;
-
-                case ACTION_NEW_GENERATED_LEVEL: {
-                    int level_type = VOID_TO_INT(data);
-
-                    tms_debugf("ACTION_NEW_GENERATED_LEVEL: %u", level_type);
-                    G->create_level(level_type, false, false);
-                } break;
-
                 case ACTION_NEW_LEVEL: {
                     int level_type = VOID_TO_INT(data);
 
                     tms_debugf("ACTION_NEW_LEVEL: %u", level_type);
-                    G->create_level(level_type, true, false);
+                    G->create_level(level_type);
                 } break;
 
                 case ACTION_RELOAD_GRAPHICS: {
@@ -915,10 +766,6 @@ tproject_step(void)
                         G->resume_action = GAME_RESUME_CONTINUE;
                     } else if (_tms.screen == &P.s_menu_main->super) {
                         P.s_loading_screen->load(shader_loader, P.s_menu_main);
-                    } else if (_tms.screen == &P.s_menu_create->super) {
-                        P.s_loading_screen->load(shader_loader, P.s_menu_create);
-                    } else if (_tms.screen == &P.s_menu_play->super) {
-                        P.s_loading_screen->load(shader_loader, P.s_menu_play);
                     }
                 } break;
 
@@ -1064,7 +911,6 @@ tproject_step(void)
 
                 case ACTION_REFRESH_HEADER_DATA: {
                     pscreen::refresh_username();
-                    menu_shared::refresh_message();
 
                     for (std::vector<pscreen*>::iterator it = P.screens.begin();
                             it != P.screens.end(); ++it) {
@@ -1135,16 +981,6 @@ tproject_step(void)
                     delete opd;
                 } break;
 
-                case ACTION_OPEN_LATEST_STATE: {
-                    tms::screen *previous_screen = P.s_menu_main;
-
-                    if (data) {
-                        previous_screen = static_cast<tms::screen*>(data);
-                    }
-
-                    G->open_latest_state(false, previous_screen);
-                } break;
-
                 case ACTION_OPEN_URL:
                     if (data) {
                         ui::open_url((char*)data);
@@ -1152,11 +988,6 @@ tproject_step(void)
                     }
                     break;
 
-                case ACTION_SELF_DESTRUCT:
-                    if (W->is_adventure() && adventure::player) {
-                        adventure::player->damage(10000.f, 0, DAMAGE_TYPE_OTHER, DAMAGE_SOURCE_WORLD, 0);
-                    }
-                    break;
             }
         }
         P.num_actions = 0;
@@ -1245,8 +1076,6 @@ tproject_quit(void)
 
     delete G;
 
-    sticky::_deinit();
-
     gui_spritesheet::deinit();
 
     /* TODO: Save current level as a backup */
@@ -1330,7 +1159,6 @@ tproject_init(void)
     P.username = 0;
     P.user_id = 0;
     P.num_unread_messages = 0;
-    P.message = 0;
     P.new_version_available = false;
     P.curl = 0;
 
@@ -1589,45 +1417,6 @@ pkg_loader(int step)
 
 #ifdef BUILD_CURL
 
-#ifdef BUILD_PKGMGR
-static int
-publish_pkg_loader(int step)
-{
-    switch (step) {
-        case 0:
-            break;
-
-        case 1:
-            _publish_pkg_error = false;
-            _publish_pkg_done = false;
-            create_thread(_publish_pkg, "_publish_pkg", 0);
-            break;
-
-        case 2:
-            if (!_publish_pkg_done) {
-                return LOAD_RETRY;
-            }
-
-            if (_publish_pkg_error) {
-                tms_debugf("publish pkg error");
-                return LOAD_DONE;
-            }
-            break;
-
-        case 3:
-            break;
-
-        case 4: default:
-            ui::message("Package published successfully!");
-            return LOAD_DONE;
-
-        case LOAD_RETURN_NUM_STEPS: return 4;
-    }
-
-    return LOAD_CONT;
-}
-#endif
-
 static int
 publish_loader(int step)
 {
@@ -1676,51 +1465,6 @@ publish_loader(int step)
             return LOAD_DONE;
 
         case LOAD_RETURN_NUM_STEPS: return 4;
-    }
-
-    return LOAD_CONT;
-}
-
-static int
-submit_score_loader(int step)
-{
-    int num = __sync_fetch_and_add(&loading_counter, 1);
-
-    switch (step) {
-        case 0:
-            _submit_score_done = false;
-            create_thread(_submit_score, "_submit_score", 0);
-            break;
-
-        case 1:
-            switch (num % 3) {
-                case 0:
-                    P.s_loading_screen->set_text("Submitting highscores.");
-                    break;
-                case 1:
-                    P.s_loading_screen->set_text("Submitting highscores..");
-                    break;
-                case 2:
-                    P.s_loading_screen->set_text("Submitting highscores...");
-                    break;
-            }
-
-            if (!_submit_score_done) {
-                return LOAD_RETRY;
-            }
-            break;
-
-        case 2: default:
-            P.s_loading_screen->set_text(0);
-            _submit_score_done = false;
-            /* FIXME
-            if (G->w_submit_score && G->w_submit_score->surface) {
-                tms_surface_remove_widget(G->w_submit_score->surface, G->w_submit_score);
-            }
-            */
-            return LOAD_DONE;
-
-        case LOAD_RETURN_NUM_STEPS: return 2;
     }
 
     return LOAD_CONT;
@@ -1830,12 +1574,6 @@ initial_loader(int step)
                     create_dir(tmp, S_IRWXU | S_IRWXG | S_IRWXO);
                 }
 
-                /**
-                 * We must init the recipes for the factories "dynamically" like this,
-                 * because we have to make sure the item worths are already initialized.
-                 **/
-                factory::init_recipes();
-
                 gui_spritesheet::init_atlas();
             }
             break;
@@ -1855,7 +1593,6 @@ initial_loader(int step)
 
             pscreen::init();
             menu_shared::init();
-            adventure::init();
 
 #ifdef BUILD_VALGRIND
             if (!RUNNING_ON_VALGRIND) {
@@ -1919,21 +1656,14 @@ initial_loader(int step)
             break;
 
         case 9:
-            tile_factory::init();
             P.s_loading_screen->set_text("Loading buffers...");
             break;
 
         case 10:
             cable::_init();
-            display::_init();
-            ledbuffer::_init();
             linebuffer::_init();
             textbuffer::_init();
             spritebuffer::_init();
-            fluidbuffer::_init();
-            rope::_init();
-            polygon::_init();
-            sticky::_init();
 
             P.s_loading_screen->set_text("Loading world...");
             break;
@@ -1965,13 +1695,9 @@ initial_loader(int step)
         case 14:
             P.s_menu_pkg = new menu_pkg();
             P.s_menu_main = new menu_main();
-            P.s_menu_create = new menu_create();
-            P.s_menu_play = new menu_play();
 
             P.screens.push_back(P.s_menu_pkg);
             P.screens.push_back(P.s_menu_main);
-            P.screens.push_back(P.s_menu_create);
-            P.screens.push_back(P.s_menu_play);
 
             P.s_loading_screen->set_text("Loading progress...");
             break;
@@ -1999,19 +1725,6 @@ initial_loader(int step)
                     tms_infof("skipping version check");
                 }
 
-                uint32_t num_levels = 0;
-                int res = _tms.opengl_width;
-
-                do {
-                    ++ num_levels;
-                    res -= 380;
-                } while (res > 0);
-
-                num_levels = std::max(num_levels, 1U);
-
-                num_levels = 4;
-
-                P.add_action(ACTION_GET_FEATURED_LEVELS, VOID_TO_UINT32(num_levels));
 #endif
             }
             break;

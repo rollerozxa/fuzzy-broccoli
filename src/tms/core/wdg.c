@@ -227,16 +227,6 @@ tms_wdg_slider_render(struct tms_wdg *w, struct tms_surface *s)
     float sx = 1.f, sy = 0.f;
     float r = 0.f;
 
-    if (_tms.emulating_portrait) {
-        int xx = (int)px, yy = (int)py;
-        tms_convert_to_portrait(&xx, &yy);
-        px = (float)xx;
-        py = (float)yy;
-
-        sx = 0.f; sy = 1.f;
-        r = -90.f;
-    }
-
     tms_ddraw_sprite_r(s->ddraw, w->s[0], px, py, w->size.x, w->size.y, r);
     if (w->s[1]) {
         tms_ddraw_sprite_r(s->ddraw, w->s[1],
@@ -253,16 +243,6 @@ tms_wdg_vslider_render(struct tms_wdg *w, struct tms_surface *s)
     float sx = 0.f, sy = 1.f;
     float r = -90.f; // base rotation of vertical slider is -90
 
-    if (_tms.emulating_portrait) {
-        int xx = (int)px, yy = (int)py;
-        tms_convert_to_portrait(&xx, &yy);
-        px = (float)xx;
-        py = (float)yy;
-
-        sx = -1.f; sy = 0.f;
-        r = 0.f;
-    }
-
     tms_ddraw_sprite_r(s->ddraw, w->s[0], px, py, w->size.y, w->size.x, r);
     if (w->s[1]) {
         tms_ddraw_sprite_r(s->ddraw, w->s[1],
@@ -278,16 +258,6 @@ tms_wdg_field_render(struct tms_wdg *w, struct tms_surface *s)
     float px = w->pos.x, py = w->pos.y;
     float sx = 1.f, sy = 1.f;
     float r = 0.f;
-
-    if (_tms.emulating_portrait) {
-        int xx = (int)px, yy = (int)py;
-        tms_convert_to_portrait(&xx, &yy);
-        px = (float)xx;
-        py = (float)yy;
-
-        sx = 1.f; sy = 1.f;
-        r = -90.f;
-    }
 
     float knob_w = w->size.x/5.f;
     float knob_h = w->size.y/5.f;
@@ -324,19 +294,9 @@ tms_wdg_radial_render(struct tms_wdg *w, struct tms_surface *s)
     float sx = 1.f, sy = 0.f;
     float r = 0.f;
 
-    if (_tms.emulating_portrait) {
-        int xx = (int)px, yy = (int)py;
-        tms_convert_to_portrait(&xx, &yy);
-        px = (float)xx;
-        py = (float)yy;
-
-        sx = 0.f; sy = 1.f;
-        r = -90.f;
-    }
-
     tms_ddraw_sprite_r(s->ddraw, w->s[0], px, py, w->size.x, w->size.y, r);
 
-    float a =  w->value[0] * 2.f * M_PI + (_tms.emulating_portrait ? M_PI/2.f : 0.f);
+    float a =  w->value[0] * 2.f * M_PI;
     float cs = cosf(a);
     float sn = sinf(a);
 
@@ -351,7 +311,7 @@ tms_wdg_radial_render(struct tms_wdg *w, struct tms_surface *s)
                 knob_h, r);
 
         if (w->enable_ghost) {
-            a =  w->ghost[0] * 2.f * M_PI + (_tms.emulating_portrait ? M_PI/2.f : 0.f);
+            a =  w->ghost[0] * 2.f * M_PI;
             cs = cosf(a);
             sn = sinf(a);
 
@@ -375,15 +335,6 @@ btn_radial_render(struct tms_wdg *w, struct tms_surface *s)
     float px = w->pos.x, py = w->pos.y;
     float r = 0.f;
 
-    if (_tms.emulating_portrait) {
-        int xx = (int)px, yy = (int)py;
-        tms_convert_to_portrait(&xx, &yy);
-        px = (float)xx;
-        py = (float)yy;
-
-        r = -90.f;
-    }
-
     if (w->focused) {
         if (w->value[1] > .5f) {
             tms_ddraw_set_color(s->ddraw, 1.0f, 1.0f, 1.0f, 1.f);
@@ -397,7 +348,7 @@ btn_radial_render(struct tms_wdg *w, struct tms_surface *s)
 
     tms_ddraw_sprite_r(s->ddraw, w->s[0], px, py, w->size.x, w->size.y, r - rotation_offset);
 
-    float a =  w->value[0] * 2.f * M_PI + (_tms.emulating_portrait ? M_PI/2.f : 0.f);
+    float a =  w->value[0] * 2.f * M_PI;
 
     float button_w = w->size.x/1.5f;
     float button_h = w->size.y/1.5f;
@@ -562,15 +513,6 @@ render(struct tms_wdg *w, struct tms_surface *s)
 {
     float px = w->pos.x, py = w->pos.y;
     float r = 0.f;
-
-    if (_tms.emulating_portrait) {
-        int xx = (int)px, yy = (int)py;
-        tms_convert_to_portrait(&xx, &yy);
-        px = (float)xx;
-        py = (float)yy;
-
-        r = -90.f;
-    }
 
     tms_ddraw_sprite_r(s->ddraw, w->s[0], px, py, w->size.x, w->size.y, r);
 

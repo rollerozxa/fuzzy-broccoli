@@ -20,7 +20,6 @@ _settings::init()
 
     /** -Graphics **/
     this->add("debug",              S_BOOL,  false);
-    this->add("postprocess",        S_BOOL,  false);
     this->add("enable_shadows",     S_BOOL,  true);
 
     this->add("uiscale",            S_FLOAT, 1.3f);
@@ -70,9 +69,7 @@ _settings::init()
     this->add("shadow_ao_combine",         S_BOOL, 0);
 #endif
 
-    this->add("enable_bloom",       S_BOOL,  false);
     this->add("render_gui",         S_BOOL,  true);
-    this->add("render_edev_labels", S_BOOL,  true);
 
 
     this->add("fv",                 S_INT32,   2); /* settings file version */
@@ -91,7 +88,6 @@ _settings::init()
     /** -Player **/
     this->add("widget_control_sensitivity", S_FLOAT, 1.5f);
     this->add("rc_lock_cursor",     S_BOOL,  false);
-    this->add("control_type",       S_UINT8,  1);
 
     /** -Audio **/
     this->add("volume", S_FLOAT,    1.0f,   true);
@@ -99,29 +95,15 @@ _settings::init()
 
     /** -Debug **/
     this->add("display_object_id",          S_BOOL, false);
-    this->add("display_grapher_value",      S_BOOL, false);
-    this->add("display_wireless_frequency", S_BOOL, true);
 
     this->add("emulate_touch",      S_BOOL, false);
 
-#ifdef TMS_BACKEND_MOBILE
-    this->add("touch_controls",     S_BOOL, true);
-#else
-    this->add("touch_controls",     S_BOOL, false);
-#endif
-
-    this->add("tutorial", S_UINT32, 0);
     this->add("display_fps", S_UINT8, 0);
 
     this->add("num_workers", S_UINT8, SDL_GetCPUCount());
     tms_infof("num workers (real): %d", SDL_GetCPUCount());
 
     this->add("dna_sandbox_back", S_BOOL, false);
-    this->add("hide_tips", S_BOOL, false);
-    this->add("first_adventure", S_BOOL, true);
-
-    this->add("score_ask_before_submitting", S_BOOL, false);
-    this->add("score_automatically_submit", S_BOOL, true);
 
     char filename[1024];
     sprintf(filename, "%s/settings.ini", tbackend_get_storage_path());
@@ -240,13 +222,9 @@ _settings::load(void)
         settings["shadow_map_resx"]->v.i = 256;
         settings["shadow_map_resy"]->v.i = 256;
         settings["shadow_map_precision"]->v.i = 0;
-        settings["postprocess"]->v.b = false;
         settings["debug"]->v.b = false;
         settings["enable_shadows"]->v.b = false;
-        settings["enable_bloom"]->v.b = false;
         settings["enable_ao"]->v.b = false;
-        settings["render_edev_labels"]->v.b = false;
-        settings["hide_tips"]->v.b = true;
     }
 #endif
 

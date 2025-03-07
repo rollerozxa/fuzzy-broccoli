@@ -23,11 +23,6 @@ static inline int _fatal_exit(void) {
 		#define tms_debugf(...) (__android_log_print(ANDROID_LOG_DEBUG, "tms", __VA_ARGS__));
 	#endif
 
-#elif defined(TMS_BACKEND_IOS)
-
-	// todo
-	#error "NYI"
-
 #else
 
 	extern FILE *_f_out;

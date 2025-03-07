@@ -1,14 +1,12 @@
 
 #include "creature.hh"
 #include "entity.hh"
-#include "faction.hh"
 #include "game.hh"
 #include "main.hh"
 #include "material.hh"
 #include "misc.hh"
 #include "object_factory.hh"
 #include "pkgman.hh"
-#include "robot_base.hh"
 #include "settings.hh"
 #include "simplebg.hh"
 #include "soundmanager.hh"
@@ -385,22 +383,6 @@ namespace UiSandboxMenu {
                 };
                 ImGui::PopItemFlag();
                 ImGui::EndDisabled();
-
-                if (sent->is_creature() && W->is_adventure()) {
-                    int adventure_id = W->level.get_adventure_id();
-                    ImGui::BeginDisabled(sent->id == adventure_id);
-                    if (ImGui::MenuItem("Set as player", NULL, sent->id == adventure_id)) {
-                        creature *player = static_cast<class creature*>(G->selection.e);
-                        if (player->is_robot()) {
-                            robot_base *r = static_cast<class robot_base*>(player);
-                            r->set_faction(FACTION_FRIENDLY);
-                        }
-                        W->level.set_adventure_id(player->id);
-                        G->state.adventure_id = player->id;
-                        adventure::player = player;
-                    }
-                    ImGui::EndDisabled();
-                }
 
                 ImGui::Separator();
             }
@@ -954,15 +936,12 @@ namespace UiSettings {
         "shadow_map_resy",
         "enable_ao",
         "ao_map_res",
-        "postprocess",
-        "enable_bloom",
         "vsync",
         "gamma_correct",
         //VOLUME
         "volume",
         "muted",
         //CONTROLS
-        "touch_controls",
         "jail_cursor",
         "cam_speed_modifier",
         "smooth_cam",
@@ -971,11 +950,9 @@ namespace UiSettings {
         //"smooth_menu",
         //INTERFACE
         "hide_tips",
-        "display_grapher_value",
         "display_object_id",
         "display_fps",
         "uiscale",
-        "first_adventure", "tutorial",
         "menu_speed",
         "smooth_menu",
         "emulate_touch",
@@ -1147,20 +1124,6 @@ namespace UiSettings {
 
                     ImGui::SeparatorText("Post-processing");
 
-                    // ImGui::Checkbox("Enable post-processing", (bool*) &local_settings["postprocess"]->v.b);
-                    // ImGui::BeginDisabled(!local_settings["postprocess"]->v.b);
-                    // ImGui::Checkbox("Enable bloom", local_settings["postprocess"]->v.b ? ((bool*) &local_settings["enable_bloom"]->v.b) : REF_FALSE);
-                    // ImGui::SetItemTooltip("Adds a subtle glow effect to bright objects");
-                    // ImGui::EndDisabled();ImGui::Checkbox("Enable post-processing", (bool*) &local_settings["postprocess"]->v.b);
-
-                    //XXX: Post-processing always enables bloom, so these two settings basically do the same thing
-                    bool is_bloom_enabled = local_settings["enable_bloom"]->v.b && local_settings["postprocess"]->v.b;
-                    if (ImGui::Checkbox("Enable bloom", &is_bloom_enabled)) {
-                        local_settings["postprocess"]->v.b = is_bloom_enabled;
-                        local_settings["enable_bloom"]->v.b = is_bloom_enabled;
-                    }
-                    ImGui::SetItemTooltip("Adds a subtle glow effect to bright objects");
-
                     ImGui::Checkbox("Gamma correction", (bool*) &local_settings["gamma_correct"]->v.b);
                     ImGui::SetItemTooltip("Adjusts the brightness and contrast to ensure accurate color representation");
 
@@ -1233,9 +1196,6 @@ namespace UiSettings {
 
                     ImGui::SeparatorText("Touchscreen");
 
-                    ImGui::Checkbox("Enable on-screen controls", (bool*) &local_settings["touch_controls"]->v.b);
-                    ImGui::SetItemTooltip("Enable touch-friendly on-screen controls");
-
                     ImGui::Checkbox("Emulate touch", (bool*) &local_settings["emulate_touch"]->v.b);
                     ImGui::SetItemTooltip("Enable this if you use an external device other than a mouse to control Principia, such as a Wacom pad.");
                 }
@@ -1255,8 +1215,6 @@ namespace UiSettings {
                     ImGui::Checkbox("Do not show tips", (bool*) &local_settings["hide_tips"]->v.b);
 
                     ImGui::SeparatorText("Advanced");
-
-                    ImGui::Checkbox("Display grapher values", (bool*) &local_settings["display_grapher_value"]->v.b);
 
                     ImGui::Checkbox("Display object IDs", (bool*) &local_settings["display_object_id"]->v.b);
 
@@ -1447,11 +1405,6 @@ namespace UiSandboxMode {
             if (ImGui::MenuItem("Connection edit")) {
                 G->lock();
                 G->set_mode(GAME_MODE_CONN_EDIT);
-                G->unlock();
-            }
-            if (ImGui::MenuItem("Terrain paint")) {
-                G->lock();
-                G->set_mode(GAME_MODE_DRAW);
                 G->unlock();
             }
             ImGui::EndPopup();
@@ -1990,25 +1943,6 @@ namespace UiLevelProperties {
                         }
                         ImGuiStyle style = ImGui::GetStyle();
 
-                        bool current_bg_colored = false;
-                        for (const int *ptr = colored_bgs; ; ++ptr) {
-                            if ((*ptr == -1) || (*ptr == W->level.bg)) {
-                                current_bg_colored = *ptr != -1;
-                                break;
-                            }
-                        }
-                        if (current_bg_colored) {
-                            float col[4];
-                            unpack_rgba(W->level.bg_color, &col[0], &col[1], &col[2], &col[3]);
-                            col[3] = 1.;
-                            //ImGui::SameLine();
-                            if (ImGui::ColorEdit4("###bgc", col, ImGuiColorEditFlags_NoAlpha)) {
-                                W->level.bg_color = pack_rgba(col[0], col[1], col[2], 1.);
-                            }
-                            if (ImGui::IsItemDeactivatedAfterEdit()) {
-                                P.add_action(ACTION_RELOAD_LEVEL, 0);
-                            }
-                        }
                     }
 
                     //Gravity
@@ -2176,12 +2110,6 @@ namespace UiLevelProperties {
                             "Disable connections to static objects such as platforms\n(Puzzle mode only)",
                             W->level.type != LCAT_PUZZLE
                         );
-                        lvl_flag_toggle(
-                            LVL_DISABLE_JUMP,
-                            "Disable jumping",
-                            "Disable the robots ability to jump manually\n(Adventure mode only)",
-                            W->level.type != LCAT_ADVENTURE
-                        );
                         ///XXX: this applies to sandbox mode too, right?
                         lvl_flag_toggle(
                             LVL_DISABLE_ROBOT_HIT_SCORE,
@@ -2250,11 +2178,7 @@ namespace UiLevelProperties {
                             "Disable third layer",
                             "If enabled, prevents objects from being moved to the third layer."
                         );
-                        lvl_flag_toggle(
-                            LVL_PORTRAIT_MODE,
-                            "Portrait mode",
-                            "If enabled, the view will be set to portrait (vertical) mode during play."
-                        );
+
                         lvl_flag_toggle(
                             LVL_DISABLE_RC_CAMERA_SNAP,
                             "Disable RC camera snap",
@@ -2275,12 +2199,7 @@ namespace UiLevelProperties {
                             "Disable robot special action",
                             "If enabled, the adventure robot won't be able to perform it's special action."
                         );
-                        lvl_flag_toggle(
-                            LVL_DISABLE_ADVENTURE_MAX_ZOOM,
-                            "Disable adventure max zoom",
-                            "If enabled, the zoom will no longer be limited while following the adventure robot.\n(Adventure mode only)",
-                            W->level.type != LCAT_ADVENTURE
-                        );
+
                         lvl_flag_toggle(
                             LVL_DISABLE_ROAM_LAYER_SWITCH,
                             "Disable roam layer switch",
@@ -2315,11 +2234,6 @@ namespace UiLevelProperties {
                             LVL_LOWER_SCORE_IS_BETTER,
                             "Lower score is better",
                             "A lower score is considered better than a higher score."
-                        );
-                        lvl_flag_toggle(
-                            LVL_AUTOMATICALLY_SUBMIT_SCORE,
-                            "Automatically submit score on finish",
-                            "Automatically submit score for the user when the level finishes."
                         );
                         lvl_flag_toggle(
                             LVL_DISABLE_ENDSCREENS,
@@ -2428,16 +2342,6 @@ namespace UiNewLevel {
 
             if (ImGui::Button("Custom")) {
                 P.add_action(ACTION_NEW_LEVEL, LCAT_CUSTOM);
-                ImGui::CloseCurrentPopup();
-            }
-
-            if (ImGui::Button("Empty adventure")) {
-                P.add_action(ACTION_NEW_LEVEL, LCAT_ADVENTURE);
-                ImGui::CloseCurrentPopup();
-            }
-
-            if (ImGui::Button("Adventure")) {
-                P.add_action(ACTION_NEW_GENERATED_LEVEL, LCAT_ADVENTURE);
                 ImGui::CloseCurrentPopup();
             }
 

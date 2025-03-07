@@ -1,8 +1,8 @@
+#include "fxemitter.hh"
 #include "game.hh"
 #include "world.hh"
 #include "group.hh"
 #include "object_factory.hh"
-#include "fxemitter.hh"
 
 #include <set>
 
@@ -131,22 +131,7 @@ game::add_pair(entity *e1, entity *e2, connection *c)
 connection *
 game::apply_connection(connection *c, int option)
 {
-    if (W->level.type == LCAT_ADVENTURE && !W->is_paused() && option != -1) {
-        /* if we're in game, do not allow player to connect anything to an auto protector loop,
-         * otherwise the player can just connect things to bosses to move their centre of mass and
-         * beat them easily. Platforms do not protect for new connections. */
 
-        tms_debugf("can't connect to this m8");
-        if (c->e->is_protected() || c->o->is_protected()) {
-            /* add a spark effect and drop all interactions */
-            this->emit(new spark_effect(
-                        c->p,
-                        c->e->get_layer()
-                        ), 0);
-            this->drop_interacting();
-            return 0;
-        }
-    }
     /* make a clone of the connection if it is not owned by an object */
     if (!c->owned) c = c->clone();
 
@@ -291,7 +276,7 @@ game::update_pairs()
                 entity *e = *i;
 
                 if (e->get_body(0) == 0 || e->get_body(0)->GetType() != b2_kinematicBody) {
-                    if (W->is_paused() || (W->is_adventure() && e->is_protected() == false)) {
+                    if (W->is_paused()) {
                         e->find_pairs();
                     }
                 }

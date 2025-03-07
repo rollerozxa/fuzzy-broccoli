@@ -1,7 +1,6 @@
 #include "menu_main.hh"
 #include "game.hh"
 #include "gui.hh"
-#include "menu_create.hh"
 #include "menu_shared.hh"
 #include "misc.hh"
 #include "text.hh"
@@ -17,11 +16,14 @@ menu_main::widget_clicked(principia_wdg *w, uint8_t button_id, int pid)
 
     switch (button_id) {
         case BTN_PLAY:
-            P.add_action(ACTION_GOTO_PLAY, 1);
+            P.add_action(ACTION_MAIN_MENU_PKG, 0);
             break;
 
         case BTN_CREATE:
-            P.add_action(ACTION_GOTO_CREATE, 1);
+            G->resume_action = GAME_RESUME_NEW_EMPTY;
+            G->resume_level_type = LCAT_CUSTOM;
+            G->screen_back = 0;
+            tms::set_screen(G);
             break;
 
         case BTN_BROWSE_COMMUNITY: {
@@ -72,18 +74,9 @@ menu_main::menu_main()
     this->wdg_browse_community->priority = 1000;
     this->wdg_browse_community->set_label("Browse more community levels", font::xmedium);
     this->wdg_browse_community->render_background = true;
-    this->wdg_browse_community->label->color.a = 0.f;
+    this->wdg_browse_community->label->color.a = 1.f;
     this->wdg_browse_community->label->outline_color.a = 0.f;
-
-    for (int x=0; x<MAX_FEATURED_LEVELS_FETCHED; ++x) {
-        this->wdg_featured_level[x] = this->wm->create_widget(
-                this->get_surface(), TMS_WDG_BUTTON,
-                BTN_ENTITY, AREA_MENU_LEVELS,
-                0);
-        this->wdg_featured_level[x]->priority = 100-MAX_FEATURED_LEVELS_FETCHED-x;
-        this->wdg_featured_level[x]->lmody = -.60f;
-        this->wdg_featured_level[x]->alpha = 0.f;
-    }
+    this->wdg_browse_community->add();
 
     this->refresh_widgets();
 }
@@ -171,26 +164,6 @@ menu_main::handle_input(tms::event *ev, int action)
                 G->create_sandbox_menu();
                 return T_OK;
 
-            case TMS_KEY_O:
-                {
-                    /* Open autosave if it exists, otherwise open latest modified level. */
-                    if (G->autosave_exists()) {
-                        P.s_menu_create->wdg_continue->click();
-                    } else {
-                        uint32_t latest_id = pkgman::get_latest_level_id(LEVEL_LOCAL);
-
-                        G->resume_action = GAME_RESUME_OPEN;
-                        G->screen_back = 0;
-                        tms::set_screen(G);
-                        if (latest_id != 0) {
-                            G->open_sandbox(LEVEL_LOCAL, latest_id); // open the last modified level
-                        } else {
-                            G->open_sandbox(LEVEL_LOCAL, pkgman::get_next_level_id() - 1);
-                        }
-                    }
-                }
-                return T_OK;
-
 #endif
 
             case SDL_SCANCODE_AC_BACK:
@@ -211,13 +184,6 @@ menu_main::step(double dt)
     return T_OK;
 #endif
 
-    if (this->wdg_message->label && this->wdg_message->label->color.a < 1.2f) {
-        float incr = _tms.dt * 1.0f;
-
-        this->wdg_message->label->color.a += incr;
-        this->wdg_message->label->outline_color.a += incr;
-    }
-
     this->wm->step();
 
     return T_OK;
@@ -237,37 +203,6 @@ menu_main::refresh_widgets()
         this->wdg_update_available->add();
     }
 
-    if (menu_shared::fl_state == FL_INIT) {
-        for (int x=0; x<MAX_FEATURED_LEVELS_FETCHED; ++x) {
-            if (menu_shared::fl[x].sprite) {
-                struct tms_sprite *s = menu_shared::fl[x].sprite;
-
-                this->wdg_featured_level[x]->s[0] = s;
-                float ratio = s->height / s->width;
-                //this->wdg_featured_level[x]->size.x = s->width;
-                //this->wdg_featured_level[x]->size.y = s->height;
-                this->wdg_featured_level[x]->size.x = _tms.window_width / 4.5;
-                this->wdg_featured_level[x]->size.y = _tms.window_width / 4.5 * ratio;
-                this->wdg_featured_level[x]->data3 = UINT_TO_VOID(menu_shared::fl[x].id);
-                this->wdg_featured_level[x]->set_tooltip(menu_shared::fl[x].name, font::medium);
-                this->wdg_featured_level[x]->set_label(menu_shared::fl[x].creator, font::small);
-                this->wdg_featured_level[x]->label->color.a = 0.f;
-                this->wdg_featured_level[x]->label->outline_color.a = 0.f;
-                this->wdg_browse_community->label->color.a = 0.f;
-                this->wdg_browse_community->label->outline_color.a = 0.f;
-                this->wdg_browse_community->add();
-                this->wdg_featured_level[x]->add();
-            } else {
-                this->wdg_featured_level[x]->remove();
-            }
-        }
-
-        menu_shared::fl_state = FL_ALPHA_IN;
-
-        /* an extra rearrange to make sure the "browse more community levels"
-         * text is at its proper location */
-        this->wm->rearrange();
-    }
 #endif
 
     this->wm->rearrange();

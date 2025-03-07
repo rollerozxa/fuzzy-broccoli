@@ -6,8 +6,6 @@
 #include "misc.hh"
 #include "menu_shared.hh"
 #include "menu_main.hh"
-#include "menu_create.hh"
-#include "menu-play.hh"
 #include "settings.hh"
 #include "soundmanager.hh"
 
@@ -204,15 +202,6 @@ my_post_render(struct tms_wdg *w, struct tms_surface *s)
     if (pwdg->marker) {
         float px = w->pos.x, py = w->pos.y;
         float r = 0.f;
-
-        if (_tms.emulating_portrait) {
-            int xx = (int)px, yy = (int)py;
-            tms_convert_to_portrait(&xx, &yy);
-            px = (float)xx;
-            py = (float)yy;
-
-            r = -90.f;
-        }
 
         tms_ddraw_set_color(s->ddraw,
                 pwdg->marker_color.r*.5f,
@@ -753,7 +742,7 @@ widget_manager::init_areas()
     this->areas[AREA_MENU_LEVELS].last_height = 0.f;
 
     this->areas[AREA_MENU_SUB_LEVELS].base_x = _tms.window_width/2.f;
-    this->areas[AREA_MENU_SUB_LEVELS].base_y = -100000000.f;
+    this->areas[AREA_MENU_SUB_LEVELS].base_y = _tms.window_height/2.f;
     this->areas[AREA_MENU_SUB_LEVELS].imodx  =  1.0f;
     this->areas[AREA_MENU_SUB_LEVELS].imody  = -0.0f;
     this->areas[AREA_MENU_SUB_LEVELS].modx   =  1.0f;
@@ -882,44 +871,6 @@ widget_manager::refresh_areas()
 
         this->areas[AREA_MENU_SUB_LEVELS].base_y =
             this->areas[AREA_MENU_LEVELS].bot.y;
-    } else if (this->get_home() == P.s_menu_create) {
-        this->areas[AREA_CREATE_LEFT_SUB].base_y = this->areas[AREA_MENU_LEFT_HCENTER].bot.y;
-
-        this->areas[AREA_CREATE_CONTEST_BOTTOM].base_x =
-              this->areas[AREA_MENU_BOTTOM_LEFT].base_x
-            + MARGIN_X
-            + this->areas[AREA_MENU_BOTTOM_LEFT].last_width;
-
-        this->areas[AREA_CREATE_CONTEST_TOP].base_x =
-              this->areas[AREA_CREATE_CONTEST_BOTTOM].base_x;
-
-        this->areas[AREA_CREATE_CONTEST_TOP].base_y =
-              this->areas[AREA_CREATE_CONTEST_BOTTOM].first_pos.y
-            + this->areas[AREA_CREATE_CONTEST_BOTTOM].last_height;
-
-        //this->areas[AREA_CREATE_CONTEST_TOP].base_y = this->areas[AREA_MENU_BOTTOM_LEFT].top.y;
-        this->areas[AREA_CREATE_CONTEST_TOP].base_y = this->areas[AREA_CREATE_CONTEST_BOTTOM].top.y;
-
-
-        int32_t diff = this->areas[AREA_CREATE_LEFT_SUB].bot.y ;
-
-        int32_t min_diff = 135 + MARGIN_Y + menu_shared::bar_height;
-
-        tms_debugf("diff: %d < %d?", diff, min_diff);
-
-        if (diff < min_diff) {
-            this->areas[AREA_CREATE_CONTEST_TOP].enabled = false;
-            this->areas[AREA_CREATE_CONTEST_BOTTOM].enabled = false;
-            this->areas[AREA_MENU_BOTTOM_LEFT].enabled = false;
-        } else {
-            this->areas[AREA_CREATE_CONTEST_TOP].enabled = true;
-            this->areas[AREA_CREATE_CONTEST_BOTTOM].enabled = true;
-            this->areas[AREA_MENU_BOTTOM_LEFT].enabled = true;
-        }
-    } else if (this->get_home() == P.s_menu_play) {
-        this->areas[AREA_MENU_LEFT_HLEFT].base_y = this->areas[AREA_MENU_TOP_CENTER].bot.y;
-
-        this->areas[AREA_MENU_RIGHT_HRIGHT].base_y = this->areas[AREA_MENU_TOP_CENTER].bot.y;
     }
 }
 

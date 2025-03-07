@@ -92,9 +92,6 @@ level_chunk::~level_chunk()
         tms_entity_uninit(&this->layer_entities[x]);
     }
 
-    for (int x=0; x<2; ++x) {
-        tms_entity_uninit(&this->grass_entity[x]);
-    }
 #if 0
     for (int x=0; x<GENSLOT_SIZE_X; ++x) {
         for (int y=0; y<GENSLOT_SIZE_Y; ++y) {
@@ -248,9 +245,7 @@ void
 level_chunk::add_fixture(b2Fixture *fx, entity *owner)
 {
     if (owner->flag_active(ENTITY_DYNAMIC_UNLOADING)) {
-        if (owner->g_id != O_PLANT) {
-            this->num_dyn_fixtures ++;
-        }
+        this->num_dyn_fixtures ++;
     } else {
         this->num_fixtures ++;
 
@@ -264,9 +259,7 @@ void
 level_chunk::remove_fixture(b2Fixture *fx, entity *owner)
 {
     if (owner->flag_active(ENTITY_DYNAMIC_UNLOADING)) {
-        if (owner->g_id != O_PLANT) {
-            this->num_dyn_fixtures --;
-        }
+        this->num_dyn_fixtures --;
     } else {
         this->num_fixtures --;
     }

@@ -2,7 +2,6 @@
 
 #define CABLE_BLACK 0
 #define CABLE_RED   1
-#define CABLE_BLUE  2
 
 #define CABLE_IN 1
 #define CABLE_OUT 2
@@ -22,7 +21,6 @@
 #include "entity.hh"
 #include <set>
 
-class ifdevice;
 class edevice;
 class isocket;
 class socket_in;
@@ -92,8 +90,7 @@ class cable : public entity
     virtual const char *get_name(){
         switch (this->ctype) {
             case CABLE_BLACK: return "Power Cable";
-            case CABLE_RED: return "Signal Cable";
-            default: case CABLE_BLUE: return "Interface Cable";
+            default: case CABLE_RED: return "Signal Cable";
 
         }
     };
@@ -153,7 +150,6 @@ class plug_base : public entity
     void setup();
 
     virtual plug_base* get_other(){return 0;};
-    virtual ifdevice *find_ifdevice(){return 0;};
     virtual void set_layer(int z);
 
     uint8_t get_socket_index(void);
@@ -181,8 +177,6 @@ class plug : public plug_base
     int connect(edevice *e, isocket *s);
     void disconnect(void);
     void pre_write();
-
-    ifdevice *find_ifdevice();
 
     plug_base* get_other()
     {

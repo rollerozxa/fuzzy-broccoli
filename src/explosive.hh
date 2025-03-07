@@ -5,16 +5,9 @@
 
 #define EXPLOSIVE_MAX_HP 25.f
 
-#define EXPLOSIVE_BOMB     0
-#define EXPLOSIVE_LANDMINE 1
-#define EXPLOSIVE_TRIGGER  2
-
 class explosive : public entity, public b2QueryCallback
 {
   private:
-    int    explosive_type;
-    float hl_time;
-
     float  hp;
     uint64_t time;
 
@@ -24,7 +17,7 @@ class explosive : public entity, public b2QueryCallback
     void trigger(void);
 
   public:
-    explosive(int explosive_type);
+    explosive();
 
     void init();
     void setup();
@@ -34,11 +27,7 @@ class explosive : public entity, public b2QueryCallback
     void add_to_world();
 
     const char* get_name(){
-        switch (this->explosive_type) {
-            case 0: return "Bomb";
-            case 1: return "Land mine";
-        }
-        return "";
+        return "Land mine";
     }
 
     void damage(float amount)
@@ -56,11 +45,7 @@ class explosive : public entity, public b2QueryCallback
     const char *get_slider_label(int s)
     {
         if (s == 0) {
-            if (this->explosive_type == EXPLOSIVE_BOMB) {
-                return "Fuse Timer";
-            } else {
-                return "Threshold";
-            }
+            return "Threshold";
         } else {
             return "Damage";
         }
@@ -71,9 +56,6 @@ class explosive : public entity, public b2QueryCallback
         entity::write_state(lvl, lb);
 
         lb->w_s_float(this->hp);
-        if (this->explosive_type == EXPLOSIVE_BOMB) {
-            lb->w_s_uint64(this->time);
-        }
     }
 
     void read_state(lvlinfo *lvl, lvlbuf *lb)
@@ -81,9 +63,6 @@ class explosive : public entity, public b2QueryCallback
         entity::read_state(lvl, lb);
 
         this->hp = lb->r_float();
-        if (this->explosive_type == EXPLOSIVE_BOMB) {
-            this->time = lb->r_uint64();
-        }
     }
 
     bool triggered;

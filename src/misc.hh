@@ -63,13 +63,6 @@ static tvec4 TV_BLACK = {0.f,  0.f,  0.f,  1.f};
 static tvec4 TV_WHITE = {1.f,  1.f,  1.f,  1.f};
 static tvec4 TV_RED   = {1.f,  0.f,  0.f,  1.f};
 
-static tvec3 TV_HP_RED        = {1.f,  .33f, .33f};
-static tvec3 TV_HP_GREEN      = {.33f, 1.f,  .33f};
-static tvec3 TV_HP_GRAY       = {.5f,  .5f,  .5f};
-static tvec3 TV_HP_LGRAY      = {.7f,  .7f,  .7f};
-static tvec3 TV_HP_ZOMBIE     = {.4f,  .4f,  .4f};
-static tvec3 TV_HP_COMPRESSOR = {.37f, .97f, .97f};
-
 static tvec3 TV_MENU_WHITE = MENU_WHITE_F;
 static tvec3 TV_MENU_BLACK = MENU_BLACK_F;
 static tvec3 TV_MENU_GRAY  = MENU_GRAY_F;
@@ -96,28 +89,6 @@ inline uint8_t
 chunk_mat_to_tpixel_mat(uint8_t mat)
 {
     return mat - 1;
-}
-
-std::vector<char*> p_split(const char *str, size_t len, const char *delim);
-
-inline int
-highscore_offset(uint32_t community_id)
-{
-    int offset = 0;
-
-    switch (community_id % 10) {
-        case 0: offset = 1; break;
-        case 1: offset = 2; break;
-        case 2: offset = 4; break;
-        case 3: offset = 0; break;
-        case 4: offset = 2; break;
-        case 5: offset = 1; break;
-        case 6: offset = 2; break;
-        case 7: offset = 2; break;
-        case 9: offset = 4; break;
-    }
-
-    return offset;
 }
 
 #define GAMMA_CORRECTF(f) (_tms.gamma_correct ? powf(f, 2.2) : f)

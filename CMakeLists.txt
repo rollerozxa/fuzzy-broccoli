@@ -107,7 +107,6 @@ file(GLOB SRCS
 	src/*.cc
 	src/*.c
 
-	lib/lua/*.c
 	lib/SDL_image/*.c
 
 	lib/Box2D/Collision/*.cc
@@ -148,25 +147,6 @@ if(NOT SCREENSHOT_BUILD)
 
 	add_definitions(-DBUILD_CURL)
 endif()
-
-
-# Optional luasocket functionality
-
-if(NOT SCREENSHOT_BUILD AND NOT ANDROID AND NOT EMSCRIPTEN)
-	option(USE_LUASOCKET "Build with Luasocket support" TRUE)
-else()
-	set(USE_LUASOCKET FALSE)
-endif()
-
-if(USE_LUASOCKET)
-	add_definitions(-DBUILD_LUASOCKET)
-
-	file(GLOB LUASOCKET_SRCS
-		lib/luasocket/*.c)
-
-	list(APPEND SRCS ${LUASOCKET_SRCS})
-endif()
-
 
 if(ANDROID)
 	set(BACKEND_SRC main_android.cc)
@@ -236,7 +216,7 @@ endif()
 if(ANDROID)
 	list(APPEND LIBS android dl log OpenSLES)
 elseif(WIN32)
-	list(APPEND LIBS ws2_32.lib version.lib shlwapi.lib winmm.lib)
+	list(APPEND LIBS version.lib shlwapi.lib winmm.lib)
 endif()
 
 target_link_libraries(${PROJECT_NAME} ${LIBS})

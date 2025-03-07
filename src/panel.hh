@@ -39,9 +39,6 @@ enum {
 #define PANEL_WIDGET_OWNED  (1ULL << 9)
 
 #define PANEL_SMALL 0
-#define PANEL_MEDIUM 1
-#define PANEL_BIG 2
-#define PANEL_XSMALL 3
 
 enum {
     PANEL_SLIDER,
@@ -77,13 +74,8 @@ class panel : public brcomp_multiconnect, public activator
 
     float get_sensor_radius()
     {
-        switch (this->ptype) {
-            case PANEL_XSMALL: return 0.75f;
-            case PANEL_SMALL:  return 1.25f;
-            case PANEL_MEDIUM: return 1.5f;
-            case PANEL_BIG:    return 2.15f;
-            default: return 1.f;
-        }
+        return 1.25f;
+
     }
 
     b2Vec2 get_sensor_offset()
@@ -94,7 +86,6 @@ class panel : public brcomp_multiconnect, public activator
     entity *get_activator_entity() { return this; }
     float get_activator_radius() { return this->get_sensor_radius(); }
     b2Vec2 get_activator_pos() { return this->get_position() + this->get_sensor_offset(); }
-    void activate(creature *by);
 
     void on_touch(b2Fixture *my, b2Fixture *other)
     {
@@ -139,11 +130,8 @@ class panel : public brcomp_multiconnect, public activator
     int widgets_in_use;
     int num_widgets;
 
-    panel(int type);
-    void init_bigpanel();
+    panel();
     void init_smallpanel();
-    void init_xsmallpanel();
-    void init_mpanel();
 
     void pre_write(void);
     void on_load(bool created, bool has_state);
@@ -158,13 +146,7 @@ class panel : public brcomp_multiconnect, public activator
     void panel_disconnected();
 
     const char* get_name(){
-        switch (this->ptype) {
-            case PANEL_BIG: return "RC MONSTRO";
-            case PANEL_SMALL: return "RC Basic";
-            case PANEL_MEDIUM: return "RC IO-3";
-            case PANEL_XSMALL: return "RC Micro";
-        }
-        return "Panel";
+        return "RC Basic";
     }
     activator *get_activator() { return this; }
 

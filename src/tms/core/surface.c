@@ -306,22 +306,6 @@ tms_surface_handle_input(struct tms_surface *s,
     int mx = ev->data.motion.x;
     int my = ev->data.motion.y;
 
-    if (tms.emulating_portrait) {
-        //tms_convert_to_portrait(&mx, &my);
-
-        /* convert back from portrait */
-
-        int tmp_x = mx;
-
-        if (my < _tms.window_height / 2) {
-            mx = my;
-        } else {
-            mx = _tms.window_width - (_tms.window_height - my);
-        }
-
-        my = _tms.window_width - tmp_x;
-    }
-
     switch (ev->type) {
         case TMS_EV_POINTER_DOWN:
             {

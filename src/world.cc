@@ -1,38 +1,17 @@
 #include "world.hh"
-#include "escript.hh"
-#include "eventlistener.hh"
 #include "solver.hh"
 #include "solver_ingame.hh"
 #include "group.hh"
 #include "debugdraw.hh"
 #include "object_factory.hh"
 #include "game.hh"
-#include "receiver.hh"
-#include "soundman.hh"
-#include "screenshot_marker.hh"
 #include "ui.hh"
-#include "model.hh"
-#include "connection.hh"
-#include "ragdoll.hh"
 #include "fxemitter.hh"
-#include "adventure.hh"
-#include "i0o1gate.hh"
 #include "worker.hh"
 #include "damper.hh"
-#include "pivot.hh"
 #include "rubberband.hh"
 #include "soundmanager.hh"
-#include "simplebg.hh"
-#include "scup.hh"
-#include "factory.hh"
-#include "gravityman.hh"
-#include "faction.hh"
-#include "robot_base.hh"
-#include "impact_sensor.hh"
-#include "animal.hh"
 #include "misc.hh"
-#include "crane.hh"
-#include "repair_station.hh"
 
 #include <algorithm>
 
@@ -45,7 +24,6 @@ world::world()
     : level_id_type(LEVEL_LOCAL)
 {
     tms_debugf("world initing");
-    this->score_helper = 0 ^ SCORE_XOR;
     this->first_solve = false;
     this->paused = true;
 
@@ -129,14 +107,6 @@ world::insert(entity *e)
             this->electronics.push_back(e->get_edevice());
     }
 
-    switch (e->g_id) {
-        case O_EVENT_LISTENER: this->eventlisteners.insert((eventlistener*)e); break;
-        case O_ESCRIPT:        this->escripts.insert((escript*)e); break;
-        case O_KEY_LISTENER:   this->key_listeners.insert((key_listener*)e); break;
-        case O_ARTIFICIAL_GRAVITY:   this->localgravities.insert((localgravity*)e); break;
-        case O_REPAIR_STATION: this->repair_stations.insert(e); break;
-    }
-
     e->curr_update_method = e->update_method;
 
     /* owned entities, such as the plugs of cables, must not be added to all_entities */
@@ -191,15 +161,6 @@ world::erase(entity *e)
         case ENTITY_CABLE: this->cables.erase((cable*)e); break;
         case ENTITY_GROUP: this->groups.erase(e->id); break;
         default: this->all_entities.erase(e->id); break;
-    }
-
-    switch (e->g_id) {
-        case O_CAM_MARKER:     this->cam_markers.erase(e->id); break;
-        case O_EVENT_LISTENER: this->eventlisteners.erase((eventlistener*)e); break;
-        case O_ESCRIPT:        this->escripts.erase((escript*)e); break;
-        case O_KEY_LISTENER:   this->key_listeners.erase((key_listener*)e); break;
-        case O_ARTIFICIAL_GRAVITY:   this->localgravities.erase((localgravity*)e); break;
-        case O_REPAIR_STATION: this->repair_stations.erase(e); break;
     }
 
     if (e->get_edevice() && e->get_edevice()->do_solve_electronics) {
@@ -281,27 +242,6 @@ world::remove_receiver(uint32_t frequency, receiver_base *t)
     }
 }
 
-void
-world::add_soundman(uint32_t sound_id, soundman *sm)
-{
-    this->soundmanagers.insert(std::pair<uint32_t, soundman*>(sound_id, sm));
-}
-
-void
-world::remove_soundman(uint32_t sound_id, soundman *sm)
-{
-    typedef std::multimap<uint32_t, soundman*>::iterator iterator;
-    std::pair<iterator, iterator> ip = this->soundmanagers.equal_range(sound_id);
-
-    iterator it = ip.first;
-    for (; it != ip.second; ++it) {
-        if (it->second == sm) {
-            this->soundmanagers.erase(it);
-            break;
-        }
-    }
-}
-
 //#define PROFILING
 //
 void
@@ -362,8 +302,6 @@ world::step()
             }
 
 
-            this->apply_local_gravities();
-
 #ifdef PROFILING
             /*
             b2Profile prof = this->b2->GetProfile();
@@ -410,22 +348,6 @@ world::step()
             tms_infof("world: step entities: %d", SDL_GetTicks() - ss);
             ss = SDL_GetTicks();
 # endif
-
-            for (std::set<eventlistener*>::iterator i = this->eventlisteners.begin();
-                    i != this->eventlisteners.end(); i++) {
-                if (this->events[(*i)->event_id]) {
-                    (*i)->triggered ++;
-                }
-            }
-
-            for (std::set<escript*>::iterator i = this->escripts.begin();
-                    i != this->escripts.end(); i++) {
-                for (int x=0; x<WORLD_EVENT__NUM; x++) {
-                    if (this->events[x]) {
-                        (*i)->events[x] ++;
-                    }
-                }
-            }
 
             /* decrement event counters */
             for (int x=0; x<WORLD_EVENT__NUM; x++) {
@@ -517,8 +439,8 @@ world::step()
         }
 
     } else {
-        if (G->get_mode() != GAME_MODE_EDIT_PANEL && G->get_mode() != GAME_MODE_EDIT_GEARBOX
-                && G->get_mode() != GAME_MODE_SELECT_SOCKET&&G->get_mode() != GAME_MODE_SELECT_CONN_TYPE) {
+        if (G->get_mode() != GAME_MODE_EDIT_PANEL
+                && G->get_mode() != GAME_MODE_SELECT_SOCKET && G->get_mode() != GAME_MODE_SELECT_CONN_TYPE) {
 
             this->cwindow->step();
 
@@ -599,13 +521,6 @@ world::perform_actions()
                     }
                     break;
 
-                case ACTION_SET_ANIMAL_TYPE:
-                    {
-                        ((animal*)e)->set_animal_type(VOID_TO_UINT32(ea.data));
-                        ((animal*)e)->do_recreate_shape = true;
-                    }
-                    break;
-
                 case ACTION_CALL_ON_LOAD:
                     {
                         e->on_load(false, false);
@@ -615,16 +530,6 @@ world::perform_actions()
         }
 
         this->actions.clear();
-    }
-}
-
-void
-world::apply_local_gravities()
-{
-    /* step local gravities separately */
-    for (std::set<localgravity*>::iterator i = this->localgravities.begin();
-            i != this->localgravities.end(); i++) {
-        (*i)->step();
     }
 }
 
@@ -798,27 +703,10 @@ world::ReportFixture(b2Fixture *f)
         }
 
 
-        if (e && (!f->IsSensor() || this->is_paused() || IS_FACTORY(e->g_id))) {
+        if (e && (!f->IsSensor() || this->is_paused())) {
 
             if (this->is_paused() && !G->state.sandbox && !e->get_property_entity()->is_moveable() && !this->query_force) {
                 return true;
-            }
-
-            if (this->level.type == LCAT_ADVENTURE && !this->is_paused()) {
-                if (adventure::player) {
-                    if (world::fixture_in_layer(f, 2)) {
-                        if ((adventure::player->get_position() - this->query_point).Length() < G->caveview_size) {
-                            return true;
-                        }
-                    }
-
-                    if (adventure::player->get_tool() && adventure::player->get_tool()->get_arm_type() == TOOL_BUILDER) {
-                        if ((e->g_id == O_TPIXEL || e->g_id == O_CHUNK)) {
-                            return true;
-                        }
-                    }
-
-                }
             }
 
             /* test the point if it is exactly inside the shape */
@@ -923,17 +811,9 @@ world::explode(entity *source, b2Vec2 pos, int layer,
                     }
 
                     if (!world::fixture_in_layer(f, this->layer)) {
-                        if (W->level.flag_active(LVL_SINGLE_LAYER_EXPLOSIONS)
-                                || e->g_id == O_CHUNK
-                                || e->g_id == O_TPIXEL) {
+                        if (W->level.flag_active(LVL_SINGLE_LAYER_EXPLOSIONS)) {
                             return -1;
                         }
-                    }
-                }
-
-                if (e->g_id == O_TPIXEL) {
-                    if ((e->interactive_hp < 0.f && e->properties[0].v.i8 == 0) || e->get_layer() != this->layer) {
-                        return -1;
                     }
                 }
             }
@@ -985,26 +865,6 @@ world::explode(entity *source, b2Vec2 pos, int layer,
             if (cb.result->GetUserData()) {
                 entity *e = (entity*)cb.result->GetUserData();
                 float damage;
-
-                if (e->is_creature()) {
-                    creature *c = static_cast<creature*>(e);
-                    damage = (rlen*.05f) * damage_multiplier;
-
-                    if (W->level.version >= LEVEL_VERSION_1_5) {
-                        c->shock_forces += rlen;
-                    }
-
-                    c->damage(damage, cb.result, DAMAGE_TYPE_FORCE, DAMAGE_SOURCE_WORLD, 0);
-                } else if ((e->is_interactive()
-                     || e->g_id == O_CHUNK
-                     || e->g_id == O_TPIXEL
-                     || e->g_id == O_PLANT
-                     ) && this->level.flag_active(LVL_ENABLE_INTERACTIVE_DESTRUCTION)) {
-                    damage = (2.f/dist) * damage_multiplier;
-                    G->damage_interactive(e, cb.result, cb.result->GetUserData2(), damage, cb.result_pt, DAMAGE_TYPE_FORCE);
-                } else if (e->g_id == O_PRESSURE_SENSOR || e->g_id == O_IMPACT_SENSOR) {
-                    ((impact_sensor*)e)->impulse += r.Length() * 10.f/(WORLD_STEP/1000000.f);
-                }
             }
 
             if (b->GetType() == b2_dynamicBody && (
@@ -1169,23 +1029,14 @@ world::absorb_all(void)
                 }
 
                 if (G->current_panel == e) {
-                    if (this->is_adventure() && adventure::player)  {
-                        G->set_control_panel(adventure::player);
-                    } else {
-                        G->set_control_panel(0);
-                    }
+                    G->set_control_panel(0);
                 }
 
-                if (this->is_adventure() || this->is_custom()) {
-                    if (e->g_id == O_OPEN_PIVOT) {
-                        this->erase_connection(&((pivot_1*)e)->dconn);
-                    } else if (e->g_id == O_DAMPER) {
+                if (this->is_custom()) {
+                    if (e->g_id == O_DAMPER) {
                         this->erase_connection(&((damper_1*)e)->dconn);
                     } else if (e->g_id == O_RUBBERBAND) {
                         this->erase_connection(&((rubberband_1*)e)->dconn);
-                    } else if (e->g_id == O_CRANE) {
-                        this->erase_connection(&((crane*)e)->pc);
-                        this->erase_connection(&((crane*)e)->rc);
                     }
                 }
 
@@ -1407,31 +1258,6 @@ world::destroy_joints(void)
                     }
                     break;
 
-                case JOINT_TYPE_SCUP:
-                    {
-                        tms_debugf("Destroying suction cup joint");
-                        scup *e = static_cast<scup*>(ji->data);
-                        for (int n=0; n<SCUP_NUM_JOINTS; ++n) {
-                            if (j == e->j[n]) {
-                                e->j[n] = 0;
-                            }
-                        }
-
-                        e->stuck = false;
-                    }
-                    break;
-
-                case JOINT_TYPE_RAGDOLL:
-                    {
-                        ragdoll *r = static_cast<ragdoll*>(ji->data);
-                        for (int x=0; x<9; x++) {
-                            if (r->joints[x] == j) {
-                                r->joints[x] = 0;
-                            }
-                        }
-                    }
-                    break;
-
                 default:
                     tms_debugf("Destroyed unhandled joint %d", ji->type);
                     break;
@@ -1521,12 +1347,6 @@ world::reset()
 
     this->all_entities.clear();
     this->groups.clear();
-    this->cam_markers.clear();
-    this->eventlisteners.clear();
-    this->key_listeners.clear();
-    this->localgravities.clear();
-    this->repair_stations.clear();
-    this->escripts.clear();
     this->tickable.clear();
     this->stepable.clear();
     this->prestepable.clear();
@@ -1540,10 +1360,7 @@ world::reset()
 float
 world::get_height(float x)
 {
-    if (this->level.seed) {
-        return this->cwindow->get_height(x)+1.f;
-    } else
-        return -this->level.size_y[0];
+    return -this->level.size_y[0];
 }
 
 void
@@ -1556,38 +1373,6 @@ world::create(int type, uint64_t seed, bool play)
     this->level.create(type, seed);
     G->init_background();
     this->init_level();
-
-    if (this->level.type == LCAT_ADVENTURE) {
-        entity *e = of::create_with_id(O_ROBOT, this->level.get_adventure_id());
-        e->_pos.x = 0.f;
-        e->_pos.y = this->get_height(0)+1.5f;
-        e->_angle = 0.f;
-        e->prio = 0;
-        this->level.sandbox_cam_y = e->_pos.y;
-        ((robot_base*)e)->set_faction(FACTION_FRIENDLY);
-        e->on_load(true, false);
-        this->add(e);
-        adventure::player = static_cast<creature*>(e);
-
-        if (seed && play) {
-            /* start new adventure */
-            creature *r = static_cast<creature*>(e);
-            r->set_equipment(EQUIPMENT_BACK, BACK_EQUIPMENT_NULL);
-            r->set_equipment(EQUIPMENT_FRONT, FRONT_EQUIPMENT_NULL);
-
-            repair_station *s = static_cast<repair_station*>(of::create(O_REPAIR_STATION));
-            s->_pos.x = -5.f;
-            s->_pos.y = e->_pos.y + 2.f;
-            s->on_load(true, false);
-            this->add(s);
-
-            factory *f = static_cast<factory*>(of::create(O_FACTORY));
-            f->_pos.x = +5.f;
-            f->_pos.y = e->_pos.y + 2.f;
-            f->on_load(true, false);
-            this->add(f);
-        }
-    }
 }
 
 void
@@ -1598,22 +1383,6 @@ world::set_level_type(int type)
     if (type != previous_type) {
         this->level.type = type;
 
-        if (type == LCAT_ADVENTURE) {
-            entity *e = this->get_entity_by_id(this->level.get_adventure_id());
-            if (!e) {
-                /* No entity had the ID `adventure id`, create him */
-                e = of::create_with_id(O_ROBOT, this->level.get_adventure_id());
-                e->_pos.x = 0.f;
-                e->_pos.y = this->get_height(0)+1.5f;
-                e->_angle = 0.f;
-                e->prio = 0;
-                ((robot_base*)e)->set_faction(FACTION_FRIENDLY);
-                e->on_load(true, false);
-                this->add(e);
-                adventure::player = static_cast<robot_base*>(e);
-                G->add_entity(e);
-            }
-        }
     }
 }
 
@@ -1644,66 +1413,11 @@ world::init_level(bool soft)
         this->ground = this->b2->CreateBody(&bd);
     }
 
-    if (w >= 5 && h >= 5) {
-        b2PolygonShape e;
-        b2FixtureDef fd;
-        fd.filter.categoryBits = ~0;
-        fd.filter.maskBits = ~0;
-        fd.filter.groupIndex = -1;
-        fd.shape = &e;
-        fd.restitution = .7f;
-        fd.friction = .7f;
-        fd.density = 1.f;
-
-        float px = (float)this->level.size_x[1] / 2.f - (float)this->level.size_x[0]/2.f;
-        float py = (float)this->level.size_y[1] / 2.f - (float)this->level.size_y[0]/2.f;
-
-        float ww = 1.f;
-
-        if (this->level.version >= LEVEL_VERSION_1_4 || G->state.pkg != 0) {
-            ww = 10.f;
-        }
-
-        float offs = ww == 1.f ? 0.f : ww/2.f-.5f;
-
-        b2Vec2 pos[4] = {
-            b2Vec2(this->level.size_x[1] + offs, py),
-            b2Vec2(px, this->level.size_y[1] + offs),
-            b2Vec2(-this->level.size_x[0] - offs, py),
-            b2Vec2(px, -this->level.size_y[0] - offs)
-        };
-
-        b2Vec2 size[4] = {
-            b2Vec2(ww, h),
-            b2Vec2(w, ww),
-            b2Vec2(ww, h),
-            b2Vec2(w, ww),
-        };
-
+    if (soft) {
         for (int x=0; x<4; x++) {
-            if ((material_factory::background_id != BG_SPACE && material_factory::background_id != BG_COLORED_SPACE && (!((simplebg*)G->bgent)->bottom_only || x == 3)) || this->level.version < LEVEL_VERSION_1_3_0_3) {
-                e.SetAsBox(size[x].x/2.f, size[x].y/2.f, pos[x], 0.f);
-
-                if (soft && ground_fx[x]) {
-                    ((b2PolygonShape*)(ground_fx[x]->GetShape()))->Set(e.m_vertices, 4);
-                } else {
-                    tms_debugf("creating ground_fx[%d]", x);
-                    ground_fx[x] = ground->CreateFixture(&fd);
-                }
-            } else {
-                if (soft && ground_fx[x]) {
-                    ground->DestroyFixture(ground_fx[x]);
-                }
+            if (ground_fx[x]) {
+                ground->DestroyFixture(ground_fx[x]);
                 ground_fx[x] = 0;
-            }
-        }
-    } else {
-        if (soft) {
-            for (int x=0; x<4; x++) {
-                if (ground_fx[x]) {
-                    ground->DestroyFixture(ground_fx[x]);
-                    ground_fx[x] = 0;
-                }
             }
         }
     }
@@ -2359,8 +2073,7 @@ world::save_partial(std::set<entity*> *entity_list, const char *name, uint32_t p
 
         /* special case for pivots, dampers, etc, YUCK! */
         connection *extra_conn = 0;
-        if (en->g_id == O_OPEN_PIVOT) extra_conn = &((pivot_1*)en)->dconn;
-        else if (en->g_id == O_DAMPER) extra_conn = &((damper_1*)en)->dconn;
+        if (en->g_id == O_DAMPER) extra_conn = &((damper_1*)en)->dconn;
         else if (en->g_id == O_RUBBERBAND) extra_conn = &((rubberband_1*)en)->dconn;
 
         if (extra_conn) {

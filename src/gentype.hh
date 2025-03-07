@@ -1,7 +1,6 @@
 #pragma once
 
 #include "terrain.hh"
-#include "faction.hh"
 #include <Box2D/Box2D.h>
 #include "pkgman.hh"
 #include "types.hh"
@@ -17,18 +16,6 @@ class cable;
 class level_chunk;
 
 enum {
-    GENTYPE_NOMAD_HIDEOUT  = 0,
-    GENTYPE_COWS           = 1,
-    GENTYPE_GRAVETHINGY    = 2,
-    GENTYPE_HOLE           = 3,
-    GENTYPE_TEST           = 4,
-    GENTYPE_MINE           = 5,
-    GENTYPE_MINERALS       = 6,
-    GENTYPE_CAVE           = 7,
-    GENTYPE_HIDDEN_FACTORY = 8,
-    GENTYPE_DEEP_CAVE      = 9,
-    GENTYPE_ENEMIES        = 10,
-
     NUM_GENTYPES
 };
 
@@ -98,15 +85,10 @@ class gentype
 
     virtual void create_entities()=0;
 
-    /* helper functions for creating entities */
-    entity *create_enemy(int robot_type, b2Vec2 pos, int layer=1, int faction=FACTION_ENEMY);
-
     /* static function occupy() per-type called to allocate the gentype */
     bool post_occupy();
     void apply();
     void add_to_world();
-
-    static void generate(level_chunk *c);
 
     static gentype_generator gentypes[NUM_GENTYPES];
 };

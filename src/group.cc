@@ -306,11 +306,6 @@ group::create_mesh(void)
             p.y += lp.y;
             p.z += c->layer * LAYER_DEPTH + (c->multilayer ? LAYER_DEPTH*.85f : 0) + z_offset;
 
-            /*
-            if (!rot && !is_splank)
-                p.z += .75f;
-                */
-
             int o = vc + y;
 
             v[o].p.x = p.x;

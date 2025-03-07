@@ -3,7 +3,6 @@
 #include <map>
 #include <Box2D/Box2D.h>
 #include <tms/math/vector.h>
-#include "creature.hh"
 
 
 class entity;
@@ -40,7 +39,6 @@ class activator
     { }
 
     virtual b2Vec2 get_activator_pos() = 0;
-    virtual void activate(creature *by) = 0;
     virtual entity* get_activator_entity() = 0;
     virtual float get_activator_radius() = 0;
 

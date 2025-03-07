@@ -29,30 +29,21 @@ enum {
     S_EXPORT,
     S_STAR,
     S_LOCK,
-    S_ERROR,
     S_CHECKMARK,
     S_MARKER,
-    S_OIL,
     S_MOTOR_AXISROT,
-    S_CONVEYOR_AXISROT,
-    S_SELECT,
     S_WIP,
     S_WIP_2,
     S_PLUS,
-    S_MINUS,
     S_MOUSE,
-    S_TPIXEL_MULTI,
     S_RIGHT,
     S_LEFT,
-    S_ADVENTURE_LEFTRIGHT,
     S_UP,
     S_DOWN,
     S_DROPDOWN,
     S_ADVUP,
     S_ADVDOWN,
     S_CONFIG,
-    S_FLOOR,
-    S_NOT_FLOOR,
     S_INFO,
     S_HELP,
     S_DC,
@@ -95,13 +86,6 @@ enum {
 
     S_MENU_PLAY,
     S_MENU_CREATE,
-    S_BITHACK,
-
-    S_ROUNDED_HELP,
-
-    S_ILAYER0,
-    S_ILAYER1,
-    S_ILAYER2,
 
     S_BOXSELECT,
     S_SELECT_THROUGH,
@@ -111,14 +95,6 @@ enum {
     S_LAYER0,
     S_LAYER1,
     S_LAYER2,
-
-    S_TPIXEL_MATERIAL0,
-    S_TPIXEL_MATERIAL1,
-    S_TPIXEL_MATERIAL2,
-    S_TPIXEL_MATERIAL3,
-
-    S_INVENTORY_ICONS0,
-    S_INVENTORY_ICON_END = S_INVENTORY_ICONS0 + NUM_RESOURCES-1,
 
     NUM_SPRITES
 };
@@ -162,7 +138,6 @@ class gui_spritesheet
     static p_text *t_win; /* Level completed! */
     static p_text *t_lose; /* Game over */
     static p_text *t_player_death; /* You died */
-    static p_text *t_submit_score; /* Submit score */
 
     static p_text *t_in[NUM_SOCKET_SPRITES];
     static p_text *t_out[NUM_SOCKET_SPRITES];

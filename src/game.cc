@@ -1,72 +1,31 @@
-#include "absorber.hh"
-#include "adventure.hh"
-#include "basepixel.hh"
 #include "cable.hh"
 #include "chunk.hh"
 #include "connection.hh"
-#include "cursorfield.hh"
-#include "decorations.hh"
-#include "display.hh"
-#include "dragfield.hh"
-#include "emitter.hh"
-#include "escript.hh"
-#include "fan.hh"
-#include "fluid.hh"
-#include "fluidbuffer.hh"
 #include "font.hh"
-#include "fxemitter.hh"
 #include "game-message.hh"
 #include "game.hh"
-#include "gravityman.hh"
 #include "grid.hh"
 #include "group.hh"
-#include "i0o1gate.hh"
-#include "i1o1gate.hh"
-#include "i2o1gate.hh"
-#include "item.hh"
-#include "key_listener.hh"
-#include "ladder.hh"
-#include "ledbuffer.hh"
 #include "linebuffer.hh"
-#include "loading_screen.hh"
 #include "main.hh"
 #include "material.hh"
 #include "menu_main.hh"
-#include "menu_pkg.hh"
 #include "motor.hh"
 #include "object_factory.hh"
-#include "object_finder.hh"
-#include "objectfield.hh"
 #include "panel.hh"
-#include "pixel.hh"
-#include "plant.hh"
-#include "polygon.hh"
 #include "progress.hh"
-#include "proximitysensor.hh"
-#include "ragdoll.hh"
-#include "rand.h"
-#include "rc_activator.hh"
-#include "robot.hh"
-#include "robot_parts.hh"
-#include "robotman.hh"
-#include "rope.hh"
-#include "screenshot_marker.hh"
-#include "scup.hh"
 #include "settings.hh"
 #include "simplebg.hh"
-#include "soundman.hh"
 #include "soundmanager.hh"
 #include "spritebuffer.hh"
 #include "text.hh"
 #include "textbuffer.hh"
-#include "tpixel.hh"
-#include "ui.hh"
-#include "vendor.hh"
 #include "widget_manager.hh"
 #include "worker.hh"
 #include "world.hh"
-#include "player_activator.hh"
+#include "ui.hh"
 #include "gui.hh"
+#include "menu_pkg.hh"
 #ifdef DEBUG
 /* for print_screen_point_info */
 #include "terrain.hh"
@@ -77,8 +36,6 @@
 
 #include <iterator>
 #include <map>
-
-#include "SDL2_rotozoom.h"
 
 #define MAX_COPY_ENTITIES 10
 
@@ -130,16 +87,10 @@ static uint64_t hov_fadeout_time = 0;
 static float cam_move_x[2];
 static float cam_move_y[2];
 
-static cursorfield *in_cursorfield[MAX_P];
-static cursorfield *drag_cursorfield[MAX_P];
-static cursorfield *hover_cursorfield;
-
 #define MAX_INTERACTING 1
 
 static entity *interacting[MAX_INTERACTING];
 static int current_interacting = -1;
-static discharge_effect *interacting_discharge[MAX_INTERACTING];
-static b2Vec2 interacting_discharge_lp[MAX_INTERACTING];
 static float interacting_M[MAX_INTERACTING][INTERACT_TRAIL_LEN][16];
 static float interacting_N[MAX_INTERACTING][INTERACT_TRAIL_LEN][9];
 static int interacting_p[MAX_INTERACTING];
@@ -311,48 +262,6 @@ const char *src_output[2] = {
 
 };
 
-const char *tutorial_texts[NUM_TUTORIAL_TEXTS] =
-{
-    /* TUTORIAL_TEXT_PICKUP_EQUIPMENT */
-    "When you find loose robot equipment, use the\n"
-    "compressor tool to pick it up, bring it to a\n"
-    "repair station to install it.",
-
-    /* TUTORIAL_TEXT_ZAP_WOOD */
-    "Use the Zapper tool to cut down trees.",
-
-    /* TUTORIAL_TEXT_CAVE_FIRST_TIME */
-    "Caves can be dangerous, you should gather some\n"
-    "wood above ground before going too deep.\n"
-    "Wood can be used to create ladder steps using\n"
-    "the Builder tool."
-        ,
-
-    /* TUTORIAL_TEXT_REPAIR_STATION_DROP */
-    "To drop equipment into the repair station,\n"
-    "climb the ladder, aim at the blue antenna and\n"
-    "charge the Compressor until it releases an item.",
-
-    /* TUTORIAL_TEXT_BUILD_LADDERS */
-    "Ladder steps can help you get out of deep caves,\n"
-    "Create one by equipping the Builder tool, then \n"
-#ifdef TMS_BACKEND_PC
-    "click and drag from your character to where you\n"
-#else
-    "touch and swipe from your character to where you\n"
-#endif
-    "want to create the ladder step."
-};
-
-bool
-game_sorter::distance_to_creature::operator()(activator *a, activator *b)
-{
-    const b2Vec2 &player_pos = this->c->get_position();
-    const float dist_a = b2Distance(a->get_activator_pos(), player_pos);
-    const float dist_b = b2Distance(b->get_activator_pos(), player_pos);
-
-    return dist_a < dist_b;
-}
 
 static tms_program *prg_output;
 static tms_program *prg_brightpass;
@@ -390,16 +299,6 @@ active_slider_render(struct tms_wdg *w, struct tms_surface *s)
     float px = w->pos.x, py = w->pos.y;
     float sx = 1.f, sy = 0.f;
     float r = 0.f;
-
-    if (_tms.emulating_portrait) {
-        int xx = (int)px, yy = (int)py;
-        tms_convert_to_portrait(&xx, &yy);
-        px = (float)xx;
-        py = (float)yy;
-
-        sx = 0.f; sy = 1.f;
-        r = -90.f;
-    }
 
     /* Save old color */
     tvec4 old = s->ddraw->color;
@@ -441,16 +340,6 @@ active_vslider_render(struct tms_wdg *w, struct tms_surface *s)
     float sx = 0.f, sy = 1.f;
     float r = -90.f; // base rotation of vertical slider is -90
 
-    if (_tms.emulating_portrait) {
-        int xx = (int)px, yy = (int)py;
-        tms_convert_to_portrait(&xx, &yy);
-        px = (float)xx;
-        py = (float)yy;
-
-        sx = -1.f; sy = 0.f;
-        r = 0.f;
-    }
-
     /* Save old color */
     tvec4 old = s->ddraw->color;
 
@@ -490,15 +379,6 @@ active_radial_render(struct tms_wdg *w, struct tms_surface *s)
     float px = w->pos.x, py = w->pos.y;
     float r = 0.f;
 
-    if (_tms.emulating_portrait) {
-        int xx = (int)px, yy = (int)py;
-        tms_convert_to_portrait(&xx, &yy);
-        px = (float)xx;
-        py = (float)yy;
-
-        r = -90.f;
-    }
-
     /* Save old color */
     tvec4 old = s->ddraw->color;
 
@@ -511,7 +391,7 @@ active_radial_render(struct tms_wdg *w, struct tms_surface *s)
     /* Revert back to old color */
     tms_ddraw_set_color(s->ddraw, TVEC4_INLINE(old));
 
-    float a =  w->value[0] * 2.f * M_PI + (_tms.emulating_portrait ? M_PI/2.f : 0.f);
+    float a =  w->value[0] * 2.f * M_PI;
     float cs = cosf(a);
     float sn = sinf(a);
 
@@ -526,7 +406,7 @@ active_radial_render(struct tms_wdg *w, struct tms_surface *s)
                 knob_h, r);
 
         if (w->enable_ghost) {
-            a =  w->ghost[0] * 2.f * M_PI + (_tms.emulating_portrait ? M_PI/2.f : 0.f);
+            a =  w->ghost[0] * 2.f * M_PI;
             cs = cosf(a);
             sn = sinf(a);
 
@@ -548,16 +428,6 @@ active_field_render(struct tms_wdg *w, struct tms_surface *s)
     float px = w->pos.x, py = w->pos.y;
     float sx = 1.f, sy = 1.f;
     float r = 0.f;
-
-    if (_tms.emulating_portrait) {
-        int xx = (int)px, yy = (int)py;
-        tms_convert_to_portrait(&xx, &yy);
-        px = (float)xx;
-        py = (float)yy;
-
-        sx = 1.f; sy = 1.f;
-        r = -90.f;
-    }
 
     /* Save old color */
     tvec4 old = s->ddraw->color;
@@ -719,9 +589,6 @@ render_next_prio(struct tms_rstate *state, void *value)
         case 2:
             G->tmp_ao_mask = (tvec3){.0f, 0.f, 0.0f};
             glColorMask(1,1,1,1);
-            if (W->is_adventure() && adventure::player && G->caveview_size > 0.f) {
-                return 1;
-            }
             break;
 
         case 1:
@@ -757,8 +624,7 @@ render_hidden_prio(struct tms_rstate *rstate, void *value)
         default: return 1;
     }
 
-    if ((!((1 << val) & G->layer_vis))
-        || (W->is_adventure() && adventure::player && G->caveview_size > 0.f  && G->caveview_size < 1.f && val == 2)) {
+    if (!((1 << val) & G->layer_vis)) {
         glEnable(GL_BLEND);
         /*glDepthMask(true);
         glEnable(GL_DEPTH_TEST);*/
@@ -774,125 +640,13 @@ render_hidden_prio(struct tms_rstate *rstate, void *value)
 void
 post_fn(struct tms_rstate *state)
 {
-    if (W->is_adventure() && adventure::player && G->caveview_size > 0.f) {
-        glDepthMask(0);
-        struct tms_entity *e = G->caveview;
-        glDisable(GL_DEPTH_TEST);
-        /* render the caveview fade stuff */
-        struct tms_program *prog = m_bg_fixed.pipeline[0].program;
-        tms_entity_apply_uniforms(e, state->p);
-        tms_pipeline_apply_combined_uniforms(state->p, state, prog, e);
-        tms_program_bind(prog);
-        tmat4_load_identity(G->caveview->M);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, W->cwindow->caveview->gl_texture);
-        tmat4_translate(G->caveview->M,
-                //roundf(adventure::player->get_position().x*2.)/2.f- .25f,
-                //roundf((adventure::player->get_position().y+.5f)*2.)/2.f- .25f,
-                G->caveview_pos.x,
-                G->caveview_pos.y,
-                //(adventure::player->get_position().x*2.)/2.f- .25f,
-                //(adventure::player->get_position().y+.5f)*2./2.f- .25f,
-                2.0);
-        tmat4_scale(G->caveview->M, CAVEVIEW_SIZE/2, CAVEVIEW_SIZE/2, 0.f);
-        tmat4_copy(state->modelview, state->view);
-        tmat4_multiply(state->modelview, e->M);
-        tms_pipeline_apply_local_uniforms(state->p, state, prog, e);
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_ZERO, GL_SRC_COLOR);
-        tms_mesh_render(const_cast<tms_mesh*>(tms_meshfactory_get_square()), prog);
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glDisable(GL_BLEND);
-        glBindTexture(GL_TEXTURE_2D, 0);
-        glDepthFunc(GL_LESS);
-        glDepthMask(0xff);
-    }
 
-    /* TODO: copy blending stuff from material/escript */
-    bool base_initialized = false;
-    struct tms_program *prog = m_spritebuf.pipeline[0].program;
-
-    for (std::set<escript*>::iterator it = W->escripts.begin(); it != W->escripts.end(); ++it) {
-        escript *es = static_cast<escript*>(*it);
-        draw_data *draw = es->normal_draw;
-        if (!draw || es->coordinate_mode != ESCRIPT_SCREEN) continue;
-
-        if (!base_initialized) {
-            tmat4_load_identity(state->view);
-            //tmat4_load_identity(state->projection);
-            tmat4_set_ortho(state->projection, 0, 100, 0, 100, 1, -1);
-            tmat4_load_identity(state->modelview);
-            glDisable(GL_DEPTH_TEST);
-            tms_program_bind(prog);
-            tms_pipeline_apply_global_uniforms(state->p, state, prog);
-
-            base_initialized = true;
-        }
-
-        struct tms_entity *e = draw->sprite_ent;
-        tms_program_bind(prog);
-        tms_entity_apply_uniforms(e, state->p);
-        tms_pipeline_apply_combined_uniforms(state->p, state, prog, e);
-        tms_pipeline_apply_local_uniforms(state->p, state, prog, e);
-
-        tmat4_load_identity(draw->sprite_ent->M);
-
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, draw->texture->gl_texture);
-
-        if (es->blending_mode == 1) {
-            glEnable(GL_BLEND);
-            glDepthMask(false);
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        } else if (es->blending_mode == 2) {
-            glEnable(GL_BLEND);
-            glDepthMask(false);
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-        } else {
-            glDisable(GL_BLEND);
-            //glDepthMask(true); do we need to enable depth mask here?
-        }
-
-        tms_mesh_render(draw->sprite_ent->mesh, prog);
-
-        glBindTexture(GL_TEXTURE_2D, 0);
-    }
-
-    if (base_initialized) {
-        glDisable(GL_BLEND);
-        glDepthMask(true);
-    }
-
-    /* TODO: disable blending, re-enable depth testing */
 }
 
 void
 ao_post_fn(struct tms_rstate *state)
 {
-    /// XXX: what?
-    return;
-    if (W->level.type == LCAT_ADVENTURE && adventure::player) {
-        glColorMask(0,0,1,0);
-        float caves = G->caveview_size;
 
-        struct tms_entity *e = G->caveview;
-        struct tms_mesh *m = e->mesh;
-        struct tms_program *prog = m_cavemask.pipeline[state->p].program;
-
-        tms_program_bind(prog);
-        tms_entity_apply_uniforms(e, state->p);
-        tms_pipeline_apply_combined_uniforms(state->p, state, prog, e);
-
-        tmat4_load_identity(G->caveview->M);
-        tmat4_translate(G->caveview->M, adventure::player->get_position().x, adventure::player->get_position().y, 2.05f);
-        tmat4_scale(G->caveview->M, caves, caves, 0.0f);
-        tmat4_copy(state->modelview, state->view);
-        tmat4_multiply(state->modelview, e->M);
-        tms_pipeline_apply_local_uniforms(state->p, state, prog, e);
-        tms_mesh_render(G->caveview->mesh, prog);
-        //tms_varray_unbind_attributes(m->vertex_array, prog->last_locations);
-    }
 }
 
 int ao_mask_color(struct tms_rstate *state, void *value)
@@ -971,11 +725,7 @@ void
 on_panel_change(tms_wdg *w, float value)
 {
     if (value == 1.f) {
-        if (W->is_adventure()) {
-            G->set_control_panel(adventure::player);
-        } else {
-            G->set_control_panel(0);
-        }
+        G->set_control_panel(0);
     }
 }
 
@@ -1051,8 +801,6 @@ game::game()
     this->state.waiting = false;
     this->score_highlight = 0.f;
     this->numfeed_timer = 0.f;
-    this->score_text = new p_text(font::large, ALIGN_RIGHT, ALIGN_TOP);
-    this->score_text->set_position(_tms.window_width, _tms.window_height);
     this->numfeed_text = new p_text(font::small);
     this->numfeed_text->set_position(_tms.window_width/2.f, _tms.window_height-_tms.yppcm/2.f/2.f);
     this->tmp_ao_layer = 1;
@@ -1082,7 +830,6 @@ game::game()
     this->state.edev_labels = false;
     this->state.gridsize = .25f;
     this->state.finished = false;
-    this->set_score(0);
 
     this->_mode = GAME_MODE_DEFAULT;
     this->set_mode(GAME_MODE_DEFAULT);
@@ -1092,7 +839,6 @@ game::game()
     this->ss_anim = .0f;
     this->ss_num_socks = 0;
     this->main_fb = 0;
-    this->bloom_fb = 0;
 
     for (int x=0; x<NUM_CA; x++) {
         this->ca[x].life = -2.f;
@@ -1106,8 +852,6 @@ game::game()
     this->dd = tms_ddraw_alloc();
 
     this->set_scene(new tms::scene());
-
-    this->cam_iterator = W->cam_markers.end();
 
     this->light = P.get_light_normal();
 
@@ -1124,8 +868,6 @@ game::game()
     //this->reset();
     //
 
-    adventure::init();
-
     this->cam_rel_pos = b2Vec2(0,0);
     this->adv_rel_pos = b2Vec2(0,0);
 
@@ -1138,9 +880,6 @@ game::game()
 game::~game()
 {
     delete this->wm;
-    if (this->score_text) {
-        delete this->score_text;
-    }
 
     if (this->numfeed_text) {
         delete this->numfeed_text;
@@ -1199,27 +938,7 @@ game::init_framebuffers()
         this->main_fb = 0;
     }
 
-    if (this->bloom_fb) {
-        tms_fb_free(this->bloom_fb);
-        this->bloom_fb = 0;
-    }
-
-#ifndef TMS_USE_GLES
-    if (settings["postprocess"]->v.b) {
-        tms_infof("Postprocess time");
-        //this->main_fb = tms_fb_alloc(_tms.window_width/2., _tms.window_height/2., 0);
-        this->main_fb = tms_fb_alloc(_tms.window_width, _tms.window_height, 0);
-        tms_fb_add_texture(this->main_fb, GL_RGBA, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST);
-        //tms_fb_add_texture(this->main_fb, GL_RGB, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
-        tms_fb_enable_depth(this->main_fb, GL_DEPTH_COMPONENT16);
-
-        this->bloom_fb = tms_fb_alloc(_tms.window_width, _tms.window_height, 1);
-        tms_fb_add_texture(this->bloom_fb, GL_RGBA, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
-    } else {
-        this->main_fb = 0;
-        this->bloom_fb = 0;
-    }
-#endif
+    this->main_fb = 0;
 }
 
 void
@@ -1330,7 +1049,6 @@ game::init_camera()
 void
 game::reset_touch(bool hard/*=true*/)
 {
-    hover_cursorfield = 0;
     current_interacting = -1;
 
     for (int x=0; x<MAX_P; x++) {
@@ -1340,20 +1058,6 @@ game::reset_touch(bool hard/*=true*/)
         moving[x] = false;
         dragging[x] = false;
         resizing[x] = false;
-
-        if (!hard) {
-            if (in_cursorfield[x]) {
-                in_cursorfield[x]->pressed --;
-            }
-        }
-        in_cursorfield[x] = 0;
-
-        if (!hard) {
-            if (drag_cursorfield[x]) {
-                drag_cursorfield[x]->dragged --;
-            }
-        }
-        drag_cursorfield[x] = 0;
 
         rotating[x] = 0;
         touch_time[x] = _tms.last_time;
@@ -1402,28 +1106,13 @@ game::resume(void)
 {
     this->render_controls = false;
 
-    if (this->resume_action == GAME_START_NEW_ADVENTURE) {
-        tms_infof("Resume action: Start new adventure");
-        this->create_level(LCAT_ADVENTURE, false, true);
-        this->state.test_playing = false;
-        this->state.new_adventure = true;
 
-        if (settings["first_adventure"]->is_true()) {
-            this->render_controls = true;
-            settings["first_adventure"]->set(false);
-        }
-
-        this->begin_play();
-    } else if (this->resume_action == GAME_RESUME_NEW || this->resume_action == GAME_RESUME_NEW_EMPTY) {
+    if (this->resume_action == GAME_RESUME_NEW_EMPTY) {
         tms_infof("Resume action: New");
 
         uint32_t level_type = resume_level_type;
 
-        this->create_level(level_type, this->resume_action == GAME_RESUME_NEW_EMPTY, false);
-
-        if (!settings["hide_tips"]->v.b) {
-            ui::open_sandbox_tips();
-        }
+        this->create_level(level_type);
     }
 
     if (this->resume_action == GAME_RESUME_OPEN) {
@@ -1482,57 +1171,6 @@ game::create_joint(b2JointDef *jd)
 
 static float saved_z;
 
-void
-game::set_caveview_zoom_limits(bool update)
-{
-    saved_z = this->cam->_position.z;
-
-    if (caveview_size >= 2.f) {
-        if (adventure::player && this->state.new_adventure) {
-            if (adventure::player->inventory[RESOURCE_WOOD] > 0) {
-                if (!(settings["tutorial"]->v.u32 & TUTORIAL_BUILD_LADDERS)) {
-                    this->add_tt(TUTORIAL_TEXT_BUILD_LADDERS, 0, b2Vec2(0.f, 2.f), 15.f);
-                    this->finished_tt(TUTORIAL_BUILD_LADDERS);
-                }
-            } else {
-                if (!(settings["tutorial"]->v.u32 & TUTORIAL_CAVE_FIRST_TIME)) {
-                    this->add_tt(TUTORIAL_TEXT_CAVE_FIRST_TIME, 0, b2Vec2(0.f, 2.f), 15.f);
-                    this->finished_tt(TUTORIAL_CAVE_FIRST_TIME);
-                }
-            }
-        }
-    }
-
-#ifdef DEBUG
-    if (G->shift_down()) {
-        return;
-    }
-#endif
-
-#define CAVEVIEW_MAX_ZOOM 15.f
-
-    if (update) {
-        if (this->caveview_size > 0.f) {
-            this->caveview_zoom = std::min(std::max(this->caveview_size, this->caveview_zoom), 1.f);
-        } else {
-            this->caveview_zoom -= _tms.dt*3.f;
-        }
-    }
-
-    if (this->caveview_zoom > 0.f && this->cam->_position.z > CAVEVIEW_MAX_ZOOM) {
-        /* force the zoom to a lower maximum if we're in a cave */
-        float b = 1.f-powf(tclampf(this->caveview_zoom, 0.f, 1.f), 1.f);
-        this->cam->_position.z = CAVEVIEW_MAX_ZOOM*(1.f-b) + this->cam->_position.z*b;
-    }
-
-    //tms_debugf("cam pos: %f", this->cam->_position.z);
-}
-
-void
-game::unset_caveview_zoom_limits()
-{
-    this->cam->_position.z = saved_z;
-}
 
 int
 game::step(double dt)
@@ -1676,12 +1314,8 @@ game::step(double dt)
             this->do_drop_interacting = false;
         }
 
-        if (W->is_adventure()) {
-            adventure::step();
-        }
-
         for(int x=0; x<MAX_INTERACTING; ++x) {
-            if (interacting[x] && (W->level.type == LCAT_ADVENTURE || interacting[x]->in_dragfield || W->level.flag_active(LVL_DO_NOT_REQUIRE_DRAGFIELD))) {
+            if (interacting[x]) {
                 edevice *ed = interacting[x]->get_edevice();
                 if (mover_joint[x] && ed && current_interacting != -1 && dragging[current_interacting]) ed->recreate_all_cable_joints();
 
@@ -1705,15 +1339,6 @@ game::step(double dt)
 
                 interacting_p[x] += 1;
 
-                if (adventure::player && interacting_discharge[x]) {
-                    interacting_discharge[x]->set_points(
-                                        adventure::player->get_position(),
-                                        interacting[x]->get_position(),
-                                        //interacting[x]->local_to_world(interacting_discharge_lp[x], 0),
-                                        adventure::player->get_layer() * LAYER_DEPTH,
-                                        interacting[x]->get_layer() * LAYER_DEPTH);
-                }
-
                 //b2Vec2 p1 = mover_joint[x]->GetBodyA()->GetWorldPoint(mover_joint[x]->GetAnchorA());
                 //b2Vec2 p2 = mover_joint[x]->GetBodyB()->GetWorldPoint(mover_joint[x]->GetAnchorB());
 
@@ -1726,18 +1351,6 @@ game::step(double dt)
                 tvec3 tproj;
                 W->get_layer_point(this->cam, last_cursor_pos_x, last_cursor_pos_y, 0, &tproj);
 
-                if (interacting[x]->g_id == O_LADDER_STEP) {
-                    sel_p_offs.x = 0;
-                    sel_p_offs.y = 0;
-                    tproj.x *= 2.f;
-                    tproj.y *= 2.f;
-                    tproj.x = roundf(tproj.x+.5f);
-                    tproj.y = roundf(tproj.y);
-                    tproj.x /= 2.f;
-                    tproj.y /= 2.f;
-                    tproj.x -= .25f;
-                }
-
                 if (mover_joint[x] && x == current_interacting) {
                     mover_joint[x]->SetLinearOffset(b2Vec2(tproj.x-sel_p_offs.x, tproj.y-sel_p_offs.y));
                 }
@@ -1746,37 +1359,8 @@ game::step(double dt)
                     mover_joint[x]->SetLinearOffset(interacting[x]->get_body(0)->GetPosition());
                 }
 
-                if (W->level.type == LCAT_ADVENTURE && adventure::player) {
-                    b2Vec2 p1 = adventure::player->get_position();
-                    b2Vec2 p2 = interacting[x]->get_position();
-                    if ((p2-p1).LengthSquared() > INTERACT_REACH_SQUARED || (x != current_interacting && (adventure::player->is_moving_left() || adventure::player->is_moving_right()))) {
-                        this->destroy_mover(x);
-                    }
-                }
-
-                if (interacting[x] && interacting[x]->is_creature()) {
-                    creature *c = static_cast<creature*>(interacting[x]);
-                    tms_infof("We are interacting with a creature---");
-                    if (W->level.flag_active(LVL_ABSORB_DEAD_ENEMIES)) {
-                        /* XXX FIXME TODO: Is the creature in the list for timed absorbs? */
-                        //G->timed_absorb(this, W->level.dead_enemy_absorb_time);
-                    }
-                }
             } else {
                 this->destroy_mover(x);
-            }
-        }
-
-        if (!W->is_paused() && W->is_adventure()) {
-            if (this->dropping != -1 && adventure::player->get_num_resources(this->dropping)) {
-                int step_diff = W->step_count - this->drop_step;
-
-                float speedup = std::min(this->drop_speed, 5.f);
-                if (step_diff % (int)(DROP_FREQUENCY / speedup) == 0) {
-                    adventure::player->drop_resource(this->dropping, this->drop_amount, b2Vec2(adventure::player->look_dir*1.25f, .75f));
-                    if (!adventure::player->get_num_resources(this->dropping)) this->refresh_inventory_widgets();
-                    this->drop_speed += DROP_SPEEDUP;
-                }
             }
         }
 
@@ -1821,10 +1405,6 @@ game::step(double dt)
                     p -= this->cam_rel_pos;
                 }
 
-                if (W->is_adventure() && this->follow_object == adventure::player) {
-                    p -= this->adv_rel_pos;
-                }
-
                 double dist = p.Length() / 2.f;
                 double rdist = dist;
                 if (dist > 0.) {
@@ -1853,10 +1433,6 @@ game::step(double dt)
     tms_infof("box2d ms: %d (num bodies: %d, num joints: %d)", SDL_GetTicks() - ss, W->b2->GetBodyCount(), W->b2->GetJointCount());
     ss = SDL_GetTicks();
 #endif
-
-    if (W->is_paused() && this->_mode == GAME_MODE_DRAW && drawing) {
-        this->handle_draw(0, touch_pos[0].x, touch_pos[0].y);
-    }
 
 #define BASE_BORDER_SCROLL_SPEED 1.f
 
@@ -1912,65 +1488,11 @@ game::step(double dt)
 #endif
     float min_z = 4.f;
 
-#ifndef SCREENSHOT_BUILD
-    if (!W->level.flag_active(LVL_DISABLE_ADVENTURE_MAX_ZOOM) && !W->is_paused() && W->is_adventure() && this->follow_object == adventure::player) {
-        max_z = 20.f;
-    }
-#endif
-
     if (this->cam->_position.z > max_z) {
         this->cam->_position.z = max_z;
     } else if (this->cam->_position.z < min_z) {
         this->cam->_position.z = min_z;
     }
-
-#ifndef SCREENSHOT_BUILD
-    /* Apply camera movement constraints */
-    if (W->is_playing() && W->is_adventure() && adventure::player && this->follow_object == adventure::player) {
-        if (this->cam_rel_pos.Length() > 0.1f) {
-            float adventure_max_cam_dist = 7.f;
-
-            if (this->caveview_size > 0.f) {
-                adventure_max_cam_dist = 4.5f;
-            }
-
-            const b2Vec2 player_pos = adventure::player->get_position();
-
-            const float x_diff = this->cam->_position.x-adventure::player->get_position().x;
-            const float y_diff = this->cam->_position.y-adventure::player->get_position().y;
-
-#ifdef DEBUG
-            if (!this->shift_down()) {
-#endif
-
-            if (x_diff > adventure_max_cam_dist) {
-                float diff = adventure_max_cam_dist-x_diff;
-                this->cam->_position.x += diff;
-                this->cam_rel_pos.x += diff;
-            } else if (x_diff < -adventure_max_cam_dist) {
-                float diff = x_diff + adventure_max_cam_dist;
-                this->cam->_position.x -= diff;
-                this->cam_rel_pos.x -= diff;
-            }
-
-            if (y_diff > adventure_max_cam_dist) {
-                float diff = adventure_max_cam_dist-y_diff;
-                this->cam->_position.y += diff;
-                this->cam_rel_pos.y += diff;
-            } else if (y_diff < -adventure_max_cam_dist) {
-                float diff = y_diff + adventure_max_cam_dist;
-                this->cam->_position.y -= diff;
-                this->cam_rel_pos.y -= diff;
-            }
-
-#ifdef DEBUG /* shift_down */
-            }
-#endif
-        }
-    }
-#endif
-
-    this->set_caveview_zoom_limits(true);
 
     this->cam->far = this->cam->_position.z+1.f;
     this->cam->near = this->cam->_position.z-3*LAYER_DEPTH;
@@ -2130,7 +1652,7 @@ game::step(double dt)
     }
 
     /* XXX place this somewhere else? */
-    if (W->is_paused() || W->level.type == LCAT_ADVENTURE) {
+    if (W->is_paused()) {
         this->update_pairs();
     }
 
@@ -2144,22 +1666,8 @@ game::step(double dt)
         tvec3 bottom;
         dd = tms_camera_project(this->cam, this->cam->_position.x, this->cam->_position.y, 0.f);
 
-        if (!_tms.emulating_portrait) {
-            top = tms_camera_unproject(this->cam, _tms.window_width, _tms.window_height, dd.z);
-            bottom = tms_camera_unproject(this->cam, 0.f, 0.f, dd.z);
-
-#if false && defined DEBUG
-            const float CHUNK_EXTRA_CULLING = .4f;
-            float ff = CHUNK_EXTRA_CULLING*this->cam->_position.z;
-            top.x -= ff;
-            top.y -= ff;
-            bottom.x += ff;
-            bottom.y += ff;
-#endif
-        } else {
-            top = tms_camera_unproject(this->cam, 0, _tms.window_height, dd.z);
-            bottom = tms_camera_unproject(this->cam, _tms.window_width, 0.f, dd.z);
-        }
+        top = tms_camera_unproject(this->cam, _tms.window_width, _tms.window_height, dd.z);
+        bottom = tms_camera_unproject(this->cam, 0.f, 0.f, dd.z);
 
         float min_x = std::min(bottom.x, top.x);
         float min_y = std::min(bottom.y, top.y);
@@ -2223,17 +1731,11 @@ game::step(double dt)
         }
     }
 
-    if (material_factory::background_id == BG_OUTDOOR && this->bgent && this->bgent->scene) {
-        tmat4_load_identity(this->bgent->M);
-        tmat4_translate(this->bgent->M, roundf(this->cam->_position.x), -100.f, -0.499f);
-        tmat4_scale(this->bgent->M, 200, 200, 1.0f);
-    } else if (this->grident && this->grident->scene) {
+    if (this->grident && this->grident->scene) {
         tmat4_load_identity(this->grident->M);
         tmat4_translate(this->grident->M, roundf(this->cam->_position.x), roundf(this->cam->_position.y), -0.499f);
         tmat4_scale(this->grident->M, 200, 200, .0f);
     }
-
-    this->unset_caveview_zoom_limits();
 
     //tms_infof("rest of step ms: %d", SDL_GetTicks() - ss);
     return T_OK;
@@ -2255,9 +1757,6 @@ game::update_ghost_entity(entity *ths)
 void
 game::update_static_entities()
 {
-    pixel::reset_counter();
-    tpixel::reset_counter();
-
     for (std::set<entity*>::iterator i = this->u_static.begin();
             i != this->u_static.end(); i++) {
         if (enable_culling && tms_graph_is_entity_culled(this->graph, (*i)))
@@ -2524,21 +2023,15 @@ game::render()
     Uint32 ss = SDL_GetTicks();
 #endif
 
-    this->set_caveview_zoom_limits();
-
-    display::reset();
-    ledbuffer::reset();
     //tms_assertf((ierr = glGetError()) == 0, "gl error %d after led reset", ierr);
     spritebuffer::reset();
-    fluidbuffer::reset();
     linebuffer::reset();
     tms_assertf((ierr = glGetError()) == 0, "gl error %d after linebuffer reset", ierr);
     textbuffer::reset();
     tms_assertf((ierr = glGetError()) == 0, "gl error %d after textbuffer reset", ierr);
     cable::reset_counter();
     //tms_assertf((ierr = glGetError()) == 0, "gl error %d after cable reset", ierr);
-    rope::reset_counter();
-    plant::reset_counter();
+
     //
 
     if (gui_spritesheet::tmp_atlas_modified) {
@@ -2586,26 +2079,16 @@ game::render()
             if (e) _uncull(e);
         }
 
-        tms_graph_uncull_entity(this->graph, display::get_full_entity());
-        tms_graph_uncull_entity(this->graph, ledbuffer::get_entity());
         tms_graph_uncull_entity(this->graph, linebuffer::get_entity());
         tms_graph_uncull_entity(this->graph, linebuffer::get_entity2());
         tms_graph_uncull_entity(this->graph, textbuffer::get_entity());
         tms_graph_uncull_entity(this->graph, textbuffer::get_entity2());
-        tms_graph_uncull_entity(this->graph, fluidbuffer::get_entity());
         tms_graph_uncull_entity(this->graph, spritebuffer::get_entity());
         tms_graph_uncull_entity(this->graph, spritebuffer::get_entity2());
 
         _uncull(W->cwindow);
-        _uncull(pixel::get_entity(0));
-        _uncull(pixel::get_entity(1));
-        _uncull(pixel::get_entity(2));
-        _uncull(tpixel::get_entity(0));
-        _uncull(tpixel::get_entity(1));
-        _uncull(tpixel::get_entity(2));
 
         _uncull(cable::get_entity());
-        _uncull(rope::get_entity());
 
         if (this->grident->scene) {
             _uncull(this->grident);
@@ -2662,69 +2145,10 @@ game::render()
         aabb.upperBound.Set(maxx, maxy);
 
         W->b2->QueryAABB(&uncull_handler, aabb);
-
-        if (this->caveview_size > 0.f && adventure::player) {
-            this->caveview_pos = (tvec2){
-                        roundf(adventure::player->get_position().x*2.f)/2.f - .25f,
-                        roundf((adventure::player->get_position().y+.25f)*2.f)/2.f
-                        //adventure::player->get_position().x*2.f/2.f,
-                        //(adventure::player->get_position().y+.5f)*2.f/2.f
-            };
-            W->cwindow->recreate_caveview_texture(
-                        roundf(adventure::player->get_position().x*2.f)/2.f,
-                        roundf((adventure::player->get_position().y+.25f)*2.f)/2.f,
-                        adventure::player->get_position().x,
-                        (adventure::player->get_position().y+.25f)
-                    );
-        }
     }
 
 #ifdef PROFILING
     tms_infof("culling: %d", SDL_GetTicks() - ss);
-    ss = SDL_GetTicks();
-#endif
-
-    {
-        int num_p = W->b2->GetParticleCount();
-        b2Vec2 *p = W->b2->GetParticlePositionBuffer();
-        float32 *a = W->b2->GetParticleAccumulationBuffer();
-        void **u = W->b2->GetParticleUserDataBuffer();
-
-#if 0
-        b2ParticleContact *cc = W->b2->m_particleSystem.m_contactBuffer;
-        int32 num_contacts = W->b2->m_particleSystem.m_contactCount;
-
-        for (int x=0; x<num_contacts; x++) {
-            int32 a = cc[x].indexA;
-            int32 b = cc[x].indexB;
-            float z = (float)(int)((uintptr_t)u[a]) * LAYER_DEPTH;
-
-            linebuffer::add(p[a].x, p[a].y, z, p[b].x, p[b].y, z,
-                    1.0f, 1.f, 1.f, cc[x].weight*2.f,
-                    1.0f, 1.f, 1.f, cc[x].weight*2.f,
-                    0.1f, 0.1f
-                    );
-        }
-#endif
-
-        for (int x=0; x<num_p; x++) {
-            float pressure = fabsf((1.0f-a[x]*.55f) - .2f)*2.75f;
-            float z = (float)(int)((uintptr_t)u[x]) * LAYER_DEPTH;
-
-            //pressure = tclampf(1.f-pressure, .10f, .5f);
-            pressure = .25f - pressure*.125f;
-            pressure = tclampf(pressure, .05, .25f);
-            float size = fmaxf(.05f+fminf(a[x]*.22f, .4f), .075f);
-            /*fluidbuffer::add(p[x].x,p[x].y, z,
-                    pressure*1.05f, pressure*1.02f, pressure, .33f, size, size);*/
-            fluidbuffer::add(p[x].x,p[x].y, z,
-                    pressure,
-                    size, size);
-        }
-    }
-
-#ifdef PROFILING
-    tms_infof("particle sprite generation: %d", SDL_GetTicks() - ss);
     ss = SDL_GetTicks();
 #endif
 
@@ -2755,89 +2179,23 @@ game::render()
         (*i)->update_effects();
     }
 
-    if (W->is_playing() && W->is_adventure()) {
-        entity *last_host = 0;
-        float y_offset = 0.f;
-        tvec3 color;
-
-        if (G->caveview_size >= 1.f) {
-            color = (tvec3){1.f, 1.f, 1.f};
-        } else {
-            color = (tvec3){0.f, 0.f, 0.f};
-        }
-
-        for (std::multimap<entity*, struct loot>::iterator it = this->loots.begin();
-                it != this->loots.end();) {
-            entity *host = it->first;
-            struct loot &l = it->second;
-
-            if (!host) {
-                continue;
-            }
-
-            if (host != last_host) {
-                y_offset = 0.f;
-            }
-
-            l.scale += _tms.dt * 4.f;
-            l.life -= _tms.dt * 2.f;
-
-            if (l.scale >= 1.f) {
-                l.scale = 1.f;
-            }
-
-            b2Vec2 pos = host->get_position();
-            pos.y += y_offset + host->height + 0.25f;
-
-            char tmp[64];
-            snprintf(tmp, 63, "+%d %s", l.num, l.name);
-
-            textbuffer::add_text(tmp, font::xlarge,
-                    pos.x,
-                    pos.y,
-                    host->get_layer()*LAYER_DEPTH + LAYER_DEPTH/2.f+0.01,
-                    color.r, color.g, color.b, fminf(l.scale, l.life),
-                    0.0045 * powf(.0001f+fminf(l.scale, l.life), .125f)); // LOOT_SCALE
-
-            last_host = host;
-
-            y_offset += (0.3f * fminf(l.scale, l.life));
-
-            if (l.life <= 0.f) {
-                this->loots.erase(it++);
-            } else {
-                ++ it;
-            }
-        }
-    }
-
-    this->render_tt();
-
 #ifdef PROFILING
     tms_infof("effects: %d", SDL_GetTicks() - ss);
     ss = SDL_GetTicks();
 #endif
 
     tms_assertf((ierr = glGetError()) == 0, "gl error %d in game::render before upload", ierr);
-    display::upload();
     //tms_assertf((ierr = glGetError()) == 0, "gl error %d in game::render after display::upload", ierr);
-    ledbuffer::upload();
-    //tms_assertf((ierr = glGetError()) == 0, "gl error %d in game::render after ledbuffer::upload", ierr);
+
     spritebuffer::upload();
-    fluidbuffer::upload();
     //tms_assertf((ierr = glGetError()) == 0, "gl error %d in game::render after spritebuffer::upload", ierr);
     linebuffer::upload();
     tms_assertf((ierr = glGetError()) == 0, "gl error %d in game::render after linebuffer::upload", ierr);
     textbuffer::upload();
     tms_assertf((ierr = glGetError()) == 0, "gl error %d in game::render after textbuffer::upload", ierr);
-    rope::upload_buffers();
-    //tms_assertf((ierr = glGetError()) == 0, "gl error %d in game::render after rope::upload", ierr);
     cable::upload_buffers();
     //tms_assertf((ierr = glGetError()) == 0, "gl error %d in game::render after cable::upload", ierr);
-    pixel::upload_buffers();
-    tpixel::upload_buffers();
-    polygon::upload_buffers();
-    plant::upload_buffers();
+
     tms_assertf((ierr = glGetError()) == 0, "gl error %d in game::render after plant::upload_buffers", ierr);
 
     GLenum err;
@@ -2927,13 +2285,7 @@ game::render()
             tms_fb_swap_blur3x3(tms_pipeline_get_framebuffer(3));
         }
     }
-#ifndef TMS_USE_GLES
-    if (settings["postprocess"]->v.b) {
-        //tms_assertf(glGetError() == 0, "error before main fb bind");
-        tms_fb_bind(this->main_fb);
-        //tms_assertf(glGetError() == 0, "error after main fb bind");
-    }
-#endif
+
     tms_assertf((ierr = glGetError()) == 0, "gl error %d in game::render after shadow/ao", ierr);
     glDisable(GL_BLEND);
 
@@ -2942,7 +2294,7 @@ game::render()
     tms_assertf((ierr = glGetError()) == 0, "gl error %d in game::render before bg", ierr);
 
 #ifndef TMS_USE_GLES
-    if (settings["gamma_correct"]->v.b && !settings["postprocess"]->v.b) {
+    if (settings["gamma_correct"]->v.b) {
         glEnable(GL_FRAMEBUFFER_SRGB);
     }
 #endif
@@ -2951,65 +2303,8 @@ game::render()
         glClearColor(.25f, .25f, .25f, 1.f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     } else {
-        if (material_factory::background_id == BG_COLORED_SPACE) {
-            glClearColor(this->state.bg_color.r, this->state.bg_color.g, this->state.bg_color.b, 1.f);
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        } else if (material_factory::background_id == BG_SPACE || material_factory::background_id == BG_OUTDOOR) {
-            tms_assertf((ierr = glGetError()) == 0, "gl error %d in game::render before space bg", ierr);
-            glClearColor(4.f/255.f, 11.f/255.f, 19/255.f, 1.f);
-            glClear(GL_DEPTH_BUFFER_BIT|GL_COLOR_BUFFER_BIT);
-            glDisable(GL_CULL_FACE);
-            glDisable(GL_DEPTH_TEST);
-
-            if (material_factory::background_id == BG_OUTDOOR) {
-                /* responsible for rendering the horizon background */
-                struct tms_fb fb;
-                fb.num_textures = 1;
-                fb.toggle = 0;
-                fb.fb_texture[0][0] = tex_bg->gl_texture;
-
-                float pp = 0.f;
-
-                float ff = this->cam->far;
-                float nn = this->cam->near;
-
-#define HORIZON_DIST 2500.f
-
-                this->cam->far = HORIZON_DIST+1.f;
-                this->cam->near = -10.f;
-                this->cam->calculate();
-
-                tvec3 v1 = tms_camera_project(this->cam, this->cam->_position.x, 0.f, -HORIZON_DIST);
-                pp = (v1.y / this->cam->height) * 2.f;
-
-                /* reset camera */
-                this->cam->far = ff;
-                this->cam->near = nn;
-                this->cam->calculate();
-
-                tms_program_bind(trans_program);
-                glUniform2f(trans_program_shift_loc, 0.f,0* (this->cam->_position.y > 0? .01f : .075f) * this->cam->_position.y);
-                glUniform2f(trans_program_pos_loc, 0.f, pp);
-                glUniform2f(trans_program_poslower_loc, 0.f, pp);
-                tms_fb_render(&fb, trans_program);
-
-                //fb.fb_texture[0][0] = tex_bedrock->gl_texture;
-
-                v1 = tms_camera_project(this->cam, this->cam->_position.x, -1.f, -.5f);
-                float pp2 = (v1.y / this->cam->height) * 2.f;
-                tms_program_bind(trans_program);
-                //glUniform2f(trans_program_shift_loc, 0.f, 0.f);
-                glUniform2f(trans_program_shift_loc, 0.f,0* (this->cam->_position.y > 0? .01f : .075f) * this->cam->_position.y);
-                glUniform2f(trans_program_pos_loc, 0.f, pp2-2.f);
-                glUniform2f(trans_program_poslower_loc, 0.f, pp);
-                tms_fb_render(&fb, trans_program);
-            } else {
-                tms_texture_render(tex_bg);
-            }
-        } else {
-            glClearColor(.05f, .05f, .05f, 1.f);
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        }
+        glClearColor(.05f, .05f, .05f, 1.f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     }
 
     tms_assertf((ierr = glGetError()) == 0, "gl error %d in game::render after bg", ierr);
@@ -3028,7 +2323,7 @@ game::render()
 
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
-    if (W->is_paused() || W->level.type == LCAT_ADVENTURE) {
+    if (W->is_paused()) {
         this->render_selected_entity();
     }
 
@@ -3037,10 +2332,6 @@ game::render()
 
     glEnable(GL_DEPTH_TEST);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-    if (!W->is_paused() && W->level.type == LCAT_ADVENTURE) {
-        adventure::render();
-    }
 
     glDisable(GL_BLEND);
     glEnable(GL_CULL_FACE);
@@ -3066,7 +2357,7 @@ game::render()
     }
 
 #ifndef TMS_USE_GLES
-    if (settings["gamma_correct"]->v.b && !settings["postprocess"]->v.b) {
+    if (settings["gamma_correct"]->v.b) {
         glDisable(GL_FRAMEBUFFER_SRGB);
     }
 #endif
@@ -3078,84 +2369,10 @@ game::render()
     tms_ddraw_set_matrices(this->dd, this->cam->view, this->cam->projection);
     //tms_ddraw_line3d(this->dd, 0, 0, 0, this->light.x*2.f, this->light.y*2.f, this->light.z*2.f);
 
-#ifndef TMS_USE_GLES
-    if (settings["postprocess"]->v.b) {
-        tms_fb_unbind(this->main_fb);
-        glDisable(GL_DEPTH_TEST);
-        glDisable(GL_BLEND);
-
-#if 0
-        if (settings["gamma_correct"]->v.b) {
-            tms_fb_render(this->main_fb, prg_output);
-        } else {
-            tms_fb_render(this->main_fb, _tms_fb_copy_program);
-        }
-#endif
-
-        if (settings["gamma_correct"]->v.b) {
-            glEnable(GL_FRAMEBUFFER_SRGB);
-        }
-
-        tms_fb_render(this->main_fb, _tms_fb_copy_program);
-
-        if (settings["gamma_correct"]->v.b) {
-            glDisable(GL_FRAMEBUFFER_SRGB);
-        }
-
-        glBindTexture(GL_TEXTURE_2D, this->main_fb->fb_texture[0][0]);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-#ifdef TMS_USE_GLEW
-        if (GLEW_VERSION_3_0) { /* XXX */
-            glGenerateMipmap(GL_TEXTURE_2D);
-        } else {
-            glGenerateMipmapEXT(GL_TEXTURE_2D);
-        }
-#else
-        glGenerateMipmap(GL_TEXTURE_2D);
-#endif
-
-        glDisable(GL_BLEND);
-        glDisable(GL_DEPTH_TEST);
-        tms_fb_render_to(this->main_fb, this->bloom_fb, prg_brightpass);
-        tms_fb_swap_blur5x5(this->bloom_fb);
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_CONSTANT_ALPHA, GL_ONE);
-        glDisable(GL_DEPTH_TEST);
-
-        glBindTexture(GL_TEXTURE_2D, this->bloom_fb->fb_texture[this->bloom_fb->toggle][0]);
-#ifdef TMS_USE_GLEW
-        if (GLEW_VERSION_3_0) { /* XXX */
-            glGenerateMipmap(GL_TEXTURE_2D);
-        } else {
-            glGenerateMipmapEXT(GL_TEXTURE_2D);
-        }
-#else
-        glGenerateMipmap(GL_TEXTURE_2D);
-#endif
-
-        for (int x=0; x<7; x++) {
-            glBlendColor(1.f, 1.f, 1.f, .05f);
-            glBindTexture(GL_TEXTURE_2D, this->bloom_fb->fb_texture[this->bloom_fb->toggle][0]);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, x);
-            tms_fb_render(this->bloom_fb, _tms_fb_copy_program);
-        }
-        glBlendColor(1.f, 1.f, 1.f, 1.f);
-        glBindTexture(GL_TEXTURE_2D, this->bloom_fb->fb_texture[this->bloom_fb->toggle][0]);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
-        glDisable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glEnable(GL_DEPTH_TEST);
-        tms_assertf((ierr = glGetError()) == 0, "gl error %d after postprocess", ierr);
-    }
-#endif
-
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
 
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-    this->render_controls_help();
 
     this->render_gui();
 
@@ -3168,7 +2385,7 @@ game::render()
     glEnable(GL_BLEND);
     tms_ddraw_set_matrices(this->dd, this->cam->view, this->cam->projection);
 
-    if (W->is_paused() || W->level.type == LCAT_ADVENTURE) {
+    if (W->is_paused()) {
         if (this->get_mode() == GAME_MODE_SELECT_SOCKET) {
             // FIXME
             this->render_socksel();
@@ -3179,41 +2396,18 @@ game::render()
 
     glDisable(GL_DEPTH_TEST);
 
-    if (W->is_paused() || W->level.type == LCAT_ADVENTURE) {
+    if (W->is_paused()) {
         if (this->get_mode() == GAME_MODE_SELECT_CONN_TYPE) {
             this->render_conn_types();
         } else {
             this->render_connections();
         }
 
-    }
-
-    if (W->is_paused()) {
         if (this->get_mode() == GAME_MODE_CONN_EDIT) {
             this->render_existing_connections();
         }
 
         this->render_selected_connection();
-    }
-
-    if (W->is_playing() && W->is_adventure()) {
-        this->pending_activators.clear();
-
-        if (adventure::player) {
-            for (std::set<activator*>::iterator it = W->activators.begin();
-                    it != W->activators.end(); it++) {
-                activator *act = *it;
-                if (act->active
-                        && adventure::player->activators.find(act) != adventure::player->activators.end()
-                        && adventure::player->cur_activator != act) {
-                    this->pending_activators.push_back(act);
-                }
-            }
-
-            std::sort(this->pending_activators.begin(), this->pending_activators.end(), game_sorter::distance_to_creature(adventure::player));
-        }
-
-        this->render_activators();
     }
 
     if (this->get_mode() != GAME_MODE_CONN_EDIT && W->is_paused() && this->state.sandbox) {
@@ -3230,38 +2424,11 @@ game::render()
         }
     }
 
-    if (this->get_mode() == GAME_MODE_DEFAULT && W->is_adventure() && adventure::player) {
-        if (!(settings["tutorial"]->v.u32 & TUTORIAL_REPAIR_STATION)) {
-            this->render_help_icon(W->repair_stations, OFFS_REPAIR_STATION);
-        }
-    }
-
 #ifndef SCREENSHOT_BUILD
     if (this->get_mode() != GAME_MODE_CONN_EDIT && ((W->is_puzzle() && W->is_paused()) || (!W->is_puzzle() && !W->is_paused()))) {
         this->render_starred();
     }
 #endif
-
-    if (!W->is_paused() && this->state.sandbox && !this->state.test_playing) {
-        for (std::set<er*>::iterator i = this->errors.begin();
-                i != this->errors.end(); i++) {
-            er *error = static_cast<er*>(*i);
-
-            if (error->e && error->alpha > 0.1f) {
-                tms_ddraw_set_color(this->dd, 1.0f, 1.0f, 1.0f, error->alpha);
-
-                error->alpha -= _tms.dt * this->get_time_mul();
-                entity *e = error->e;
-
-                b2Vec2 p = e->get_position();
-
-                tms_ddraw_sprite_r(this->dd, gui_spritesheet::get_sprite(S_ERROR),
-                        p.x,
-                        p.y,
-                        .35f, .35f, cos((double)_tms.last_time/100000.) * 4.f * this->get_time_mul());
-            }
-        }
-    }
 
     for (int x=0; x<NUM_CA; x++) {
         if (this->ca[x].life >= 0.f && this->ca[x].life <= 1.f) {
@@ -3377,156 +2544,6 @@ game::render()
             }
 #endif
 
-            switch (this->selection.e->g_id) {
-                case O_CURSOR_FIELD: {
-                    // Draw click area for Cursor field object
-
-                    cursorfield *g = static_cast<cursorfield*>(this->selection.e);
-                    tms_ddraw_set_color(this->dd, 0.0f, 0.0f, 1.0f, 1.0f);
-
-                    b2PolygonShape sh;
-
-                    b2Vec2 vertices[4] = {
-                        g->local_to_world(b2Vec2(g->properties[0].v.f, g->properties[1].v.f), 0),
-                        g->local_to_world(b2Vec2((g->properties[2].v.f), g->properties[1].v.f), 0),
-                        g->local_to_world(b2Vec2((g->properties[2].v.f), (g->properties[3].v.f)), 0),
-                        g->local_to_world(b2Vec2(g->properties[0].v.f, (g->properties[3].v.f)), 0)
-                    };
-                    for (int x=0; x<4; ++x) {
-                        tms_ddraw_line3d(this->dd,
-                                vertices[x].x, vertices[x].y, this->selection.e->get_layer()*LAYER_DEPTH,
-                                vertices[(x+1)%4].x, vertices[(x+1)%4].y, this->selection.e->get_layer()*LAYER_DEPTH
-                            );
-                    }
-                } break;
-                case O_FLUID: {
-                    // Draw bounding box for fluid particles to spawn
-
-                    fluid *g = static_cast<fluid*>(this->selection.e);
-                    tms_ddraw_set_color(this->dd, 0.0f, 0.0f, 1.0f, 1.0f);
-                    b2Vec2 vertices[4] = {
-                        g->local_to_world(b2Vec2(g->properties[0].v.f, g->properties[1].v.f), 0),
-                        g->local_to_world(b2Vec2(-(g->properties[0].v.f), g->properties[1].v.f), 0),
-                        g->local_to_world(b2Vec2(-(g->properties[0].v.f), -(g->properties[1].v.f)), 0),
-                        g->local_to_world(b2Vec2(g->properties[0].v.f, -(g->properties[1].v.f)), 0)
-                    };
-                    for (int x=0; x<4; ++x) {
-                        tms_ddraw_line3d(this->dd,
-                                vertices[x].x, vertices[x].y, this->selection.e->get_layer()*LAYER_DEPTH,
-                                vertices[(x+1)%4].x, vertices[(x+1)%4].y, this->selection.e->get_layer()*LAYER_DEPTH
-                            );
-                    }
-                } break;
-                case O_SHAPE_EXTRUDER: {
-                    // Draw bounding box of Shape extruder
-
-                    ghost *g = static_cast<ghost*>(this->selection.e);
-                    if (g->conn_ll) {
-                        tms_ddraw_set_color(this->dd, 0.0f, 0.0f, 1.0f, 1.0f);
-                        composable *other = static_cast<composable*>(g->c.o);
-
-                        if (other) {
-                            float w = other->get_width();
-                            float h = other->height;
-
-                            b2PolygonShape sh;
-
-                            b2Vec2 vertices[4] = {
-                                other->local_to_world(b2Vec2(w+g->properties[0].v.f, h+g->properties[1].v.f), 0),
-                                other->local_to_world(b2Vec2(-(w+g->properties[2].v.f), h+g->properties[1].v.f), 0),
-                                other->local_to_world(b2Vec2(-(w+g->properties[2].v.f), -(h+g->properties[3].v.f)), 0),
-                                other->local_to_world(b2Vec2(w+g->properties[0].v.f, -(h+g->properties[3].v.f)), 0)
-                            };
-                            for (int x=0; x<4; ++x) {
-                                tms_ddraw_line3d(this->dd,
-                                        vertices[x].x, vertices[x].y, this->selection.e->get_layer()*LAYER_DEPTH,
-                                        vertices[(x+1)%4].x, vertices[(x+1)%4].y, this->selection.e->get_layer()*LAYER_DEPTH
-                                    );
-                            }
-                        }
-                    }
-                } break;
-                case O_PROXIMITY_SENSOR: {
-                    // Draw range of proximity sensor
-
-                    proximitysensor *sensor = static_cast<proximitysensor*>(this->selection.e);
-                    static const int32 num_v = 4;
-                    tms_ddraw_set_color(this->dd, 1.0f, 0.0f, 0.0f, 0.8f);
-                    b2Vec2 vertices[num_v];
-
-                    for (int x=0; x<num_v; ++x) {
-                        vertices[x] = this->selection.e->local_to_world(sensor->get_sensor_shape().GetVertex(x), 0);
-                    }
-
-                    for (int x=0; x<num_v; ++x) {
-                        tms_ddraw_line3d(this->dd,
-                                vertices[x].x, vertices[x].y, this->selection.e->get_layer()*LAYER_DEPTH,
-                                vertices[(x+1)%num_v].x, vertices[(x+1)%num_v].y, this->selection.e->get_layer()*LAYER_DEPTH
-                            );
-                    }
-                } break;
-                case O_ID_FIELD:
-                case O_OBJECT_FIELD:
-                case O_TARGET_SETTER: {
-                    objectfield *of = static_cast<objectfield*>(this->selection.e);
-
-                    tms_ddraw_set_color(this->dd, 1.0f, 0.0f, 0.0f, 0.8f);
-                    static const int32 num_v = 4;
-                    b2Vec2 vertices[num_v];
-
-                    for (int x=0; x<num_v; ++x) {
-                        vertices[x] = this->selection.e->local_to_world(of->sensor_shape.GetVertex(x), 0);
-                    }
-
-                    for (int x=0; x<num_v; ++x) {
-                        tms_ddraw_line3d(this->dd,
-                                vertices[x].x, vertices[x].y, this->selection.e->get_layer()*LAYER_DEPTH,
-                                vertices[(x+1)%num_v].x, vertices[(x+1)%num_v].y, this->selection.e->get_layer()*LAYER_DEPTH
-                            );
-                    }
-                } break;
-
-                case O_DRAGFIELD: {
-                    // Draw
-
-                    dragfield *df = static_cast<dragfield*>(this->selection.e);
-
-                    tms_ddraw_set_color(this->dd, 1.0f, 0.0f, 0.0f, 0.8f);
-
-                    tms_ddraw_lcircle(this->dd,
-                            df->get_position().x, df->get_position().y,
-                            df->sensor_shape.m_radius, df->sensor_shape.m_radius);
-                } break;
-                case O_FAN: { // "Oh fan!"
-                    // Draw lines showing the exhaust of selected Fan object
-
-                    fan *f = static_cast<fan*>(this->selection.e);
-
-                    #define NUM_RAYS    5
-                    #define RAY_LENGTH  10.f
-                    #define FAN_WIDTH   1.f
-                    #define FAN_LINE_OFFSET (((x / ((float)NUM_RAYS - 1.f)) * FAN_WIDTH) - (FAN_WIDTH / 2.f))
-
-                    tms_ddraw_set_color(this->dd, 1.0f, 0.0f, 0.0f, 0.4f);
-                    for (int x=0; x<NUM_RAYS; x++) {
-                        float a = f->get_angle();
-                        b2Vec2 angle;
-                        tmath_sincos(a, &angle.y, &angle.x);
-
-                        b2Vec2 r = f->get_position();
-                        b2Vec2 dir = f->local_to_world(b2Vec2(0.f,  RAY_LENGTH), 0);
-
-                        r.x   += angle.x * FAN_LINE_OFFSET;
-                        r.y   += angle.y * FAN_LINE_OFFSET;
-                        dir.x += angle.x * FAN_LINE_OFFSET;
-                        dir.y += angle.y * FAN_LINE_OFFSET;
-
-                        float l = f->get_layer()*LAYER_DEPTH;
-
-                        tms_ddraw_line3d(this->dd, r.x, r.y, l, dir.x, dir.y, l);
-                    }
-                } break;
-            }
         }
     }
     tms_assertf((ierr = glGetError()) == 0, "gl error %d after something2", ierr);
@@ -3538,42 +2555,9 @@ game::render()
         }
     }
 
-    if (this->state.sandbox && this->state.edev_labels && settings["render_edev_labels"]->v.b) {
-        this->render_edev_labels();
-        tms_assertf((ierr = glGetError()) == 0, "gl error %d after edev labels", ierr);
-    }
-
     glBindTexture(GL_TEXTURE_2D, 0);
 
-    std::vector<entity*> hp_occurences;
 
-    for (int x=0; x<NUM_HP; x++) {
-        struct hp *h = &this->hps[x];
-        if (h->time <= 0.f || !h->e) {
-            continue;
-        } else if (h->time <= 0.25f && h->regen && h->percent < 1.f) {
-            h->time = 0.25f;
-            h->e->entity_health += 0.25f;
-            h->percent = tclampf(h->e->entity_health / ENTITY_MAX_HEALTH, 0.f, 1.f);
-        }
-
-        h->time -= _tms.dt*.2f;
-
-        float y_offset = h->e->height*2.f + (BAR_Y_OFFSET * std::count(hp_occurences.begin(), hp_occurences.end(), h->e));
-        float alpha = tclampf(h->time / .25f, 0.f, 1.f) * .75f;
-
-        this->draw_entity_bar(h->e, h->percent, y_offset, h->color, alpha);
-
-        hp_occurences.push_back(h->e);
-
-        if (h->e->flag_active(ENTITY_IS_CREATURE)) {
-            if (static_cast<creature*>(h->e)->creature_flag_active(CREATURE_IS_ZOMBIE)) {
-                h->color = (tvec3){0.4f, 0.4f, .4f};
-            }
-        }
-    }
-
-//#define SHOW_MOOD_DATA
 #define SHOW_RAYCASTS
 
 #if defined(SHOW_RAYCASTS) && defined(DEBUG)
@@ -3599,50 +2583,6 @@ game::render()
     }
 #endif
 
-#ifdef SHOW_MOOD_DATA
-    if (!W->is_paused()) {
-        for (std::map<uint32_t, entity*>::iterator it = W->all_entities.begin();
-                it != W->all_entities.end(); ++it) {
-            if (it->second->flag_active(ENTITY_IS_ROBOT)) {
-                robot_base *rob = static_cast<robot_base*>(it->second);
-
-                float y = 1.65f;
-                tvec3 color;
-                for (int x=0; x<NUM_MOODS; ++x) {
-                    switch (x) {
-                        case MOOD_ANGER:
-                            color = tvec3f(.95f, .33f, .33f);
-                            break;
-
-                        case MOOD_BRAVERY:
-                            color = tvec3f(.33f, .33f, .95f);
-                            break;
-
-                        case MOOD_FEAR:
-                            color = tvec3f(.95f, .95f, .33f);
-                            break;
-
-                        default:
-                            color = tvec3f(.3f, .3f, .3f);
-                            break;
-                    }
-
-                    this->draw_entity_bar(rob, rob->mood.get(x), y, color);
-                    y += BAR_Y_OFFSET;
-                }
-
-                {
-                    if (rob->roam) {
-                        float v = tclampf((float)rob->logic_timer/rob->logic_timer_max, 0.f, 1.f);
-                        color = tvec3f(.33f, .95f, .95f);
-                        this->draw_entity_bar(rob, v, y, color);
-                        y += BAR_Y_OFFSET;
-                    }
-                }
-            }
-        }
-    }
-#endif
 
     tms_ddraw_set_matrices(this->dd, this->cam->view, this->cam->projection);
     tms_assertf((ierr = glGetError()) == 0, "gl error %d after hp rendering", ierr);
@@ -3718,8 +2658,6 @@ game::render()
 
     tms_assertf((ierr = glGetError()) == 0, "gl error %d in game::render end", ierr);
 
-    this->unset_caveview_zoom_limits();
-
     return T_OK;
 }
 
@@ -3740,12 +2678,6 @@ game::add_error(entity *e, uint8_t error_type/*=ERROR_NONE*/, const char *messag
     error->type = error_type;
     if (message) error->message = strdup(message);
     this->errors.insert(error);
-
-    if (!this->wdg_error->surface && settings["render_gui"]->is_true()) {
-        this->wdg_error->add();
-
-        this->wm->rearrange();
-    }
 }
 
 void
@@ -3765,30 +2697,6 @@ game::reselect()
     this->selection.select(this->selection.e, this->selection.b, this->selection.offs, this->selection.frame, true);
 }
 
-void
-game::render_tt()
-{
-    for (int x=0; x<MAX_TUTORIAL_TEXTS; x++) {
-        if (this->tt[x].life > 0.f) {
-            b2Vec2 p;
-            if (this->tt[x].e) {
-                p = this->tt[x].e->get_position() + this->tt[x].pos;
-            } else {
-                p = b2Vec2(this->cam->_position.x, this->cam->_position.y) + this->tt[x].pos;
-            }
-            textbuffer::add_text(tutorial_texts[this->tt[x].what], font::medium,
-                    p.x,p.y,
-                    2.9f,
-                    1.f, 1.f, 1.f, this->tt[x].life < .25f ? (this->tt[x].life/.25f) : 1.f,
-                    .015,
-                    ALIGN_CENTER,
-                    ALIGN_CENTER,
-                    true
-                    );
-            this->tt[x].life -= _tms.dt;
-        }
-    }
-}
 
 /**
  * Render any pending activators.
@@ -3806,9 +2714,6 @@ game::render_activators(void)
         tmat4_copy(p, this->cam->projection);
 
         int layer = 0;
-        if (adventure::player) {
-            layer = adventure::player->get_layer();
-        }
 
         int x = 0;
 
@@ -3833,15 +2738,6 @@ game::render_activators(void)
                     activator_pos.x, activator_pos.y,
                     radius * 0.15f, radius * 0.15f);
 
-#ifdef TMS_BACKEND_PC
-            if (x < NUM_ACTIVATOR_BINDINGS && !adventure::player->cur_activator) {
-                tvec3 proj;
-                proj = tms_camera_project(this->cam, activator_pos.x, activator_pos.y, layer*LAYER_DEPTH+LAYER_DEPTH/2.f);
-                this->add_text(activator_texts[x], proj.x, proj.y);
-            }
-
-            x++;
-#endif
         }
     }
 }
@@ -3870,10 +2766,6 @@ game::render_starred(void)
 
         float max_z = 60.f;
 
-        if (!W->level.flag_active(LVL_DISABLE_ADVENTURE_MAX_ZOOM) && !W->is_paused() && W->is_adventure() && this->follow_object == adventure::player) {
-            max_z = 20.f;
-        }
-
         s *= tclampf((this->cam->_position.z*2.f) / max_z, 1.f, 2.f);
 
         tms_ddraw_sprite_r(this->dd, gui_spritesheet::get_sprite(S_STAR),
@@ -3882,57 +2774,6 @@ game::render_starred(void)
         s, s,
         cos((double)_tms.last_time/100000.) * 16.f);
     }
-}
-
-void
-game::render_controls_help()
-{
-#ifdef TMS_BACKEND_PC
-    if (!this->render_controls) {
-        if (this->tex_controls) {
-            delete this->tex_controls;
-            this->tex_controls = 0;
-        }
-
-        return;
-    }
-
-    if (!this->tex_controls) {
-        this->tex_controls = new tms::texture();
-        this->tex_controls->format = GL_RGBA;
-        this->tex_controls->load("data/textures/controls.png");
-        this->tex_controls->upload();
-    }
-
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-    struct tms_sprite tmp;
-    tmp.bl = tvec2f(0.f, 0.f);
-    tmp.tr = tvec2f(1.f, 1.f);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, this->tex_controls->gl_texture);
-
-    int width = this->tex_controls->width;
-    int height = this->tex_controls->height;
-
-    if (this->tex_controls->width*1.25f >= _tms.window_width) {
-        float mod = _tms.window_width / (this->tex_controls->width*1.25f);
-        width *= mod;
-        height *= mod;
-    }
-
-    tms_ddraw_sprite(this->get_surface()->ddraw, &tmp,
-            _tms.window_width/2.f, _tms.window_height/2.f,
-            width, height);
-
-    this->add_text("Press <ESCAPE> or click anywhere on the screen to close this window.",
-            font::xmedium,
-            _tms.window_width/2.f, _tms.window_height/2.f + height/2.f + _tms.xppcm*0.1f,
-            TV_WHITE,
-            true,
-            ALIGN_CENTER, ALIGN_BOTTOM);
-#endif
 }
 
 void
@@ -4271,13 +3112,13 @@ game::render_socksel()
     } else {
         /* disconnect */
         for (int x=0; x<this->ss_edev->num_s_in; x++) {
-            if (this->ss_edev->s_in[x].p != 0 && (this->state.sandbox || (W->level.type == LCAT_ADVENTURE && !W->is_paused()) || this->ss_edev->s_in[x].p->is_moveable() || (this->ss_edev->s_in[x].p->c && this->ss_edev->s_in[x].p->c->is_moveable()))) {
+            if (this->ss_edev->s_in[x].p != 0 && (this->state.sandbox || this->ss_edev->s_in[x].p->is_moveable() || (this->ss_edev->s_in[x].p->c && this->ss_edev->s_in[x].p->c->is_moveable()))) {
                 this->ss_socks[this->ss_num_socks] = &this->ss_edev->s_in[x];
                 this->ss_num_socks ++;
             }
         }
         for (int x=0; x<this->ss_edev->num_s_out; x++) {
-            if (this->ss_edev->s_out[x].p != 0 && (this->state.sandbox || (W->level.type == LCAT_ADVENTURE && !W->is_paused()) || this->ss_edev->s_out[x].p->is_moveable() || (this->ss_edev->s_out[x].p->c && this->ss_edev->s_out[x].p->c->is_moveable()))) {
+            if (this->ss_edev->s_out[x].p != 0 && (this->state.sandbox || this->ss_edev->s_out[x].p->is_moveable() || (this->ss_edev->s_out[x].p->c && this->ss_edev->s_out[x].p->c->is_moveable()))) {
                 this->ss_socks[this->ss_num_socks] = &this->ss_edev->s_out[x];
                 this->ss_num_socks ++;
             }
@@ -4361,7 +3202,6 @@ game::render_socksel()
         switch (this->ss_socks[x]->ctype) {
             default: bgc = MENU_WHITE_F; break;
             case CABLE_RED: bgc = (tvec3){.3f, .3f, .3f}; break;
-            case CABLE_BLUE: bgc = (tvec3){0.7f, .7f, 1.f}; break;
         }
 
         if (this->ss_socks[x]->tag != SOCK_TAG_NONE) {
@@ -4469,35 +3309,6 @@ game::render_selected_entity()
         tms_ddraw_sprite(this->dd, gui_spritesheet::get_sprite(S_ROT), r2.x, r2.y, .5f, .5f);
     }
 
-    if (this->selection.e->g_id == O_SERVO_MOTOR || this->selection.e->g_id == O_DC_MOTOR) {
-        motor *s = (motor*)this->selection.e;
-        b2Vec2 p = this->selection.e->local_to_world(b2Vec2(0.f, 0.f), this->selection.frame);
-        b2Vec2 r = this->selection.e->local_to_world(b2Vec2(cosf(s->properties[1].v.f) *3.f, sinf(s->properties[1].v.f)*3.f), this->selection.frame);
-
-        tms_ddraw_set_color(this->dd, 1.f, 0.f, 1.f, 1.f);
-        float mv[16];
-        tmat4_copy(mv, this->cam->view);
-        tmat4_translate(mv, 0, 0, this->selection.e->get_layer()*LAYER_DEPTH);
-        tms_ddraw_set_matrices(this->dd, mv, this->cam->projection);
-        tms_ddraw_line(this->dd, p.x, p.y, r.x, r.y);
-        tms_ddraw_square(this->dd, r.x, r.y, .25f, .25f);
-    }
-
-    if (this->selection.e->g_id == O_GRAVITY_MANAGER) {
-        gravityman *g = static_cast<gravityman*>(this->selection.e);
-
-        b2Vec2 p = g->local_to_world(b2Vec2(0.f, 0.f), this->selection.frame);
-        b2Vec2 r = g->local_to_world(b2Vec2(cosf(g->properties[0].v.f) *2.f, sinf(g->properties[0].v.f)*2.f), this->selection.frame);
-
-        tms_ddraw_set_color(this->dd, 1.f, 0.f, 1.f, 1.f);
-        float mv[16];
-        tmat4_copy(mv, this->cam->view);
-        tmat4_translate(mv, 0, 0, g->get_layer()*LAYER_DEPTH);
-        tms_ddraw_set_matrices(this->dd, mv, this->cam->projection);
-        tms_ddraw_line(this->dd, p.x, p.y, r.x, r.y);
-        tms_ddraw_square(this->dd, r.x, r.y, .25f, .25f);
-    }
-
     glDisable(GL_BLEND);
 }
 
@@ -4526,9 +3337,6 @@ game::render_selected_connection()
 void
 game::drop_interacting(void)
 {
-    if (W->level.type == LCAT_ADVENTURE)
-        this->selection.disable();
-
     for (int x=0; x<MAX_INTERACTING; x++) {
         if (interacting[x]) {
             this->destroy_mover(x);
@@ -4785,35 +3593,6 @@ game::render_highlighted()
             i++;
         }
     }
-
-    if (W->level.type == LCAT_ADVENTURE && W->is_paused()) {
-        entity *e = W->get_entity_by_id(this->state.adventure_id);
-        if (e && e->flag_active(ENTITY_IS_ROBOT)) {
-            tms_graph_add_entity_with_children(this->outline_graph, e);
-
-            glEnable(GL_DEPTH_TEST);
-            glDepthFunc(GL_EQUAL);
-            glCullFace(GL_BACK);
-            glEnable(GL_BLEND);
-            glEnable(GL_CULL_FACE);
-
-            //glBlendColor(1.f, 1.f, 1.f, fabsf(this->hls[x].time * (this->hls[x].error ? .5f : 1.f)));
-            glBlendColor(0.5f, 1.f, 0.5f, 0.2f);
-            glColorMask(0,1,0,1);
-            glBlendFunc(GL_CONSTANT_ALPHA, GL_ONE);
-            glBlendEquation(GL_FUNC_ADD);
-
-            tms_graph_render(this->outline_graph, this->cam, this);
-
-            glBlendEquation(GL_FUNC_ADD);
-            glDisable(GL_BLEND);
-            glDepthFunc(GL_LESS);
-
-            tms_graph_remove_entity_with_children(this->outline_graph, e);
-
-            glColorMask(1,1,1,1);
-        }
-    }
 }
 
 void
@@ -4846,7 +3625,7 @@ game::open_socket_selector(entity *e, edevice *edev, int action/*=0*/)
     this->ss_quickplug_step2 = false;
     this->ss_action = action;
 
-    if (G->state.sandbox || !e || e->get_property_entity()->is_moveable() || W->level.type == LCAT_ADVENTURE) {
+    if (G->state.sandbox || !e || e->get_property_entity()->is_moveable()) {
         this->set_mode(GAME_MODE_SELECT_SOCKET);
         this->ss_edev = edev;
 
@@ -4877,11 +3656,7 @@ game::set_follow_object(entity *e, bool snap, bool preserve_pos/*=false*/)
     if (e) {
         this->follow_object = e;
     } else {
-        if (W->is_adventure()) {
-            this->follow_object = adventure::player;
-        } else {
-            this->follow_object = 0;
-        }
+        this->follow_object = 0;
     }
 
     this->cam_vel.x = 0.f;
@@ -4891,12 +3666,7 @@ game::set_follow_object(entity *e, bool snap, bool preserve_pos/*=false*/)
         if (preserve_pos) {
             this->cam_rel_pos = b2Vec2(this->cam->_position.x, this->cam->_position.y) - this->follow_object->get_position();
         } else {
-            if (this->follow_object == adventure::player) {
-                this->cam_rel_pos = b2Vec2(0.f,0.f);
-                this->adv_rel_pos = b2Vec2(0.f,0.f);
-            } else {
-                this->cam_rel_pos = b2Vec2(0.f,0.f);
-            }
+            this->cam_rel_pos = b2Vec2(0.f,0.f);
         }
 
         if (snap) {
@@ -4909,7 +3679,7 @@ game::set_follow_object(entity *e, bool snap, bool preserve_pos/*=false*/)
 void
 game::setup_panel(panel *p)
 {
-    adventure::clear_widgets();
+
     this->current_panel = p;
 
     for (int x=0; x<p->num_widgets; x++) {
@@ -5015,11 +3785,6 @@ game::set_control_panel(entity *e)
             /* We decativate any "specially activated" widgets */
             deactive_misc_wdg(&G->active_hori_wdg);
             deactive_misc_wdg(&G->active_vert_wdg);
-        } else if (this->current_panel->is_creature()) {
-            /* If the previous panel was a creature, we will assume it
-             * was the adventure robot, and clear any such widgets from
-             * the screen. */
-            adventure::clear_widgets();
         } else {
             /* If the panel was neither an RC or a creature,
              * something strange must have happened. */
@@ -5040,24 +3805,17 @@ game::set_control_panel(entity *e)
     }
 
     panel *p = (e && e->is_rc() ? static_cast<panel*>(e) : 0);
-    creature *c = (e && e->is_creature() ? static_cast<creature*>(e) : 0);
 
     this->current_panel = e;
 
     if (p) {
-        if (!W->is_adventure()) {
-            /* If the level flag "Disable RC camera-snap" is enabled,
-             * we will not snap to the given RC. */
-            this->set_follow_object(e, false, W->level.flag_active(LVL_DISABLE_RC_CAMERA_SNAP));
-        }
+        /* If the level flag "Disable RC camera-snap" is enabled,
+            * we will not snap to the given RC. */
+        this->set_follow_object(e, false, W->level.flag_active(LVL_DISABLE_RC_CAMERA_SNAP));
 
         /* If the new panel is an RC, we set up any panel widget labels
          * for that RC. */
         this->setup_panel(static_cast<panel*>(e));
-    } else if (c && W->is_adventure() && c->is_player()) {
-        /* If the new panel is the adventure robot, we initialize the on-screen
-         * adventure widgets. */
-        adventure::init_widgets();
     }
 }
 
@@ -5085,7 +3843,6 @@ game::reset()
     this->follow_options.offset.y = 0.f;
 
     this->_restart_level = false;
-    this->_submit_score = false;
 
     for (std::set<fadeout_event*>::iterator i = this->fadeouts.begin(); i != this->fadeouts.end(); i++) {
         fadeout_event *ev = *i;
@@ -5094,9 +3851,7 @@ game::reset()
     this->fadeouts.clear();
     this->clear_errors();
     this->starred.clear();
-    adventure::reset();
 
-    _tms.emulating_portrait = false;
     this->cam->up = (tvec3){0.f, 1.f, 0.f};
 
     this->set_control_panel(0);
@@ -5111,14 +3866,6 @@ game::reset()
         this->hps[x].e = 0;
         this->hps[x].time = 0.f;
     }
-
-    for (int x=0; x<MAX_TUTORIAL_TEXTS; x++) {
-        this->tt[x].e = 0;
-        this->tt[x].what = 0;
-        this->tt[x].life = 0.f;
-    }
-
-    this->loots.clear();
 
     this->dropping = -1;
     this->drop_step = 0;
@@ -5149,32 +3896,16 @@ game::reset()
     this->state.finished = false;
     this->state.success = false;
     this->state.edit_layer = 0;
-    this->set_score(0);
     this->state.submitted_score = false;
     this->state.new_adventure = false;
-    this->brush = 0;
-    this->brush_layer_inclusion = true;
-    this->brush_material = TERRAIN_GRASS;
     this->get_scene()->add_entity(W->cwindow);
-    this->get_scene()->add_entity(display::get_full_entity());
-    this->get_scene()->add_entity(ledbuffer::get_entity());
     this->get_scene()->add_entity(linebuffer::get_entity());
     this->get_scene()->add_entity(linebuffer::get_entity2());
     this->get_scene()->add_entity(textbuffer::get_entity());
     this->get_scene()->add_entity(textbuffer::get_entity2());
-    this->get_scene()->add_entity(fluidbuffer::get_entity());
     this->get_scene()->add_entity(spritebuffer::get_entity());
     this->get_scene()->add_entity(spritebuffer::get_entity2());
     tms_scene_add_entity(this->super.scene, cable::get_entity());
-    tms_scene_add_entity(this->super.scene, rope::get_entity());
-
-    this->get_scene()->add_entity(static_cast<entity*>(pixel::get_entity(0)));
-    this->get_scene()->add_entity(static_cast<entity*>(pixel::get_entity(1)));
-    this->get_scene()->add_entity(static_cast<entity*>(pixel::get_entity(2)));
-
-    this->get_scene()->add_entity(static_cast<entity*>(tpixel::get_entity(0)));
-    this->get_scene()->add_entity(static_cast<entity*>(tpixel::get_entity(1)));
-    this->get_scene()->add_entity(static_cast<entity*>(tpixel::get_entity(2)));
 
     this->selection.reset();
     this->sel_p_body = 0;
@@ -5192,7 +3923,6 @@ game::reset()
     this->hov_text->active = false;
 #endif
 
-    _tms.emulating_portrait = false;
     this->cam->up = (tvec3){0.f, 1.f, 0.f};
 
     G->caveview_size = 0.f;
@@ -5214,7 +3944,6 @@ game::load_state()
 
     this->state.time_mul = lb.r_float();
     this->state.adventure_id = lb.r_uint32();
-    this->set_score(lb.r_uint32());
     this->state.finished = lb.r_uint8();
     this->state.success = lb.r_uint8();
     W->gravity_x = lb.r_float();
@@ -5280,7 +4009,6 @@ game::write_state(lvlinfo *lvl, lvlbuf *lb)
 
     lb->w_float(this->state.time_mul);
     lb->w_uint32(this->state.adventure_id);
-    lb->w_uint32(this->get_real_score());
     lb->w_uint8(this->state.finished);
     lb->w_uint8(this->state.success);
     lb->w_float(W->gravity_x);
@@ -5371,13 +4099,6 @@ game::apply_level_properties()
 
     this->state.adventure_id = W->level.get_adventure_id();
 
-    if (!adventure::player) {
-        entity *player = W->get_entity_by_id(this->state.adventure_id);
-        if (player) {
-            adventure::player = static_cast<creature*>(player);
-        }
-    }
-
     if (!this->caveview->scene) {
         this->get_scene()->add_entity(static_cast<tms::entity*>(this->caveview));
     }
@@ -5386,21 +4107,7 @@ game::apply_level_properties()
         this->set_architect_mode(false);
     }
 
-#ifdef TMS_BACKEND_MOBILE
-    if (W->level.flag_active(LVL_PORTRAIT_MODE)) {
-#else
-    if (false) {
-#endif
-        _tms.emulating_portrait = true;
-        this->cam->up = (tvec3){1.f, 0.f, 0.f};
-    } else  {
-        _tms.emulating_portrait = false;
-        this->cam->up = (tvec3){0.f, 1.f, 0.f};
-    }
-
-    if (W->level.type == LCAT_ADVENTURE) {
-        this->cam->_position.z = 12.f;
-    }
+    this->cam->up = (tvec3){0.f, 1.f, 0.f};
 
     this->cam->_position.x = W->level.sandbox_cam_x;
     this->cam->_position.y = W->level.sandbox_cam_y;
@@ -5422,8 +4129,6 @@ game::init_background()
     tms_infof("setting bg to %d", material_factory::background_id);
     material_factory::load_bg_texture(true);
 
-    tms_debugf("SETTING BOTTOM ONLY TO %d", (material_factory::background_id == BG_OUTDOOR));
-    ((simplebg*)this->bgent)->bottom_only = (material_factory::background_id == BG_OUTDOOR);
     ((simplebg*)this->bgent)->set_color(W->level.bg_color);
 
     bool valid = ((simplebg*)this->bgent)->set_level_size(
@@ -5432,22 +4137,8 @@ game::init_background()
         W->level.size_y[0],
         W->level.size_y[1]);
 
-    if (!valid) {
-        tms_infof("Border sizes invalid, falling back to space background.");
-        material_factory::background_id = BG_SPACE;
-    }
-
-    switch (material_factory::background_id) {
-        case BG_SPACE:
-            /* TODO: cool space rendering */
-        case BG_COLORED_SPACE:
-            break;
-
-        default:
-            tms_infof("Background ID %d, adding entity.", material_factory::background_id);
-            this->get_scene()->add_entity(this->bgent);
-            break;
-    }
+    tms_infof("Background ID %d, adding entity.", material_factory::background_id);
+    this->get_scene()->add_entity(this->bgent);
 
     float r,g,b,a;
     unpack_rgba(W->level.bg_color, &r, &g, &b, &a);
@@ -5619,21 +4310,8 @@ game::destroy_mover(uint8_t x, bool do_not_deselect)
         b->SetLinearDamping(0.f);
         b->SetGravityScale(1.f);
 
-        if (adventure::player) {
-            b->SetLinearVelocity(adventure::player->get_body(0)
-                    ? adventure::player->get_body(0)->GetLinearVelocity() : b2Vec2(0.f, 0.f)
-                    );
-            b->SetAngularVelocity(0.f);
-        }
-
         W->b2->DestroyJoint(mover_joint[x]);
         mover_joint[x] = 0;
-    }
-
-    if (interacting_discharge[x]) {
-        this->remove_entity(interacting_discharge[x]);
-        delete interacting_discharge[x];
-        interacting_discharge[x] = 0;
     }
 
     if (interacting[x]) {
@@ -5687,18 +4365,7 @@ game::remove_entity(entity *e)
             this->selection.m->erase(e);
         }
     } else {
-        for (int x=0; x<MAX_P; ++x) {
-            if (drag_cursorfield[x] == e) {
-                drag_cursorfield[x] = 0;
-            }
-            if (in_cursorfield[x] == e) {
-                in_cursorfield[x] = 0;
-            }
-        }
 
-        if (hover_cursorfield == e) {
-            hover_cursorfield = 0;
-        }
     }
 
     /* if this object is highlighted, disable its highlight */
@@ -5709,13 +4376,6 @@ game::remove_entity(entity *e)
         if (this->hls[x].e == e) {
             this->hls[x].e = 0;
             this->hls[x].time = 0.f;
-        }
-    }
-
-    for (int x=0; x<MAX_TUTORIAL_TEXTS; x++) {
-        if (this->tt[x].e == e) {
-            this->tt[x].e = 0;
-            this->tt[x].life = 0.f;
         }
     }
 
@@ -5735,8 +4395,6 @@ game::remove_entity(entity *e)
             this->hps[x].e = 0;
         }
     }
-
-    this->loots.erase(e);
 
     if (this->selection.e == e) {
         this->selection.disable();
@@ -5797,9 +4455,7 @@ game::copy_properties(entity *destination, entity *source, bool hl/*=false*/)
             }
         }
 
-        if (destination->g_id == O_PIXEL) {
-            ((pixel*)destination)->update_appearance();
-        } else if (destination->g_id == O_BOX) {
+        if (destination->g_id == O_BOX) {
             destination->on_load(false, false);
         }
 
@@ -5860,7 +4516,7 @@ game::check_all_entities()
             if (i->second->is_locked()) this->locked.insert(i->second);
         }
 
-        if (!W->is_adventure() && i->second->is_control_panel() && i->second != this->current_panel) {
+        if (i->second->is_control_panel() && i->second != this->current_panel) {
             if (((panel*)i->second)->widgets_in_use) this->starred.insert(i->second);
         }
     }
@@ -6056,39 +4712,8 @@ game::handle_input_playing(tms::event *ev, int action)
                 break;
         }
 
-        if (W->is_adventure()) {
-            if (adventure::handle_input_playing(ev, action) == EVENT_DONE)
-                return EVENT_DONE;
-
-            switch (ev->data.key.keycode) {
-                case TMS_KEY_ESC:
-                    if (G->current_panel && G->current_panel != adventure::player) {
-                        if (adventure::player) {
-                            adventure::player->detach();
-                        }
-                    }
-                    break;
-            }
-        }
 
         switch (ev->data.key.keycode) {
-            case TMS_KEY_F5:
-                if (W->level.flag_active(LVL_ALLOW_QUICKSAVING)) {
-                    this->save_state();
-                    ui::message("Saved!");
-                } else {
-                    ui::message("This level does not support quick saving.");
-                }
-                break;
-
-            case TMS_KEY_F9:
-                if (ev->data.key.mod & TMS_MOD_CTRL) {
-                    disable_menu = true;
-
-                    this->open_latest_state(true);
-                }
-                break;
-
             case TMS_KEY_O:
                 if (ev->data.key.mod & TMS_MOD_CTRL) {
                     disable_menu = true;
@@ -6102,25 +4727,7 @@ game::handle_input_playing(tms::event *ev, int action)
 #endif
             case TMS_KEY_B:
             case TMS_KEY_P:
-                if (W->is_adventure()) {
-                    if (this->state.sandbox || this->state.test_playing) {
-                        if (settings["dna_sandbox_back"]->v.b) {
-                            this->do_pause();
-                        } else {
-                            ui::confirm("Are you sure you want to quit this level?",
-                                    "Yes",  ACTION_WORLD_PAUSE,
-                                    "No",   ACTION_IGNORE,
-                                    0,      ACTION_IGNORE,
-                                    confirm_data(CONFIRM_TYPE_BACK_SANDBOX));
-                        }
-                    } else {
-                        ui::confirm("Are you sure you want to quit this level?",
-                                "Yes",  ACTION_WORLD_PAUSE,
-                                "No",   ACTION_IGNORE);
-                    }
-                } else {
-                    this->do_pause();
-                }
+                this->do_pause();
                 break;
 
             case TMS_KEY_C:
@@ -6150,11 +4757,7 @@ game::handle_input_playing(tms::event *ev, int action)
         if (this->menu_handle_event(ev) == EVENT_DONE) {
             return EVENT_DONE;
         }
-        if (W->is_adventure()) {
-            if (adventure::handle_input_playing(ev, action) == EVENT_DONE) {
-                return EVENT_DONE;
-            }
-        }
+
     } else if (ev->type == TMS_EV_KEY_UP) {
         if (this->menu_handle_event(ev)) {
             return T_OK;
@@ -6192,12 +4795,6 @@ game::handle_input_playing(tms::event *ev, int action)
             case TMS_KEY_J: if (wdg_btn[3]) { tms_wdg_set_active(wdg_btn[3], 0); return T_OK; } break;
             case TMS_KEY_K: if (wdg_btn[4]) { tms_wdg_set_active(wdg_btn[4], 0); return T_OK; } break;
         }
-
-        if (W->is_adventure()) {
-            if (adventure::handle_input_playing(ev, action) == EVENT_DONE) {
-                return EVENT_DONE;
-            }
-        }
     } else if (ev->type == TMS_EV_POINTER_DOWN) {
         int pid = ev->data.motion.pointer_id;
         if (pid == 0) current_interacting = -1;
@@ -6205,10 +4802,6 @@ game::handle_input_playing(tms::event *ev, int action)
         if (this->menu_handle_event(ev)) {
             down[pid] = false;
             return T_OK;
-        }
-        if (W->is_adventure()) {
-            if (adventure::handle_input_playing(ev, action) == EVENT_DONE)
-                return EVENT_DONE;
         }
 
         tvec2 click_pt = tvec2f(ev->data.motion.x, ev->data.motion.y);
@@ -6230,25 +4823,6 @@ game::handle_input_playing(tms::event *ev, int action)
             down[pid] = false;
             sm::play(&sm::click, sm::position.x, sm::position.y, rand(), 1.f, false, 0, true);
             return EVENT_DONE;
-        }
-
-        if (this->get_mode() == GAME_MODE_DEFAULT && W->is_adventure() && adventure::player
-         && !(settings["tutorial"]->v.u32 & TUTORIAL_REPAIR_STATION)) {
-
-            /* Detect clicks on help icons! */
-            bool r = false;
-            r = this->check_click_help_icon(
-                    W->repair_stations,
-                    OFFS_REPAIR_STATION,
-                    b2Vec2(tproj.x, tproj.y),
-                    principia_action(
-                        ACTION_OPEN_URL,
-                        (void*)strdup("https://principia-web.se/wiki/Repair_Station"))
-                    );
-
-            if (r) {
-                return EVENT_DONE;
-            }
         }
 
         entity *e = 0;
@@ -6292,22 +4866,8 @@ game::handle_input_playing(tms::event *ev, int action)
             rotating[pid] = 1;
             return T_OK;
         }
-        if (W->level.type == LCAT_ADVENTURE && adventure::player && adventure::is_player_alive()) {
-            robot_parts::tool *t = adventure::player->get_tool();
-            if (t
-#ifdef TMS_BACKEND_PC
-                    && pid == 0
-#endif
-               ) {
-                if (t->action(ev->type, pid, tvec2f(ev->data.motion.x, ev->data.motion.y)) == EVENT_DONE)
-                    return EVENT_DONE;
-            }
-        }
 
         int lvis = this->layer_vis;
-        if (W->is_adventure() && this->caveview_size > 0.f) {
-            lvis &= ~4;
-        }
 
         W->query(this->cam, (int)ev->data.motion.x, (int)ev->data.motion.y, &this->sel_p_ent, &this->sel_p_body, &this->sel_p_offs, &this->sel_p_frame, lvis);
 
@@ -6323,23 +4883,10 @@ game::handle_input_playing(tms::event *ev, int action)
                     }
                 }
             }
-
-            if (this->sel_p_ent->g_id == O_CURSOR_FIELD) {
-                ((cursorfield*)this->sel_p_ent)->pressed ++;
-                ((cursorfield*)this->sel_p_ent)->dragged ++;
-                in_cursorfield[pid] = (cursorfield*)this->sel_p_ent;
-                drag_cursorfield[pid] = (cursorfield*)this->sel_p_ent;
-            }
         }
     } else if (ev->type == TMS_EV_POINTER_DRAG) {
         if (this->menu_handle_event(ev))
             return T_OK;
-
-        if (W->is_adventure()) {
-            if (adventure::handle_input_playing(ev, action) == EVENT_DONE) {
-                return EVENT_DONE;
-            }
-        }
 
         int pid = ev->data.motion.pointer_id;
 
@@ -6350,18 +4897,6 @@ game::handle_input_playing(tms::event *ev, int action)
         tvec2 td = (tvec2){tdown.x-touch_pos[pid].x, tdown.y-touch_pos[pid].y};
 
         if (!down[pid]) return T_OK;
-
-        if (W->level.type == LCAT_ADVENTURE && adventure::player && adventure::is_player_alive()) {
-            robot_parts::tool *t = adventure::player->get_tool();
-            if (t
-#ifdef TMS_BACKEND_PC
-                    && pid == 0
-#endif
-               ) {
-                if (t->action(ev->type, pid, tvec2f(ev->data.motion.x, ev->data.motion.y)) == EVENT_DONE)
-                    return EVENT_DONE;
-            }
-        }
 
         tvec3 tproj;
         W->get_layer_point(this->cam, (int)ev->data.motion.x, (int)ev->data.motion.y, 0, &tproj);
@@ -6384,23 +4919,6 @@ game::handle_input_playing(tms::event *ev, int action)
                 }
             }
         } else {
-            if (in_cursorfield[pid]) {
-                W->query(this->cam, (int)ev->data.motion.x, (int)ev->data.motion.y, &this->sel_p_ent, &this->sel_p_body, &this->sel_p_offs, &this->sel_p_frame, this->layer_vis);
-
-                if (this->sel_p_ent != drag_cursorfield[pid]) {
-
-                    if (drag_cursorfield[pid] != 0)
-                        drag_cursorfield[pid]->dragged --;
-
-                    if (this->sel_p_ent != 0 && this->sel_p_ent->g_id == O_CURSOR_FIELD) {
-                        drag_cursorfield[pid] = (cursorfield*)this->sel_p_ent;
-                        drag_cursorfield[pid]->dragged ++;
-                    } else
-                        drag_cursorfield[pid] = 0;
-                }
-
-                return T_OK;
-            }
             if (this->get_mode() == GAME_MODE_QUICK_PLUG) {
                 if (this->selection.e) {
                     touch_proj[pid] = (tvec2){tproj.x, tproj.y};
@@ -6430,35 +4948,29 @@ game::handle_input_playing(tms::event *ev, int action)
 #ifdef TMS_BACKEND_PC
                         && pid == 0
 #endif
-                        && this->sel_p_ent && (this->sel_p_ent->flag_active(ENTITY_IS_INTERACTIVE) || (W->level.type == LCAT_ADVENTURE && !this->sel_p_ent->flag_active(ENTITY_IS_STATIC)))) {
-                    if (this->player_can_build() || (W->level.type != LCAT_ADVENTURE && (this->sel_p_ent->in_dragfield || W->level.flag_active(LVL_DO_NOT_REQUIRE_DRAGFIELD)))) {
-                        tms_infof("SELECTED interactive object[%d] with pid %d", this->sel_p_ent->in_dragfield, pid);
+                        && this->sel_p_ent && (this->sel_p_ent->flag_active(ENTITY_IS_INTERACTIVE))) {
 
-                        if (!W->level.flag_active(LVL_DISABLE_INTERACTIVE)
-                            && (!W->is_adventure() || adventure::is_player_alive())
-                            ) {
+                    tms_infof("SELECTED interactive object[%d] with pid %d", this->sel_p_ent->in_dragfield, pid);
 
-                            int f;
-                            if ((f = this->interact_select(this->sel_p_ent)) != -1) {
-                                this->selection.select(this->sel_p_ent, this->sel_p_body, this->sel_p_offs, this->sel_p_frame, true);
-                                this->sel_p_ent->on_grab_playing();
+                    if (!W->level.flag_active(LVL_DISABLE_INTERACTIVE)) {
 
-                                moving[pid] = true;
-                                if (pid == 0) {
-                                    current_interacting = f;
-                                }
-                            } else {
+                        int f;
+                        if ((f = this->interact_select(this->sel_p_ent)) != -1) {
+                            this->selection.select(this->sel_p_ent, this->sel_p_body, this->sel_p_offs, this->sel_p_frame, true);
+                            this->sel_p_ent->on_grab_playing();
+
+                            moving[pid] = true;
+                            if (pid == 0) {
+                                current_interacting = f;
                             }
                         } else {
-                            moving[pid] = true;
-                            //down[pid] = false;
-                            //moving[pid] = false;
                         }
                     } else {
                         moving[pid] = true;
-                        down[pid] = false;
-                        tms_debugf("object NOT in dragfield");
+                        //down[pid] = false;
+                        //moving[pid] = false;
                     }
+
                 } else if (rotating[pid] || resizing[pid]) {
                     moving[pid] = true;
                 } else {
@@ -6561,17 +5073,6 @@ game::handle_input_playing(tms::event *ev, int action)
                             W->get_layer_point(this->cam, touch_pos[pid].x, touch_pos[pid].y, 0, &tproj);
 
                             if (mover_joint[current_interacting]) {
-                                if (interacting[current_interacting]->g_id == O_LADDER_STEP) {
-                                    sel_p_offs.x = 0;
-                                    sel_p_offs.y = 0;
-                                    tproj.x *= 2.f;
-                                    tproj.y *= 2.f;
-                                    tproj.x = roundf(tproj.x+.5f);
-                                    tproj.y = roundf(tproj.y);
-                                    tproj.x /= 2.f;
-                                    tproj.y /= 2.f;
-                                    tproj.x -= .25f;
-                                }
                                 mover_joint[current_interacting]->SetLinearOffset(b2Vec2(tproj.x-sel_p_offs.x, tproj.y-sel_p_offs.y));
                             }
                         }
@@ -6588,32 +5089,12 @@ game::handle_input_playing(tms::event *ev, int action)
         if (pid == 0) {
             current_interacting = -1;
 
-            if (curr_was != -1 && interacting[curr_was] && interacting[curr_was]->g_id == O_LADDER_STEP) {
-                ladder_step *ls = static_cast<ladder_step*>(interacting[curr_was]);
-
-                if (ls->emitted_by && adventure::player && ls->emitted_by == adventure::player->id) {
-                    ls->find_pairs();
-                    if (ls->has_pair) {
-                        tms_debugf("has_pair");
-                        G->apply_connection(&ls->c_back, -1);
-                    } else {
-                        tms_debugf("does not have pair ");
-                    }
-
-                    ls->emitted_by = 0;
-                    G->drop_interacting();
-                }
-            }
         }
 
         if (this->menu_handle_event(ev)) {
             return T_OK;
         }
 
-        if (W->is_adventure()) {
-            if (adventure::handle_input_playing(ev, action) == EVENT_DONE)
-                return EVENT_DONE;
-        }
 
 #ifdef TMS_BACKEND_PC
         if (pid == 0) {
@@ -6632,28 +5113,6 @@ game::handle_input_playing(tms::event *ev, int action)
         down[pid] = false;
         //interacting[pid] = 0;
         //
-
-        if (W->level.type == LCAT_ADVENTURE && adventure::player && adventure::is_player_alive()) {
-            robot_parts::tool *t = adventure::player->get_tool();
-            if (t
-#ifdef TMS_BACKEND_PC
-                    && pid == 0
-#endif
-               ) {
-                if (t->action(ev->type, pid, tvec2f(ev->data.motion.x, ev->data.motion.y)) == EVENT_DONE)
-                    return EVENT_DONE;
-            }
-        }
-
-        if (in_cursorfield[pid]) {
-            if (drag_cursorfield[pid]) {
-                drag_cursorfield[pid]->dragged --;
-                drag_cursorfield[pid] = 0;
-            }
-            in_cursorfield[pid]->pressed --;
-            in_cursorfield[pid] = 0;
-            return T_OK;
-        }
 
         entity *e = 0;
         b2Body *b;
@@ -6711,70 +5170,12 @@ game::handle_input_playing(tms::event *ev, int action)
                         2.f * LAYER_DEPTH + .5f,
                         &half_pt[2]);
 
-                if (W->is_adventure()) {
-                    if (adventure::is_player_alive()) {
-                        std::set<activator*>::iterator it = adventure::player->activators.begin();
-                        b2Vec2 click = b2Vec2(pt[adventure::player->get_layer()].x, pt[adventure::player->get_layer()].y);
-
-                        activator *nearest = 0;
-                        float nearest_dist = INFINITY;
-                        for (;it != adventure::player->activators.end(); ++it) {
-                            activator *act = *it;
-                            b2Vec2 ipos = act->get_activator_pos();
-
-                            float dist = (ipos - click).Length();
-
-                            if (dist < .575f) {
-                                if (dist < nearest_dist) {
-                                    nearest = act;
-                                    nearest_dist = dist;
-                                }
-                            }
-                        }
-
-                        if (nearest) {
-                            adventure::player->activate_activator(nearest);
-                            return T_OK;
-                        }
-                    }
-
-                    if (this->player_can_build()) {
-                        if (this->get_mode() == GAME_MODE_SELECT_SOCKET) {
-                            if (this->check_click_socksel()) {
-                                return T_OK;
-                            }
-                        }
-                        if (this->get_mode() == GAME_MODE_SELECT_OBJECT) {
-                            this->check_select_object(ev->data.motion.x, ev->data.motion.y, pid);
-                            return T_OK;
-                        }
-
-                        tms_infof("checking");
-
-                        if (this->get_mode() == GAME_MODE_SELECT_CONN_TYPE) {
-                            if (this->check_click_conntype(ev->data.motion.x, ev->data.motion.y)) {
-                                return T_OK;
-                            }
-                        }
-
-                        if (this->check_click_conn(ev->data.motion.x, ev->data.motion.y)) {
-                            return T_OK;
-                        }
-
-                        if (this->interact_select(this->sel_p_ent) == -1) {
-                            this->drop_interacting();
-                        } else {
-                            this->selection.select(this->sel_p_ent, this->sel_p_body, this->sel_p_offs, this->sel_p_frame, false);
-                        }
-                    }
-
-                } else {
-                    this->selection.select(this->sel_p_ent, this->sel_p_body, this->sel_p_offs, this->sel_p_frame, false);
-                    if (this->selection.e) {
-                        if (this->selection.e->flag_active(ENTITY_IS_CONTROL_PANEL))
-                            this->set_control_panel(this->selection.e);
-                    }
+                this->selection.select(this->sel_p_ent, this->sel_p_body, this->sel_p_offs, this->sel_p_frame, false);
+                if (this->selection.e) {
+                    if (this->selection.e->flag_active(ENTITY_IS_CONTROL_PANEL))
+                        this->set_control_panel(this->selection.e);
                 }
+
             } else {
                 if (curr_was != -1 && interacting[curr_was]) {
                     if (interacting[curr_was]->get_body(0)->GetLinearVelocity().LengthSquared() > 12.f && (b2Vec2(pt[interacting[curr_was]->get_layer()].x, pt[interacting[curr_was]->get_layer()].y) - interacting[curr_was]->get_position()).Length()>1.5f) {
@@ -6789,12 +5190,6 @@ game::handle_input_playing(tms::event *ev, int action)
     } else if (ev->type == TMS_EV_POINTER_MOVE) {
         if (this->menu_handle_event(ev) == EVENT_DONE)
             return EVENT_DONE;
-
-        if (W->is_adventure()) {
-            if (adventure::handle_input_playing(ev, action) == EVENT_DONE) {
-                return EVENT_DONE;
-            }
-        }
 
         tvec2 pt = tvec2f(ev->data.motion.x, ev->data.motion.y);
 
@@ -6965,21 +5360,6 @@ game::finish(bool success)
             W->events[WORLD_EVENT_GAME_OVER] ++;
         }
 
-        if (p && (success || W->level.flag_active(LVL_STORE_SCORE_ON_GAME_OVER))) {
-            p->last_score = this->get_real_score();
-            tms_debugf("Last score set to %d", p->last_score);
-
-            if (W->level.flag_active(LVL_LOWER_SCORE_IS_BETTER)) {
-                if (p->last_score < p->top_score || p->top_score == 0) {
-                    tms_debugf("%d < %d || %d == 0, top score set", p->last_score, p->top_score, p->top_score);
-                    p->top_score = p->last_score;
-                }
-            } else if (p->last_score > p->top_score) {
-                tms_debugf("%d > %d, top score set", p->last_score, p->top_score);
-                p->top_score = p->last_score;
-            }
-        }
-
         if ((W->level.pause_on_finish || !success) && !W->level.flag_active(LVL_DISABLE_ENDSCREENS)) {
             sm::stop_all();
             this->state.waiting = true;
@@ -6998,13 +5378,6 @@ game::finish(bool success)
                 sm::play(&sm::lose, 0.f, 0.f, 0, 1.f, false, 0, true);
             }
 
-        }
-
-        if (!this->state.submitted_score && W->level.flag_active(LVL_ALLOW_HIGH_SCORE_SUBMISSIONS)
-                && W->level_id_type == LEVEL_DB
-                && p
-                && (settings["score_automatically_submit"]->v.b || W->level.flag_active(LVL_AUTOMATICALLY_SUBMIT_SCORE))) {
-            this->submit_score();
         }
 
         tms_infof("game FINISH");
@@ -7084,60 +5457,25 @@ game::open_play(int id_type, uint32_t id, pkginfo *pkg, bool test_playing/*=fals
 void
 game::begin_play(bool has_state)
 {
-    if (W->is_adventure()) {
-        if (this->state.adventure_id != 0) {
-            entity *e = W->get_entity_by_id(this->state.adventure_id);
-
-            if (e && e->flag_active(ENTITY_IS_CREATURE)) {
-                creature *c = static_cast<creature*>(e);
-
-                /* if we have a state, the cam pos and everything else is set
-                 * from that, otherwise we just call adventure::set_player and it will
-                 * set everything up for us */
-                if (has_state) {
-                    adventure::player = c;
-                } else {
-                    adventure::set_player(c, true);
-                }
-            }
-        }
-
-        adventure::setup(); /* XXX TODO state handling of resources */
-    }
 
     this->refresh_widgets();
 }
 
 void
-game::create_level(int type, bool empty, bool play)
+game::create_level(int type)
 {
-    switch (type) {
-        case LCAT_PUZZLE:     tms_infof("Creating a Puzzle level"); break;
-        case LCAT_ADVENTURE:  tms_infof("Creating an Adventure level"); break;
-        case LCAT_CUSTOM:     tms_infof("Creating a Custom level"); break;
-    }
-
     this->reset();
-    this->state.sandbox = !play;
+    this->state.sandbox = true;
     this->state.test_playing = false;
 
     uint64_t seed = 0;
 
-    if (!empty) {
-        init_genrand(clock());
-        seed = (((uint64_t)genrand_int32()) << 32ull) | ((uint64_t)genrand_int32());
-    }
-
-    W->create(type, seed, play);
+    W->create(type, seed, false);
 
     this->apply_level_properties();
     this->add_entities(&W->all_entities, &W->groups, &W->connections, &W->cables);
     W->begin();
 
-    if (!empty && play) {
-        sprintf(W->level.name, "Random Adventure");
-        W->level.name_len = strlen("Random Adventure");
-    }
 }
 
 void
@@ -7234,7 +5572,7 @@ game::autosave()
 }
 
 bool
-game::save(bool create_icon/*=true*/, bool force/*=false*/)
+game::save(bool force/*=false*/)
 {
     if (!this->state.sandbox && !force) {
         tms_debugf("Can't save while outside the sandbox.");
@@ -7246,11 +5584,6 @@ game::save(bool create_icon/*=true*/, bool force/*=false*/)
     W->level.sandbox_cam_x = this->cam->_position.x;
     W->level.sandbox_cam_y = this->cam->_position.y;
     W->level.sandbox_cam_zoom = this->cam->_position.z;
-
-    if (create_icon) {
-        tms_infof("Creating level icon...");
-        this->create_icon();
-    }
 
     return W->save();
 }
@@ -7286,105 +5619,10 @@ game::select_random_entity()
     } while (!e || e->g_id != O_MINI_TRANSMITTER);
 }
 
-void
-game::snap_to_camera(screenshot_marker *sm)
-{
-    if (sm->is_hidden()) {
-        this->cam->_position.x = sm->saved_position.x;
-        this->cam->_position.y = sm->saved_position.y;
-        this->cam->_position.z = sm->properties[0].v.f;
-    } else {
-        this->cam->_position.x = sm->get_position().x;
-        this->cam->_position.y = sm->get_position().y;
-        this->cam->_position.z = sm->properties[0].v.f;
-    }
-
-    /* Reset current camera movement */
-    this->cam_vel.x = 0.f;
-    this->cam_vel.y = 0.f;
-    this->cam_vel.z = 0.f;
-}
-
 bool
 game::player_can_build()
 {
-    return W->level.type == LCAT_ADVENTURE && adventure::player && adventure::is_player_alive()
-            && adventure::player->get_tool() && adventure::player->get_tool_type() == TOOL_BUILDER;
-}
-
-/**
- * Create an icon for the current level
- **/
-void
-game::create_icon()
-{
-    GLuint err;
-    float cam_width = (float)_tms.window_height;
-    float cam_height = (float)_tms.window_height;
-
-    this->cam->enable(TMS_CAMERA_PERSPECTIVE);
-    this->cam->width = cam_width;
-    this->cam->height = cam_height;
-    this->cam->calculate();
-
-    tvec3 dd = tms_camera_project(this->cam, this->cam->_position.x, this->cam->_position.y, LAYER_DEPTH*1.f);
-
-    tvec3 top = tms_camera_unproject(this->cam, 0.f, cam_height, dd.z);
-
-    this->cam->disable(TMS_CAMERA_PERSPECTIVE);
-
-    this->cam->width = fabsf(top.x - this->cam->_position.x)*2.f;
-    this->cam->height = fabsf(top.y - this->cam->_position.y)*2.f;
-    this->cam->owidth = cam_width;
-    this->cam->oheight = cam_height;
-
-    this->cam->calculate();
-
-    settings["render_gui"]->set(false);
-
-    tms_fb_bind(this->icon_fb);
-    this->render();
-
-    if ((err = glGetError()) != 0) tms_infof("opengl error in icon creation rendering: %u", err);
-
-    glViewport(0,0,_tms.opengl_width, _tms.opengl_height);
-
-    SDL_Surface *srf = SDL_CreateRGBSurface(SDL_SWSURFACE, 512, 512, 32, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000);
-    glReadPixels(0, 0, 512, 512, GL_RGBA, GL_UNSIGNED_BYTE, srf->pixels);
-
-    if ((err = glGetError()) != 0) tms_infof("glReadPixels: %u", err);
-
-    SDL_Surface *n = zoomSurface(srf, .25, .25);
-
-    for (int y=0; y<128; y++) {
-        for (int x=0; x<128; x++) {
-            int C = 60;
-
-            float _r = ((float)((unsigned char*)n->pixels)[y * n->pitch + x*4]) * .299f;
-            float _g = ((float)((unsigned char*)n->pixels)[y * n->pitch + x*4+1]) * .587f;
-            float _b = ((float)((unsigned char*)n->pixels)[y * n->pitch + x*4+2]) * .114f;
-
-            float lum = (_r+_g+_b);
-
-            int c = (int) (lum)/ 2;
-            int f = (259*(C+255))/(255*(259-C));
-            int new_c = f*(c-128)+128;
-            if (new_c < 0) new_c = 0;
-            if (new_c > 255) new_c = 255;
-            W->level.icon[y*128+x] = (uint8_t)new_c&0xff;
-        }
-    }
-    SDL_FreeSurface(n);
-
-    SDL_FreeSurface(srf);
-
-    tms_fb_unbind(this->icon_fb);
-
-#ifndef NO_UI
-    settings["render_gui"]->set(true);
-#endif
-
-    if ((err = glGetError()) != 0) tms_infof("icon creation done: %u", err);
+    return W->level.type == LCAT_ADVENTURE;
 }
 
 /* resize the current level to fit the borders around the content */
@@ -7468,40 +5706,6 @@ game::export_object(const char *name)
 {
     if (this->selection.m) {
         W->save_partial(this->selection.m, name, pkgman::get_next_object_id());
-    }
-}
-
-void
-game::handle_draw(int pid, int mx, int my)
-{
-    tvec3 tproj;
-    W->get_layer_point(this->cam, mx, my, 0, &tproj);
-    int depth = this->state.edit_layer;
-    int z = 0;
-
-    if (!this->brush_layer_inclusion) {
-        z = depth;
-    }
-
-    for (; z<depth+1; z++) {
-
-        int cx = (int)floor(tproj.x*2);
-        int cy = (int)floor(tproj.y*2);
-
-        int size = (this->brush+1)*6;
-
-        std::set<level_chunk *> affected;
-
-        for (int h=-size/2; h<=size/2; h++) {
-            for (int w=-size/2; w<=size/2; w++) {
-                affected.insert(W->cwindow->set_pixel(cx+w, cy+h, z, this->brush_material));
-            }
-        }
-
-        for (std::set<level_chunk*>::iterator i = affected.begin(); i != affected.end(); i++) {
-            (*i)->remerge();
-            W->to_be_reloaded.insert((*i));
-        }
     }
 }
 
@@ -7620,7 +5824,7 @@ game::handle_input_paused(tms::event *ev, int action)
 
             case TMS_KEY_DELETE:
                 if (this->get_mode() == GAME_MODE_DEFAULT) {
-                    if (this->selection.e && !this->selection.e->requires_delete_confirmation()) {
+                    if (this->selection.e) {
                         this->delete_selected_entity();
                     }
                 }
@@ -7648,13 +5852,6 @@ game::handle_input_paused(tms::event *ev, int action)
                 break;
 
 #ifdef DEBUG
-            case TMS_KEY_F6:
-                if (ev->data.key.mod & TMS_MOD_SHIFT) {
-                    G->create_level(LCAT_ADVENTURE, true, false);
-                } else {
-                    tms_infof("Seed: 0x%016" PRIx64, W->level.seed);
-                }
-                break;
 
             case TMS_KEY_F8:
                 if (ev->data.key.mod & TMS_MOD_CTRL) {
@@ -7839,18 +6036,6 @@ game::handle_input_paused(tms::event *ev, int action)
                     this->selection.e->disconnect_all();
                     this->refresh_widgets();
                 }
-#if 0
-                if (this->state.sandbox && this->selection.e && this->selection.e->flag_active(ENTITY_IS_EDEVICE)) {
-                    this->open_socket_selector(0, this->selection.e->get_edevice());
-                    this->state.modified = true;
-                } else {
-                    if (this->get_mode() == GAME_MODE_DRAW) {
-                        this->set_mode(GAME_MODE_DEFAULT);
-                    } else {
-                        this->set_mode(GAME_MODE_DRAW);
-                    }
-                }
-#endif
                 break;
 
             case TMS_KEY_S:
@@ -7889,12 +6074,7 @@ game::handle_input_paused(tms::event *ev, int action)
                                 "No",   ACTION_IGNORE);
                     }
                 } else {
-                    if (this->selection.e && this->selection.e->requires_delete_confirmation()) {
-                        ui::confirm("Are you sure you want to delete this object?",
-                                "Yes",  ACTION_DELETE_SELECTION,
-                                "No",   ACTION_IGNORE);
-                    } else
-                        this->delete_selected_entity();
+                    this->delete_selected_entity();
                 }
                 break;
 
@@ -8088,10 +6268,10 @@ game::handle_input_paused(tms::event *ev, int action)
                 break;
 
             case TMS_KEY_P:
-                if (this->get_mode() == GAME_MODE_DEFAULT || this->get_mode() == GAME_MODE_MULTISEL || this->get_mode() == GAME_MODE_DRAW) {
+                if (this->get_mode() == GAME_MODE_DEFAULT || this->get_mode() == GAME_MODE_MULTISEL) {
                     this->set_mode(GAME_MODE_DEFAULT);
                     if (this->state.is_main_puzzle) {
-                        this->save(false, true);
+                        this->save(true);
                     }
                     this->do_play();
                 }
@@ -8257,13 +6437,8 @@ game::handle_input_paused(tms::event *ev, int action)
             }
         }
 
-        if (this->get_mode() == GAME_MODE_DRAW
-                && pid == 0
-            ) {
-            //this->handle_draw(pid, ev->data.motion.x, ev->data.motion.y);
-            /* this is now handled in step */
-            drawing = 1;
-        } else if (this->selection.e) {
+
+        if (this->selection.e) {
             /* an object is selected, the player might be clicking the
              * rotation icon */
 
@@ -8384,12 +6559,7 @@ game::handle_input_paused(tms::event *ev, int action)
                     this->cam_vel.z -= offs * 2.5f * settings["zoom_speed"]->v.f;
                 }
             }
-        } else if (this->get_mode() == GAME_MODE_DRAW
-                && pid == 0
-            ) {
-            touch_pos[pid] = tdown;
-            //this->handle_draw(pid, ev->data.motion.x, ev->data.motion.y);
-            /* this is now handled in step */
+
         } else {
             if (this->get_mode() == GAME_MODE_QUICK_PLUG) {
                 if (this->selection.e) {
@@ -8760,11 +6930,8 @@ game::handle_input_paused(tms::event *ev, int action)
             if (!down[0] && !down[1])
                 zooming = false;
         } else {
-            if (this->get_mode() == GAME_MODE_DRAW
-                    && pid == 0
-                ) {
-                drawing = 0;
-            } else if (this->get_mode() == GAME_MODE_QUICK_PLUG) {
+
+            if (this->get_mode() == GAME_MODE_QUICK_PLUG) {
                 W->query(this->cam, (int)ev->data.motion.x, (int)ev->data.motion.y, &this->sel_p_ent, &this->sel_p_body, &this->sel_p_offs, &this->sel_p_frame, this->layer_vis);
 
                 this->set_mode(GAME_MODE_DEFAULT);
@@ -8930,7 +7097,7 @@ game::handle_input_paused(tms::event *ev, int action)
                 } else {
                     /* if nothing was "clicked" then simply apply the new selection */
                     /* TODO: Make sure we actually select the object that's closest to the users click */
-                    if (this->get_mode() != GAME_MODE_DRAW && this->get_mode() != GAME_MODE_MULTISEL) {
+                    if (this->get_mode() != GAME_MODE_MULTISEL) {
                         if (!dragging[0] || (!moving[0] && !rotating[0])) {
                             /* You can only use pid 1 to select entities, not to deselect entities.
                              * Pid 0 can be used freely for all purposes */
@@ -9012,8 +7179,6 @@ game::interact_select(entity *e)
     if (!e) return -1;
     if (e->flag_active(ENTITY_IS_STATIC)) return -1;
     if (e->flag_active(ENTITY_IS_BULLET)) return -1;
-    if (!e->flag_active(ENTITY_CAN_BE_GRABBED)) return -1;
-    if (e != adventure::player && e->is_creature() && !static_cast<creature*>(e)->is_dead()) return -1;
     if (e->g_id == O_CHUNK) return -1;
 
     for (int ip=0; ip<MAX_INTERACTING; ip++) {
@@ -9024,64 +7189,8 @@ game::interact_select(entity *e)
         }
     }
 
-    if (e == adventure::player) {
-        tms_debugf("clicked player");
-        if (adventure::player->inventory[RESOURCE_WOOD] >= 2) {
-            adventure::player->inventory[RESOURCE_WOOD] -= 2;
-            entity *l = of::create(O_LADDER_STEP);
-
-            l->_pos = adventure::player->get_position();
-            l->_angle = 0;
-            l->set_layer(adventure::player->get_layer());
-
-            G->emit(l, adventure::player, b2Vec2(0.f, 0.f), true);
-
-            e = l;
-            this->sel_p_ent = e;
-            this->sel_p_offs = (tvec2){0.f, 0.f};
-        } else {
-            ui::message("Ladder step requires 2 wood to construct.");
-            return -1;
-        }
-    }
-
     if (found != -1) {
         int ip = found;
-
-        if (W->is_adventure() && adventure::player) {
-            b2Vec2 p1 = adventure::player->get_position();
-            b2Vec2 p2 = e->get_position();
-            if ((p2-p1).LengthSquared() > INTERACT_REACH_SQUARED)
-                return -1;
-
-            if (e->is_protected(true)) {
-                return -1;
-            }
-
-            interacting_discharge[ip] = new discharge_effect(
-                    p1,
-                    p2,
-#if 0
-                    b2Vec2(pt.x, pt.y),
-#endif
-                    layer[ip] * LAYER_DEPTH,
-                    layer[ip] * LAYER_DEPTH,
-                    8,
-                    100.f
-                    );
-            interacting_discharge[ip]->line_width = .075f;
-#if 0
-            interacting_discharge_lp[ip] = interacting[ip]->world_to_body(b2Vec2(pt.x,pt.y), 0);
-#endif
-            interacting_discharge_lp[ip] = b2Vec2(0.f, 0.f);
-            this->add_entity(interacting_discharge[ip]);
-
-            if (e->is_creature() && W->level.flag_active(LVL_ABSORB_DEAD_ENEMIES)) {
-                /* Reset the timer on our absorb if we were interacted with
-                 * by the adventure robot! */
-                this->timed_absorb(e->id, W->level.dead_enemy_absorb_time);
-            }
-        }
 
         interacting[ip] = e;
         interacting_p[ip] = 1;
@@ -9118,11 +7227,7 @@ game::interact_select(entity *e)
         mjd.angularOffset = mjd.bodyB->GetAngle();
         mjd.maxForce = 3.5f;
 
-        if (interacting[ip] && interacting[ip]->flag_active(ENTITY_IS_CRANE_PULLEY)) {
-            mjd.maxTorque = 0.f;
-        } else {
-            mjd.maxTorque = 3.5f*M_PI;
-        }
+        mjd.maxTorque = 3.5f*M_PI;
 
         mjd.correctionFactor = .35f;
         mjd.collideConnected = true;
@@ -9151,14 +7256,6 @@ game::interact_select(entity *e)
     return found;
 }
 
-#ifdef TMS_BACKEND_PC
-#define BOLD_BEGIN "<b>"
-#define BOLD_END "</b>"
-#else
-#define BOLD_BEGIN
-#define BOLD_END
-#endif
-
 // used with ENTITY_HAS_TRACKER
 void
 game::check_select_object(int x, int y, int pid)
@@ -9166,336 +7263,6 @@ game::check_select_object(int x, int y, int pid)
     if (this->selection.e_saved != 0) {
         entity *e = this->sel_p_ent;
 
-        switch (this->selection.e_saved->g_id) {
-            case O_ESCRIPT:
-                {
-                    down[pid] = false;
-                    char msg[2048];
-
-                    if (this->sel_p_ent) {
-                        entity *e = this->sel_p_ent;
-                        snprintf(msg, 2047,
-                                      BOLD_BEGIN "Name:" BOLD_END " %s\n"
-                                      BOLD_BEGIN "ID:" BOLD_END " %u\n"
-                                      BOLD_BEGIN "Type ID (g_id):" BOLD_END " %u\n"
-                                      BOLD_BEGIN "Position:" BOLD_END " %.2f/%.2f\n"
-                                      BOLD_BEGIN "Angle:" BOLD_END " %.2f\n",
-                                      e->get_name(),
-                                      e->id,
-                                      e->g_id,
-                                      e->get_position().x, e->get_position().y,
-                                      e->get_angle()
-                                );
-                    } else {
-                        tvec3 p;
-                        W->get_layer_point(this->cam, x, y, 0, &p);
-                        snprintf(msg, 2047,
-                                      BOLD_BEGIN "No entity selected." BOLD_END "\n"
-                                      BOLD_BEGIN "Click position:" BOLD_END " %.2f/%.2f\n",
-                                      p.x, p.y
-                                );
-                    }
-
-                    ui::alert(msg);
-                    this->selection.load();
-                    this->set_mode(GAME_MODE_DEFAULT);
-
-                }
-                break;
-
-            case O_RC_ACTIVATOR:
-                {
-                    rcactivator *_of = static_cast<rcactivator*>(this->selection.e_saved);
-
-                    down[pid] = false;
-                    if (this->sel_p_ent && this->sel_p_ent->flag_active(ENTITY_IS_CONTROL_PANEL)) {
-                        _of->set_property(0, (uint32_t)this->sel_p_ent->id);
-                        this->add_highlight(this->sel_p_ent, false);
-
-                        char msg[256];
-                        snprintf(msg, 256, "RC Activator connected to RC#%d",  this->sel_p_ent->id);
-                        ui::message(msg);
-                    } else if (this->sel_p_ent && this->sel_p_ent->id == _of->id) {
-                        _of->set_property(0, (uint32_t)this->sel_p_ent->id);
-                        this->add_highlight(this->sel_p_ent, false);
-                        ui::message("RC Activator will now deactivate any activated RC upon activation.");
-                    } else {
-                        ui::message("RC Activator disconnected.");
-                        _of->set_property(0, (uint32_t)0);
-                    }
-                    this->selection.load();
-                    this->set_mode(GAME_MODE_DEFAULT);
-                }
-                break;
-
-            case O_PLAYER_ACTIVATOR:
-                {
-                    player_activator *_of = static_cast<player_activator*>(this->selection.e_saved);
-
-                    down[pid] = false;
-                    if (this->sel_p_ent && this->sel_p_ent->flag_active(ENTITY_IS_CREATURE)) {
-                        _of->set_property(0, (uint32_t)this->sel_p_ent->id);
-                        this->add_highlight(this->sel_p_ent, false);
-
-                        char msg[256];
-                        snprintf(msg, 256, "Player Activator connected to %d",  this->sel_p_ent->id);
-                        ui::message(msg);
-                    } else {
-                        ui::message("Player Activator disconnected.");
-                        _of->set_property(0, (uint32_t)0);
-                    }
-                    this->selection.load();
-                    this->set_mode(GAME_MODE_DEFAULT);
-                }
-                break;
-
-            case O_ID_FIELD:
-                {
-                    objectfield *_of = static_cast<objectfield*>(this->selection.e_saved);
-
-                    down[pid] = false;
-                    if (this->sel_p_ent && this->sel_p_ent != _of && this->sel_p_ent->id != 0) {
-                        _of->set_property(2, (uint32_t)this->sel_p_ent->id);
-                        this->add_highlight(this->sel_p_ent, false);
-
-                        char msg[256];
-                        snprintf(msg, 256, "Now tracking %s(Unique ID %d)!", this->sel_p_ent->get_name(), this->sel_p_ent->id);
-                        ui::message(msg);
-                    } else {
-                        ui::message("Resetting ID field detection.");
-                        _of->set_property(2, (uint32_t)0);
-                    }
-                    this->selection.load();
-                    this->set_mode(GAME_MODE_DEFAULT);
-                }
-                break;
-
-            case O_VENDOR:
-                {
-                    vendor *v = static_cast<vendor*>(this->selection.e_saved);
-
-                    down[pid] = false;
-                    bool set = false;
-
-                    if (e && e != v && e->id != 0) {
-                        if (e->g_id == O_RESOURCE) {
-                            v->properties[0].v.i = e->g_id;
-                            v->properties[1].v.i = ((resource*)e)->get_resource_type();
-                            ui::messagef("Vendor now accepts %s as its currency.", resource_data[v->properties[1].v.i].name);
-                            set = true;
-                        } else if (e->g_id == O_ITEM) {
-                            v->properties[0].v.i = e->g_id;
-                            v->properties[1].v.i = ((item*)e)->get_item_type();
-                            ui::messagef("Vendor now accepts %s as its currency.", item_options[v->properties[1].v.i].name);
-                            set = true;
-                        }
-                    }
-
-                    if (!set) {
-                        if (e) {
-                            ui::messagef("Vendor cannot accept %s as a currency.", e->get_name());
-                        } else {
-                            ui::message("Vendor now accepts no currencies.");
-                            v->properties[0].v.i = 0;
-                            v->properties[1].v.i = 0;
-                        }
-                    }
-
-                    this->selection.load();
-                    this->set_mode(GAME_MODE_DEFAULT);
-                }
-                break;
-
-            case O_TARGET_SETTER:
-                {
-                    objectfield *_of = static_cast<objectfield*>(this->selection.e_saved);
-
-                    down[pid] = false;
-                    if (this->sel_p_ent && this->sel_p_ent != _of && this->sel_p_ent->id != 0) {
-                        _of->set_property(2, (uint32_t)this->sel_p_ent->id);
-                        this->add_highlight(this->sel_p_ent, false);
-
-                        char msg[256];
-                        snprintf(msg, 256, "Now setting target to %s(Unique ID %d)!", this->sel_p_ent->get_name(), this->sel_p_ent->id);
-                        ui::message(msg);
-                    } else {
-                        ui::message("This target setter will now reset the robots target.");
-                        _of->set_property(2, (uint32_t)0);
-                    }
-                    this->selection.load();
-                    this->set_mode(GAME_MODE_DEFAULT);
-                }
-                break;
-
-            case O_CAM_TARGETER:
-                {
-                    camtargeter *_of = static_cast<camtargeter*>(this->selection.e_saved);
-
-                    down[pid] = false;
-                    if (this->sel_p_ent && this->sel_p_ent != _of && this->sel_p_ent->id != 0) {
-                        _of->set_property(0, (uint32_t)this->sel_p_ent->id);
-                        this->add_highlight(this->sel_p_ent, false);
-
-                        char msg[256];
-                        snprintf(msg, 256, "Cam targeter now following %s!", this->sel_p_ent->get_name());
-                        ui::message(msg);
-                    } else {
-                        ui::message("Now targeting nothing.");
-                        _of->set_property(0, (uint32_t)0);
-                    }
-                    this->selection.load();
-                    this->set_mode(GAME_MODE_DEFAULT);
-
-                }
-                break;
-
-            case O_OBJECT_FIELD:
-                {
-                    objectfield *_of = static_cast<objectfield*>(this->selection.e_saved);
-
-                    down[pid] = false;
-                    if (this->sel_p_ent && this->sel_p_ent != _of && this->sel_p_ent->id != 0) {
-                        _of->set_property(2, (uint32_t)this->sel_p_ent->g_id);
-                        this->add_highlight(this->sel_p_ent, false);
-
-                        char msg[256];
-                        snprintf(msg, 256, "Now tracking %s!", this->sel_p_ent->get_name());
-                        ui::message(msg);
-                    } else {
-                        ui::message("Resetting object field detection.");
-                        _of->set_property(2, (uint32_t)0);
-                    }
-                    this->selection.load();
-                    this->set_mode(GAME_MODE_DEFAULT);
-                }
-                break;
-
-            case O_MINI_EMITTER:
-            case O_EMITTER:
-                {
-                    emitter *_e = static_cast<emitter*>(this->selection.e_saved);
-
-                    down[pid] = false;
-                    if (this->sel_p_ent && this->sel_p_ent != _e && this->sel_p_ent->id != 0) {
-                        if (_e->can_handle(this->sel_p_ent)) {
-                            _e->copy_properties(this->sel_p_ent);
-                            _e->set_property(1, (uint32_t)this->sel_p_ent->g_id);
-                            _e->set_property(2, (uint32_t)this->sel_p_ent->id);
-                            this->add_highlight(this->sel_p_ent, false);
-
-                            char msg[256];
-                            snprintf(msg, 256, "Now emitting %s!", this->sel_p_ent->get_name());
-                            ui::message(msg);
-                        } else {
-                            char msg[256];
-                            snprintf(msg, 256, "Unable to emit %s.", this->sel_p_ent->get_name());
-                            ui::message(msg);
-                        }
-                    } else {
-                        ui::message("Now emitting nothing!");
-                        _e->set_property(1, (uint32_t)0);
-                    }
-                    this->selection.load();
-                    this->set_mode(GAME_MODE_DEFAULT);
-                }
-                break;
-
-            case O_MINI_ABSORBER:
-            case O_ABSORBER:
-                {
-                    absorber *_a = static_cast<absorber*>(this->selection.e_saved);
-
-                    down[pid] = false;
-                    if (this->sel_p_ent && this->sel_p_ent != _a && this->sel_p_ent->id != 0) {
-                        if (_a->can_handle(this->sel_p_ent)) {
-                            _a->set_property(1, (uint32_t)this->sel_p_ent->g_id);
-                            this->add_highlight(this->sel_p_ent, false);
-
-                            char msg[256];
-                            snprintf(msg, 256, "Now absorbing %s!", this->sel_p_ent->get_name());
-                            ui::message(msg);
-                        } else {
-                            char msg[256];
-                            snprintf(msg, 256, "Unable to absorb %s.", this->sel_p_ent->get_name());
-                            ui::message(msg);
-                        }
-                    } else {
-                        ui::message("Now absorbing all possible objects!");
-                        _a->set_property(1, (uint32_t)0);
-                    }
-                    this->selection.load();
-                    this->set_mode(GAME_MODE_DEFAULT);
-                }
-                break;
-
-            case O_OBJECT_FINDER:
-                {
-                    object_finder *_e = static_cast<object_finder*>(this->selection.e_saved);
-
-                    down[pid] = false;
-                    if (this->sel_p_ent && this->sel_p_ent != _e && this->sel_p_ent->id != 0) {
-                        char msg[256];
-                        snprintf(msg, 256, "Now tracking %s!", this->sel_p_ent->get_name());
-                        ui::message(msg);
-                        _e->set_property(0, (uint32_t)this->sel_p_ent->id);
-                        this->add_highlight(this->sel_p_ent, false);
-                    } else {
-                        ui::message("Now tracking nothing!");
-                        _e->set_property(0, (uint32_t)0);
-                    }
-
-                    this->selection.load();
-                    this->set_mode(GAME_MODE_DEFAULT);
-                }
-                break;
-
-            case O_HP_CONTROL:
-                {
-                    hp_control *hc = static_cast<hp_control*>(this->selection.e_saved);
-
-                    down[pid] = false;
-                    if (this->sel_p_ent && this->sel_p_ent != hc && this->sel_p_ent->id != 0) {
-                        if (this->sel_p_ent->g_id == O_CHECKPOINT || this->sel_p_ent->id == W->level.get_adventure_id()) {
-                            hc->properties[0].v.i = W->level.get_adventure_id();
-                            ui::message("Controlling HP for the adventure robot!");
-                        } else {
-                            char msg[256];
-                            snprintf(msg, 256, "Controlling HP for %s!", this->sel_p_ent->get_name());
-                            ui::message(msg);
-                            hc->properties[0].v.i = this->sel_p_ent->id;
-                        }
-                        this->add_highlight(this->sel_p_ent, false);
-                    } else {
-                        ui::message("HP control reset.");
-                        hc->properties[0].v.i = 0;
-                    }
-
-                    this->selection.load();
-                    this->set_mode(GAME_MODE_DEFAULT);
-                }
-                break;
-
-            case O_ROBOTMAN:
-                {
-                    robotman *rm = static_cast<robotman*>(this->selection.e_saved);
-
-                    down[pid] = false;
-                    if (this->sel_p_ent && this->sel_p_ent != rm && this->sel_p_ent->id != 0) {
-                        if (this->sel_p_ent->flag_active(ENTITY_IS_ROBOT)) {
-                            ui::messagef("Managing robot with id %u.", this->sel_p_ent->id);
-                            rm->properties[0].v.i = this->sel_p_ent->id;
-                        }
-                        this->add_highlight(this->sel_p_ent, false);
-                    } else {
-                        ui::message("Robot Manager target reset.");
-                        rm->properties[0].v.i = 0;
-                    }
-
-                    this->selection.load();
-                    this->set_mode(GAME_MODE_DEFAULT);
-                }
-                break;
-        }
     } else {
         entity *e;
         b2Body *body_unused;
@@ -9803,11 +7570,7 @@ game::check_click_conn(int x, int y)
                 return true;
             }
 
-            if (W->is_adventure() && W->is_playing()) {
-                this->apply_connection(c, c->option);
-            } else {
-                this->apply_connection(c, 0);
-            }
+            this->apply_connection(c, 0);
 
             this->pairs.erase(i++);
             G->refresh_widgets();
@@ -10021,273 +7784,7 @@ game::animate_disconnect(entity *e)
     }
 }
 
-bool
-game::damage_entity(entity *e, b2Fixture *fx, float dmg, const b2Vec2 &world_point,
-        damage_type dmg_type, uint8_t damage_source, uint32_t attacker_id,
-        bool damage_creature/*=true*/,
-        bool damage_block/*=true*/,
-        bool damage_interactive/*=true*/,
-        bool damage_plant/*=true*/
-        )
-{
-    if (e->is_interactive()) {
-        if (damage_interactive) {
-            this->damage_interactive(e, fx, fx->GetUserData2(), dmg, world_point, dmg_type);
 
-            return true;
-        }
-
-        return false;
-    }
-
-    if (e->is_creature()) {
-        if (damage_creature) {
-            creature *c = static_cast<creature*>(e);
-
-            c->damage(dmg, fx, dmg_type, damage_source, attacker_id);
-
-            return true;
-        }
-
-        return false;
-    }
-
-    if (e->g_id == O_PLANT) {
-        if (damage_plant) {
-            this->damage_interactive(e, fx, fx->GetUserData2(), dmg, world_point, dmg_type);
-
-            return true;
-        }
-
-        return false;
-    }
-
-    if (e->g_id == O_CHUNK || e->g_id == O_TPIXEL) {
-        if (damage_block) {
-            this->damage_interactive(e, fx, fx->GetUserData2(), dmg, world_point, dmg_type);
-
-            return true;
-        }
-
-        return false;
-    }
-
-    return false;
-}
-
-void
-game::damage_interactive(entity *e, b2Fixture *f, void *udata2, float dmg, const b2Vec2 &world_point, damage_type dmg_type)
-{
-    if (e->g_id == O_TPIXEL || e->g_id == O_CHUNK) {
-        this->damage_tpixel(e, f, udata2, dmg, world_point, dmg_type);
-    } else if (e->g_id == O_PLANT) {
-        static_cast<plant*>(e)->damage_section(static_cast<plant_section*>(udata2), dmg, dmg_type);
-    } else {
-        e->interactive_hp -= dmg;
-        tms_infof("interactive hp: %.2f", e->interactive_hp);
-        if (e->interactive_hp <= 0.f) {
-            if (this->absorb(e)) {
-                W->events[WORLD_EVENT_INTERACTIVE_DESTROY] ++;
-            }
-        } else {
-            this->add_highlight(e, HL_PRESET_DEFAULT, .2f);
-        }
-    }
-}
-
-void
-game::damage_tpixel(entity *e, b2Fixture *f, void *udata2, float dmg, const b2Vec2 &world_point, damage_type dmg_type)
-{
-    struct tpixel_desc *desc = (struct tpixel_desc *)udata2;
-
-    bool do_fadeout = false;
-    float fadeout_time = .25f;
-    level_chunk *c;
-
-    int real_x, real_y;
-
-    if (!desc) {
-        tms_errorf("tpixel %p does not have desc [%d]", e, e->g_id);
-        return;
-    }
-
-    if (desc->hp < 0.f) {
-        /* this pixel has already been destroyed */
-        return;
-    }
-
-    switch (dmg_type) {
-        case DAMAGE_TYPE_FORCE:
-        case DAMAGE_TYPE_ELECTRICITY:
-        case DAMAGE_TYPE_OTHER:
-        case DAMAGE_TYPE_HEAVY_SHARP:
-            break;
-
-        default:
-            /* ignore all other damage types */
-            return;
-    }
-
-    int layer = 0;
-    if (f) layer = world::fixture_get_layer(f);
-
-    int size = desc->size;
-
-    if (e->g_id == O_CHUNK) {
-        c = static_cast<level_chunk*>(e);
-        do_fadeout = true;
-        real_x = desc->get_local_x();
-        real_y = desc->get_local_y();
-
-        /* if this is a bigger pixel, try to find the nearest "subpixel" that was damaged */
-        int nearest_x=0, nearest_y=0;
-        if (size > 0) {
-            int usize = (1<<desc->size);
-            float nearest = 10000.f;
-            for (int y=0; y<usize; y++) {
-                for (int x=0; x<usize; x++) {
-                    float d = b2DistanceSquared(world_point,
-                            b2Vec2(
-                                c->pos_x*8.f + (float)(real_x+x)*.5f,
-                                c->pos_y*8.f + (float)(real_y+y)*.5f
-                                ));
-                    if (d < nearest) {
-                        nearest_x = x;
-                        nearest_y = y;
-                        nearest = d;
-                    }
-                }
-            }
-        }
-        real_x += nearest_x;
-        real_y += nearest_y;
-
-        if (this->state.new_adventure) {
-            if (layer == 0) {
-                if (c->pixels[1][real_y][real_x]) {
-                    if (dmg_type == DAMAGE_TYPE_ELECTRICITY) {
-                        // We only notify the user of the zapping rules he's
-                        // trying to mine with the Zapper.
-                        ui::message("Please zap in the two outer layers!");
-                    }
-                    return;
-                }
-            }
-        }
-    }
-
-    desc->hp -= dmg;
-
-    if (desc->hp <= 0.f) {
-        fadeout_time = .55f;
-        this->force_static_update = 2;
-
-        /*
-        tpixel *p = static_cast<tpixel*>(e);
-        float wsize = (float)(1 << size)*.25f;
-        float whs = wsize/2.f;
-        float angle = p->get_angle();
-        b2Vec2 pos = p->get_position();
-        int layer = p->get_layer();
-
-        float cs, sn;
-        tmath_sincos(p->get_angle(), &sn, &cs);
-
-        float rest = -p->interactive_hp;
-        int diff = 0;
-        if (rest > 20) rest = 20;
-        do {
-            rest /= 4.f;
-            size --;
-            if (diff > 0)
-                whs = whs+whs/2.f;
-            diff ++;
-        } while (rest >= 1.f && size>0);
-
-        b2Vec2 base = pos;
-        base.x -= (cs-sn)*whs;
-        base.y -= (sn+cs)*whs;
-
-        // TODO: set new pixels hp to rest
-
-        if (size >= 0 && rest < 1.f) {
-            int count = 2*diff;
-            for (int x=0; x<count; x++) {
-                for (int y=0; y<count; y++) {
-                    tpixel *n = static_cast<tpixel*>(of::create(O_TPIXEL));
-
-                    b2Vec2 pp = b2Vec2(
-                            ((float)x/(float)count)*cs - ((float)y/(float)count)*sn,
-                            ((float)x/(float)count)*sn + ((float)y/(float)count)*cs
-                            );
-
-                    n->properties[0].v.i8 = size;
-                    n->properties[1].v.i8 = p->properties[1].v.i8;
-                    n->_pos.x = base.x+pp.x*wsize*2;
-                    n->_pos.y = base.y+pp.y*wsize*2;
-                    n->_angle = angle;
-                    n->set_layer(layer);
-                    this->emit(n, 0, b2Vec2(0.f,0.f));
-                }
-            }
-        } else {
-            p->drop_loot(1+((size+1)*4));
-        }
-        */
-
-        switch (e->g_id) {
-            case O_TPIXEL:
-                {
-                    if (this->absorb(e)) {
-                        static_cast<tpixel*>(e)->drop_loot(1+((size+1)*4));
-                    }
-                }
-                break;
-
-            case O_CHUNK:
-                {
-                    c->pixels[layer][real_y][real_x] = 0;
-
-                    /* remerge the chunk to fill in the holes */
-                    c->merge(desc->get_local_x(), desc->get_local_y(), layer, desc->get_local_x()+(1<<desc->size), desc->get_local_y()+(1<<desc->size), layer+1);
-                    W->to_be_reloaded.insert(c);
-                }
-                break;
-        }
-    }
-
-
-    if (do_fadeout) {
-        fadeout_event *ev = new fadeout_event();
-        fadeout_entity fe;
-
-        /* create an arbitrary fadeout entity */
-        tpixel *t = new tpixel();
-        t->_pos = b2Vec2(c->pos_x*8.f + real_x*.5f, c->pos_y*8.f + real_y*.5f);
-        t->_angle = 0.f;
-        t->properties[0].v.i8 = 0;
-        //t->set_block_type(desc->material);
-        if (fadeout_time < .5f) {
-            t->set_block_type(0);
-        } else {
-            t->set_block_type(4);
-        }
-        t->set_layer(layer);
-        t->on_load(false, false);
-        t->prepare_fadeout();
-        t->M[14] += .05f;
-
-        fe.velocity = b2Vec2(0.f, 0.f);
-        fe.e = t;
-        fe.do_free = true;
-        ev->time = fadeout_time;
-        ev->entities.push_back(fe);
-
-        G->lock();
-        G->fadeouts.insert(ev);
-        G->unlock();
-    }
-}
 
 void
 game::emit_partial_from_buffer(const char *buf, uint16_t buf_len, b2Vec2 position)
@@ -10464,43 +7961,6 @@ game::editor_construct_entity(uint32_t g_id, int pid/*=0*/, bool force_on_pid/*=
     e->construct();
     e->on_pause();
 
-    if (this->get_mode() == GAME_MODE_DRAW) {
-        basepixel *p = static_cast<basepixel*>(e);
-        basepixel::radius = BASE_PIXEL_RADIUS; /* Set pixel radius back to its default value */
-
-        if (p->got_pos && (p->get_position().y > -((float)W->level.size_y[0]) || W->ground_fx[3] == 0)) {
-            //p->merge_neighbours();
-            return e;
-        } else {
-            int mid = (p->search_width-1)/2;
-            int index = mid + (mid * p->search_width); // we offset 'middle' a little bit
-            if (p->found[index]) {
-#if 0
-                //if (p->found[index]->properties[1].v.i8 != this->brush_material) {
-                    int yy;
-                    for (yy=mid; yy<p->search_width; yy++) {
-                        int ii = mid+(yy*p->search_width);
-                        if (!p->found[ii]) break;
-                    }
-                    if (yy-mid >= p->search_width/2)
-                        p->found[index]->properties[1].v.i8 = 1;
-                    else
-                        p->found[index]->properties[1].v.i8 = this->brush_material;
-                    /*
-                    this->remove_entity(p->found[index]);
-                    W->remove(p->found[index]);
-                    delete p->found[index];
-                    */
-                //}
-#endif
-            }
-            this->remove_entity(e);
-            W->remove(e);
-            delete e;
-            return 0;
-        }
-    }
-
     if (e->type == ENTITY_CABLE) {
         cable *c = static_cast<cable*>(e);
         this->selection.select(c->p[0], c->p[0]->get_body(0), (tvec2){0,0}, 0, false);
@@ -10536,114 +7996,6 @@ game::editor_construct_entity(uint32_t g_id, int pid/*=0*/, bool force_on_pid/*=
     return e;
 }
 
-/* construct an item at the mouse position */
-entity*
-game::editor_construct_item(uint32_t item_id)
-{
-    uint32_t g_id = O_ITEM;
-    if (!this->state.sandbox) {
-        tms_errorf("can not create an entity if not sandbox");
-        return 0;
-    }
-
-    tvec3 pos;
-#ifdef TMS_BACKEND_PC
-    int mx, my;
-    SDL_GetMouseState(&mx, &my);
-    W->get_layer_point(this->cam, mx, _tms.window_height-my, 0.f, &pos);
-#else
-    pos = this->cam->_position;
-#endif
-
-    entity *e = of::create(g_id);
-
-    if (!e) {
-        tms_errorf("Unable to create an object with g_id %u", g_id);
-        return 0;
-    }
-
-    e->_angle = 0.f;
-    e->_pos = b2Vec2(pos.x, pos.y);
-    e->set_layer(this->state.edit_layer);
-    ((item*)e)->set_item_type(item_id);
-
-    e->ghost_update();
-
-    if (this->selection.e && e->g_id == this->selection.e->g_id && this->selection.e->g_id != 12 && (this->selection.e->g_id != O_TPIXEL || this->get_mode() != GAME_MODE_DRAW)) {
-        e->_angle = this->selection.e->get_angle();
-        e->set_angle(this->selection.e->get_angle());
-        e->set_layer(this->selection.e->get_layer());
-        e->set_moveable(this->selection.e->is_moveable());
-
-    }
-
-    e->on_load(true, false);
-
-    W->add(e);
-    this->add_entity(e);
-
-    e->construct();
-    e->on_pause();
-
-    this->selection.select(e, NULL, (tvec2){0,0}, 0, false);
-
-    return e;
-}
-
-/* construct an item at the mouse position */
-entity*
-game::editor_construct_decoration(uint32_t decoration_id)
-{
-    uint32_t g_id = O_DECORATION;
-    if (!this->state.sandbox) {
-        tms_errorf("can not create an entity if not sandbox");
-        return 0;
-    }
-
-    tvec3 pos;
-#ifdef TMS_BACKEND_PC
-    int mx, my;
-    SDL_GetMouseState(&mx, &my);
-    W->get_layer_point(this->cam, mx, _tms.window_height-my, 0.f, &pos);
-#else
-    pos = this->cam->_position;
-#endif
-
-    entity *e = of::create(g_id);
-
-    if (!e) {
-        tms_errorf("Unable to create an object with g_id %u", g_id);
-        return 0;
-    }
-
-    e->_angle = 0.f;
-    e->_pos = b2Vec2(pos.x, pos.y);
-    e->set_layer(this->state.edit_layer);
-    ((decoration*)e)->set_decoration_type(decoration_id);
-
-    e->ghost_update();
-
-    if (this->selection.e && e->g_id == this->selection.e->g_id && this->selection.e->g_id != 12 && (this->selection.e->g_id != O_TPIXEL || this->get_mode() != GAME_MODE_DRAW)) {
-        e->_angle = this->selection.e->get_angle();
-        e->set_angle(this->selection.e->get_angle());
-        e->set_layer(this->selection.e->get_layer());
-        e->set_moveable(this->selection.e->is_moveable());
-
-    }
-
-    e->on_load(true, false);
-
-    W->add(e);
-    this->add_entity(e);
-
-    e->construct();
-    e->on_pause();
-
-    this->selection.select(e, NULL, (tvec2){0,0}, 0, false);
-
-    return e;
-}
-
 void
 game::update_last_cursor_pos(int x, int y)
 {
@@ -10674,7 +8026,7 @@ void
 game::puzzle_play(int type)
 {
     if (type == PUZZLE_SIMULATE) {
-        this->save(false, true);
+        this->save(true);
         this->do_play();
     } else if (type == PUZZLE_TEST_PLAY) {
         this->save(false);
@@ -10683,68 +8035,6 @@ game::puzzle_play(int type)
         ui::message("Now testplaying your level! Press B to return.");
     } else {
         tms_warnf("Invalid input for puzzle play");
-    }
-}
-
-void
-game::refresh_score()
-{
-    this->state.m_score = this->get_real_score();
-}
-
-void
-game::add_score(int score)
-{
-    if (this->state.finished) {
-        return;
-    }
-
-    if (score > 0) {
-        this->score_highlight += score/250.f;
-        this->score_highlight = fminf(this->score_highlight, 1.f);
-    }
-
-    int new_score = this->get_real_score() + score;
-
-    if (new_score < 0) {
-        new_score = 0;
-    }
-
-    W->score_helper = new_score ^ SCORE_XOR;
-
-    this->refresh_score();
-
-    if (W->is_playing()) {
-        if (this->get_score() >= W->level.final_score && W->level.final_score != 0) {
-            this->finish(true);
-        }
-    }
-}
-
-void
-game::set_score(int new_score)
-{
-    if (this->state.finished) {
-        return;
-    }
-
-    if (this->get_score() != new_score) {
-        this->score_highlight += (new_score - this->get_score()) / 250.f;
-        this->score_highlight = fminf(this->score_highlight, 1.f);
-    }
-
-    if (new_score < 0) {
-        new_score = 0;
-    }
-
-    W->score_helper = new_score ^ SCORE_XOR;
-
-    this->refresh_score();
-
-    if (W->is_playing()) {
-        if (this->get_score() >= W->level.final_score && W->level.final_score != 0) {
-            this->finish(true);
-        }
     }
 }
 
@@ -10913,11 +8203,6 @@ selection_handler::disable(bool refresh_widgets/*=true*/)
 void
 game::say_goodbye(b2Joint *j)
 {
-    if (W->is_adventure() && adventure::is_player_alive()) {
-        if (j == adventure::player->activator_joint) {
-            adventure::player->activator_joint = 0;
-        }
-    }
 
     W->destructable_joints.erase(j);
 
@@ -10969,30 +8254,6 @@ game::say_goodbye(b2Joint *j)
                     }
                     break;
 
-                case JOINT_TYPE_SCUP:
-                    {
-                        scup *e = static_cast<scup*>(ji->data);
-                        for (int n=0; n<SCUP_NUM_JOINTS; ++n) {
-                            if (j == e->j[n]) {
-                                e->j[n] = 0;
-                            }
-                        }
-
-                        e->stuck = false;
-                    }
-                    break;
-
-                case JOINT_TYPE_RAGDOLL:
-                    {
-                        ragdoll *r = static_cast<ragdoll*>(ji->data);
-                        for (int x=0; x<9; x++) {
-                            if (r->joints[x] == j) {
-                                r->joints[x] = 0;
-                            }
-                        }
-                    }
-                    break;
-
                 default:
                     tms_debugf("Unhandled say_goodbye joint type: %d", ji->type);
                     break;
@@ -11026,20 +8287,6 @@ game::set_mode(int new_mode)
 
     /* Any 'exit mode code' can be placed here */
     switch (cur_mode) {
-        case GAME_MODE_FACTORY:
-        case GAME_MODE_REPAIR_STATION:
-            adventure::init_widgets();
-            break;
-
-        case GAME_MODE_INVENTORY:
-            adventure::show_left_widgets();
-            this->hide_inventory_widgets();
-            break;
-
-        case GAME_MODE_DRAW:
-            this->state.edit_layer = 0;
-            this->wdg_mode->s[0] = gui_spritesheet::get_sprite(S_CONFIG);
-            break;
 
         case GAME_MODE_MULTISEL:
             this->selection.disable();
@@ -11070,16 +8317,6 @@ game::set_mode(int new_mode)
         tms_infof("New mode: %d. Previous mode: %d", new_mode, cur_mode);
         /* Any 'init new mode' code can be placed here */
         switch (new_mode) {
-            case GAME_MODE_FACTORY:
-            case GAME_MODE_REPAIR_STATION:
-                adventure::clear_widgets();
-                break;
-
-            case GAME_MODE_DRAW:
-                this->state.edit_layer = 2;
-                this->selection.disable(false);
-                this->wdg_mode->s[0] = gui_spritesheet::get_sprite(S_TPIXEL_MULTI);
-                break;
 
             case GAME_MODE_MULTISEL:
                 this->wdg_mode->s[0] = gui_spritesheet::get_sprite(S_MULTISEL);
@@ -11090,12 +8327,6 @@ game::set_mode(int new_mode)
             case GAME_MODE_CONN_EDIT:
                 this->wdg_mode->s[0] = gui_spritesheet::get_sprite(S_CONNEDIT);
                 this->selection.disable(false);
-                break;
-
-            case GAME_MODE_INVENTORY:
-                this->inventory_scroll_offset = 0.f; // should we reset the offset when we begin showing the inventory?
-                adventure::hide_left_widgets();
-                this->show_inventory_widgets();
                 break;
 
             case GAME_MODE_EDIT_PANEL:
@@ -11121,22 +8352,7 @@ static bool inventory_widgets_initialized = false;
 void
 inventory_widget_on_change(struct tms_wdg *w, float values[2])
 {
-    float value = values[0];
-    if (value == 1.f) {
-        int resource_id = VOID_TO_INT(w->data);
-        G->drop_speed = 1.f;
-        G->dropping = resource_id;
-        G->drop_step = W->step_count;
-        G->drop_amount = 1;
 
-        adventure::player->drop_resource(resource_id, G->drop_amount, b2Vec2(adventure::player->look_dir*1.25f, .75f));
-
-        if (!adventure::player->get_num_resources(resource_id)) {
-            G->refresh_inventory_widgets();
-        }
-    } else {
-        G->dropping = -1;
-    }
 }
 
 static void
@@ -11146,14 +8362,7 @@ init_inventory_widgets()
 
     int iw = _tms.xppcm*.375f;
     int ih = _tms.yppcm*.375f;
-    for (int n=0; n<NUM_RESOURCES; ++n) {
-        inventory_widgets[n] = tms_wdg_alloc(TMS_WDG_BUTTON, gui_spritesheet::get_sprite(S_INVENTORY_ICONS0+n), 0);
-        inventory_widgets[n]->on_change = &inventory_widget_on_change;
-        inventory_widgets[n]->size.x = iw;
-        inventory_widgets[n]->size.y = ih;
-        inventory_widgets[n]->extra_right = iw * 1.2f;
-        inventory_widgets[n]->data = INT_TO_VOID(n);
-    }
+
 
     inventory_widgets_initialized = true;
 }
@@ -11161,55 +8370,19 @@ init_inventory_widgets()
 void
 game::show_inventory_widgets()
 {
-    init_inventory_widgets();
 
-    int ih = _tms.yppcm*.375f;
-    float x = this->get_bmenu_x();
-    float y = _tms.window_height - this->get_bmenu_y() - this->inventory_scroll_offset;
-    for (int n=0; n<NUM_RESOURCES; ++n) {
-        this->get_surface()->add_widget(inventory_widgets[n]);
-        if (adventure::player->get_num_resources(n)) {
-            inventory_widgets[n]->pos.x = x;
-            inventory_widgets[n]->pos.y = y;
-            y -= ih*1.5f;
-        } else {
-            inventory_widgets[n]->pos.x = -500.f;
-            inventory_widgets[n]->pos.y = -500.f;
-        }
-    }
-
-    this->inventory_highest_y = y;
 }
 
 void
 game::hide_inventory_widgets()
 {
-    for (int n=0; n<NUM_RESOURCES; ++n) {
-        this->get_surface()->remove_widget(inventory_widgets[n]);
-    }
+
 }
 
 void
 game::refresh_inventory_widgets()
 {
-    if (this->get_mode() != GAME_MODE_INVENTORY) return;
 
-    int ih = _tms.yppcm*.375f;
-    float x = this->get_bmenu_x();
-    float y = _tms.window_height - this->get_bmenu_y() - this->inventory_scroll_offset;
-    for (int n=0; n<NUM_RESOURCES; ++n) {
-        if (adventure::player->get_num_resources(n)) {
-            inventory_widgets[n]->pos.x = x;
-            inventory_widgets[n]->pos.y = y;
-            y -= ih*1.5f;
-        } else {
-            /* XXX: Hide widgets in another way maybe? */
-            inventory_widgets[n]->pos.x = -500.f;
-            inventory_widgets[n]->pos.y = -500.f;
-        }
-    }
-
-    this->inventory_highest_y = y;
 }
 
 void
@@ -11292,77 +8465,27 @@ game::_multidelete()
 void
 game::passthru_input(tms::event *ev)
 {
-    if (ev->type == TMS_EV_KEY_PRESS || ev->type == TMS_EV_KEY_UP) {
-        for (std::set<key_listener*>::iterator it = W->key_listeners.begin();
-                it != W->key_listeners.end(); ++it) {
-            key_listener *kl = static_cast<key_listener*>(*it);
 
-            if (kl->properties[0].v.i == ev->data.key.keycode) {
-                kl->active = (ev->type == TMS_EV_KEY_PRESS);
-            }
-        }
-    }
-
-    for (std::set<escript*>::iterator it = W->escripts.begin();
-            it != W->escripts.end(); ++it) {
-        escript *e = static_cast<escript*>(*it);
-
-        if (e->listen_on_input) {
-            tms::event *new_ev = (tms::event*)malloc(sizeof(tms::event));
-            memcpy(new_ev, ev, sizeof(tms::event));
-            e->input_events.insert(new_ev);
-        }
-    }
 }
 
 void
 game::perform_socket_action(int x)
 {
-    if (W->is_adventure() && W->is_playing()) {
+    if (this->ss_action == SS_ACTION_SELECT) {
         if (this->ss_socks[x]->p) {
-            if (this->ss_action == SS_ACTION_SELECT) {
-                this->selection.select(this->ss_socks[x]->p);
-            } else {
-                if (this->ss_socks[x]->p->c) {
-                    this->absorb(this->ss_socks[x]->p->c);
-                } else {
-                    plug_base *p = this->ss_socks[x]->p;
-                    this->ss_socks[x]->unplug();
-                    this->absorb(p);
-                }
-            }
+            this->selection.select(this->ss_socks[x]->p);
         }
     } else {
-        if (this->ss_action == SS_ACTION_SELECT) {
-            if (this->ss_socks[x]->p) {
-                this->selection.select(this->ss_socks[x]->p);
-            }
-        } else {
-            this->ss_socks[x]->unplug();
+        this->ss_socks[x]->unplug();
 
-            this->add_ca(1, this->ss_edev->get_entity()->local_to_world(this->ss_socks[x]->lpos, 0));
-        }
+        this->add_ca(1, this->ss_edev->get_entity()->local_to_world(this->ss_socks[x]->lpos, 0));
     }
 }
 
 void
 game::play_sound(uint32_t sound_id, float x, float y, uint8_t random, float volume, bool loop/*=false*/, void *indent/*=0*/, bool global/*=false*/)
 {
-    sm_sound *snd = static_cast<sm_sound*>(soundman::translate(sound_id));
-    if (!snd) return;
-
-    typedef std::multimap<uint32_t, soundman*>::iterator iterator;
-    std::pair<iterator, iterator> range = W->soundmanagers.equal_range(sound_id);
-
-    iterator it = range.first;
-    for (; it != range.second; ++it) {
-        soundman *sm = it->second;
-        if (!sm->is_busy()) {
-            sm->enable();
-            volume = sm->get_volume();
-            break;
-        }
-    }
+    sm_sound *snd = sm::get_sound_by_id(sound_id);
 
     if (volume <= SM_MIN_VOLUME && indent) {
         sm::stop(snd, indent);
@@ -11380,27 +8503,6 @@ game::restart_level()
     if (!this->_restart_level) {
         this->_restart_level = true;
         P.add_action(ACTION_WORLD_PAUSE, 0);
-    }
-}
-
-/**
- * Safe function to call from play-mode to queue up a score submission.
- **/
-void
-game::submit_score()
-{
-    if (!this->state.submitted_score) {
-        if (!this->_submit_score) {
-            this->_submit_score = true;
-            if (settings["score_ask_before_submitting"]->is_true()) {
-                ui::confirm("Do you want to submit your highscore?",
-                        "Yes",    principia_action(ACTION_SUBMIT_SCORE, 0),
-                        "No",     principia_action(ACTION_IGNORE, 0)
-                        );
-            } else {
-                P.add_action(ACTION_SUBMIT_SCORE, 0);
-            }
-        }
     }
 }
 
@@ -11486,15 +8588,6 @@ game::clamp_entities()
         uint32_t new_id = id ++;
 
         if (old_id > prev_biggest) prev_biggest = old_id;
-
-        if (W->is_adventure() && e->id == W->level.get_adventure_id() && e->is_creature()) {
-            tms_debugf("IGNORE ADVENTURE ROBOT");
-            // do not change id of adventure robot
-            new_entities.insert(std::pair<uint32_t, entity*>(e->id, e));
-            W->all_entities.erase(it++);
-
-            continue;
-        }
 
         e->id = new_id;
 
@@ -11640,16 +8733,12 @@ game::apply_multiselection(entity *e)
 
     entity_set *loop = new entity_set();
     if (this->multi.follow_connections) {
-        if (this->sel_p_ent->g_id == O_PIXEL) {
-            ((pixel*)this->sel_p_ent)->gather_connected_pixels(loop);
-        } else {
-            this->sel_p_ent->gather_connected_entities(
-                    loop,
-                    this->multi.follow_cables,
-                    include_custom_conns,
-                    include_static,
-                    this->multi.select_through_layers);
-        }
+        this->sel_p_ent->gather_connected_entities(
+                loop,
+                this->multi.follow_cables,
+                include_custom_conns,
+                include_static,
+                this->multi.select_through_layers);
     } else {
         loop->insert(this->sel_p_ent);
     }
@@ -11722,246 +8811,4 @@ game::autosave_exists()
     snprintf(autosave_path, 1023, "%s/.autosave", pkgman::get_level_path(LEVEL_LOCAL));
 
     return file_exists(autosave_path);
-}
-
-void
-game::open_latest_state(bool require_equal_id, tms::screen *previous_screen/*=0*/)
-{
-    lvlfile *level = pkgman::get_levels(LEVEL_LOCAL_STATE);
-    lvlfile *next;
-
-    uint32_t latest_save_id = 0;
-    uint32_t latest_level_id = 0;
-    int latest_level_id_type = LEVEL_LOCAL;
-    time_t latest_mtime = 0;
-
-    while (level) {
-        if (!require_equal_id || level->id == W->level.local_id) {
-            if (level->mtime > latest_mtime) {
-                latest_save_id = level->save_id;
-                latest_level_id = level->id;
-                latest_mtime = level->mtime;
-                latest_level_id_type = level->id_type;
-            }
-        }
-
-        next = level->next;
-        delete level;
-        level = next;
-    }
-
-    tms_infof("Latest save id: %d", latest_save_id);
-
-    if (latest_save_id != 0) {
-        this->open_state(latest_level_id_type, latest_level_id, latest_save_id);
-
-        if (!require_equal_id) {
-            this->state.test_playing = false;
-            this->state.sandbox = false;
-        }
-
-        if (previous_screen) {
-            G->screen_back = previous_screen;
-        }
-
-        this->resume_action = GAME_RESUME_OPEN;
-
-        if (_tms.screen == &P.s_loading_screen->super) {
-            P.s_loading_screen->set_next_screen(this);
-        } else if (_tms.screen != &this->super){
-            tms::set_screen(this);
-        }
-    } else {
-        ui::message("Found no save we can continue from.");
-    }
-}
-
-void
-game::add_loot(entity *host, uint8_t resource_type, int num, float life/*=1.f*/)
-{
-    typedef std::multimap<entity*, struct loot>::iterator iterator;
-    std::pair<iterator, iterator> ip = this->loots.equal_range(host);
-
-    bool added = false;
-
-    iterator it = ip.first;
-    for (; it != ip.second; ++it) {
-        struct loot &l = it->second;
-
-        if (l.resource_type == resource_type) {
-            l.num += num;
-            l.life = life;
-            added = true;
-            break;
-        }
-    }
-
-    if (!added) {
-        this->loots.insert(std::pair<entity*, struct loot>(host, loot(resource_type, resource_data[resource_type].name, num, life)));
-    }
-}
-
-void
-game::close_tt(int what)
-{
-    for (int x=0; x<MAX_TUTORIAL_TEXTS; x++) {
-        if (this->tt[x].what == what) {
-            this->tt[x].life = 0.f;
-        }
-    }
-}
-
-void
-game::add_tt(int what, entity *e, b2Vec2 pos, float life)
-{
-    if (!this->state.new_adventure) {
-        return;
-    }
-
-    int x;
-    for (x=0; x<MAX_TUTORIAL_TEXTS; x++) {
-        if (this->tt[x].what == what) {
-            break;
-        }
-    }
-
-    if (x == MAX_TUTORIAL_TEXTS) {
-        for (x=0; x<MAX_TUTORIAL_TEXTS; x++) {
-            if (this->tt[x].life <= 0.f) {
-                break;
-            }
-        }
-    }
-
-    if (x == MAX_TUTORIAL_TEXTS) {
-        x = MAX_TUTORIAL_TEXTS-1;
-    }
-
-    this->tt[x].what = what;
-    this->tt[x].e = e;
-    this->tt[x].life = life;
-    this->tt[x].pos = pos;
-}
-
-void
-game::finished_tt(int what)
-{
-    if (!this->state.new_adventure) {
-        return;
-    }
-
-    settings["tutorial"]->v.u32 |= what;
-}
-
-void
-game::add_hp(entity *host, float percent, tvec3 &color/*=TV_HP_RED*/, float time/*=1.f*/, bool regen/*=false*/)
-{
-    int x;
-    bool found = false;
-
-    /* first look if it's already added */
-    for (x=0; x<NUM_HP; x++) {
-        if (hps[x].e == host) {
-            found = true;
-            break;
-        }
-    }
-
-    if (!found) {
-        for (x=0; x<NUM_HP; x++) {
-            if (hps[x].time <= 0.f) {
-                break;
-            }
-        }
-
-    }
-
-    x = x%NUM_HP;
-
-    hps[x].time = time;
-    hps[x].e = host;
-    hps[x].color = color;
-    hps[x].percent = percent;
-    hps[x].regen = regen;
-}
-
-void
-game::render_help_icon(const std::set<entity*> &set, float off_x, float off_y)
-{
-    struct tms_sprite *spr = gui_spritesheet::get_sprite(S_ROUNDED_HELP);
-
-    const b2Vec2 player_pos = adventure::player->get_position();
-
-    for (std::set<entity*>::const_iterator it = set.begin();
-            it != set.end(); ++it) {
-        entity *e = (*it);
-
-        const b2Vec2 icon_pos   = e->local_to_world(b2Vec2(off_x, off_y), 0);
-
-        const float dist        = b2Distance(player_pos, icon_pos);
-
-        if (dist < RH_MIN_DIST || dist > RH_MAX_DIST) {
-            continue;
-        }
-
-        float size = 0.005f * _tms.xppcm;
-        float max_z = 60.f;
-        if (!W->level.flag_active(LVL_DISABLE_ADVENTURE_MAX_ZOOM) && !W->is_paused() && W->is_adventure() && this->follow_object == adventure::player) {
-            max_z = 20.f;
-        }
-        size *= tclampf((this->cam->_position.z*2.f) / max_z, 1.f, 1.5f);
-
-        float alpha = 1.f;
-        if (dist > RH_MAX_DIST_ALPHA) {
-            alpha = 1.f-((dist-RH_MAX_DIST_ALPHA) / (RH_MAX_DIST-RH_MAX_DIST_ALPHA));
-        }
-        tms_ddraw_set_color(this->dd, 1.f, 1.f, 1.f, alpha);
-
-        tms_ddraw_sprite_r(this->dd, spr,
-                icon_pos.x,
-                icon_pos.y,
-                size,
-                size,
-                e->get_angle() + cos((double)_tms.last_time/100000.) * 8.f);
-    }
-}
-
-bool
-game::check_click_help_icon(const std::set<entity*> &set, float off_x, float off_y, b2Vec2 click_pos, struct principia_action click_action)
-{
-    const b2Vec2 player_pos = adventure::player->get_position();
-
-    for (std::set<entity*>::const_iterator it = set.begin();
-            it != set.end(); ++it) {
-        entity *e = (*it);
-
-        const b2Vec2 icon_pos = e->local_to_world(b2Vec2(off_x, off_y), 0);
-
-        const float dist = b2Distance(player_pos, icon_pos);
-
-        if (dist < RH_MIN_DIST || dist > RH_MAX_DIST) {
-            continue;
-        }
-
-        const float click_dist = b2Distance(icon_pos, click_pos);
-
-        float size = 0.005f * _tms.xppcm;
-        float max_z = 60.f;
-        if (!W->level.flag_active(LVL_DISABLE_ADVENTURE_MAX_ZOOM) && !W->is_paused() && W->is_adventure() && this->follow_object == adventure::player) {
-            max_z = 20.f;
-        }
-        size *= tclampf((this->cam->_position.z*2.f) / max_z, 1.f, 1.5f);
-        size *= 0.65f;
-
-        tms_infof("Click dist: %.2f", click_dist);
-        tms_infof("Size: %.2f", size);
-
-        if (click_dist < size) {
-            P.add_action(click_action.action_id, click_action.action_data);
-            settings["tutorial"]->v.u32 |= TUTORIAL_REPAIR_STATION;
-            return true;
-        }
-    }
-
-    return false;
 }

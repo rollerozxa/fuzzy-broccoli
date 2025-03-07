@@ -996,8 +996,6 @@ static int _bind(struct tms_fb *f)
         } else {
             __glewBindFramebufferEXT(GL_FRAMEBUFFER, 0);
         }
-#elif defined (TMS_BACKEND_IOS)
-        glBindFramebuffer(GL_FRAMEBUFFER, viewFramebuffer);
 #else
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 #endif

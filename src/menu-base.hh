@@ -6,11 +6,9 @@ enum {
     BTN_VERSION,
     BTN_USERNAME,
     BTN_MESSAGE,
-    BTN_BITHACK,
     BTN_SETTINGS,
     BTN_BACK,
     BTN_ENTITY,
-    BTN_CONTEST,
 
     BTN_UPDATE,
     BTN_PLAY,
@@ -41,8 +39,6 @@ class menu_base : public pscreen
     /* Default widgets */
     principia_wdg *wdg_version;
     principia_wdg *wdg_username;
-    principia_wdg *wdg_message;
-    principia_wdg *wdg_bithack;
     principia_wdg *wdg_settings;
     principia_wdg *wdg_back;
 

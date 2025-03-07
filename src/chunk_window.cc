@@ -1,11 +1,8 @@
 #include "chunk.hh"
 #include "world.hh"
 #include "model.hh"
-#include "object_factory.hh"
 #include "gentype.hh"
 #include "terrain.hh"
-#include "settings.hh"
-#include "noise.h"
 #include "misc.hh"
 
 static struct tms_mesh    *mesh_pool[MAX_CHUNKS];
@@ -137,7 +134,7 @@ chunk_window::reset()
     this->isset = false;
 }
 
-/** 
+/**
  * Sets a pixel at global gx and gy
  * returns the affected chunk
  **/
@@ -156,7 +153,7 @@ chunk_window::set_pixel(int gx, int gy, int z, int material)
     return c;
 }
 
-/** 
+/**
  * Gets the pixel at global gx and gy
  * returns the material of the given pixel
  **/
@@ -244,12 +241,6 @@ chunk_window::load_slot(int s, level_chunk *c)
             if (this->scene) tms_scene_remove_entity(this->scene, &this->slots[s]->layer_entities[x]);
         }
     }
-
-    *(c->grass_entity[0].mesh) = *(grass_pool[s]);
-    *(c->grass_entity[1].mesh) = *(grass_pool[s]);
-    tmat4_load_identity(this->slots[s]->grass_entity[0].M);
-    tmat4_translate(this->slots[s]->grass_entity[0].M, c->pos_x * 8.f, c->pos_y*8.f, 0.f);
-    tmat4_copy(this->slots[s]->grass_entity[1].M, this->slots[s]->grass_entity[0].M);
 
     for (int x=0; x<3; x++) {
         *(c->layer_entities[x].mesh) = *(mesh_pool[s]);
@@ -450,14 +441,6 @@ chunk_window::load_slot(int s, level_chunk *c)
     if (num)
         tms_gbuffer_upload_partial(vbuf[s], num*vertices_per_tpixel*sizeof(struct vertex));
 
-    c->grass_entity[0].mesh->i_start = 0;
-    c->grass_entity[0].mesh->i_count = num_grass_01/4*6;
-
-    c->grass_entity[1].mesh->i_start = num_grass_01/4*6;
-    c->grass_entity[1].mesh->i_count = (num_grass-num_grass_01)/4*6;
-
-    if (num_grass)
-        tms_gbuffer_upload_partial(grass_vbuf[s], num_grass*sizeof(struct grass_vertex));
 }
 
 static level_chunk *_c = 0;
@@ -533,7 +516,7 @@ void flood_fill(chunk_window *win, int x, int y)
     }
 }
 
-/** 
+/**
  * Create the texture that is used for terrain visibility
  *
  * This function is NOT thread safe

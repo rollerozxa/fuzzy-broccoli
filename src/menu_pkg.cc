@@ -3,10 +3,10 @@
 #include "game.hh"
 #include "pkgman.hh"
 #include "progress.hh"
-#include "menu-play.hh"
 #include "ui.hh"
 #include "misc.hh"
 #include "widget_manager.hh"
+#include "menu_main.hh"
 
 #include <unistd.h>
 
@@ -39,15 +39,6 @@ menu_pkg_render(struct tms_wdg *w, struct tms_surface *s)
     }
 
     float r = 0.f;
-
-    if (_tms.emulating_portrait) {
-        int xx = (int)px, yy = (int)py;
-        tms_convert_to_portrait(&xx, &yy);
-        px = (float)xx;
-        py = (float)yy;
-
-        r = -90.f;
-    }
 
     tms_ddraw_sprite_r(s->ddraw, w->s[0], px, py, w->size.x, w->size.y, r);
 
@@ -412,7 +403,8 @@ menu_pkg::handle_input(tms::event *ev, int action)
 #endif
             case TMS_KEY_B:
             case TMS_KEY_ESC:
-                tms::set_screen(P.s_menu_play);
+
+                tms::set_screen(P.s_menu_main);
                 return T_OK;
         }
     } else if (ev->type == TMS_EV_POINTER_DOWN) {

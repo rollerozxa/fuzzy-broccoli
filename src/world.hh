@@ -40,15 +40,9 @@ enum {
 
 class activator;
 class game;
-class screenshot_marker;
 class receiver_base;
 class solver_ingame;
 class solver;
-class eventlistener;
-class key_listener;
-class localgravity;
-class escript;
-class soundman;
 
 enum {
     ACTION_FINALIZE_GROUP,
@@ -175,11 +169,6 @@ class world : public b2QueryCallback
     std::set<activator*>        activators;
 
     /* special types of entities that we need to keep track of */
-    std::set<eventlistener*>    eventlisteners;
-    std::set<key_listener*>     key_listeners;
-    std::set<localgravity*>     localgravities;
-    std::set<escript*>          escripts;
-    std::set<entity*>           repair_stations;
 
     std::map<uint32_t, entity*> all_entities; /* all entities except groups and cables */
     std::map<uint32_t, group*>  groups;
@@ -254,13 +243,7 @@ class world : public b2QueryCallback
     inline bool is_paused(){return this->paused;}
     inline bool is_playing(){return !this->is_paused();}
     inline bool is_puzzle(){return this->level.type == LCAT_PUZZLE;}
-    inline bool is_adventure(){return this->level.type == LCAT_ADVENTURE;}
     inline bool is_custom(){return this->level.type == LCAT_CUSTOM;}
-
-    inline bool is_buildable()
-    {
-        return this->is_paused() || this->is_adventure();
-    }
 
     void destroy_connection_joint(connection *c);
 
@@ -271,7 +254,6 @@ class world : public b2QueryCallback
     void absorb_all();
     void destroy_joints();
 
-    std::map<uint32_t, screenshot_marker*> cam_markers;
     std::map<std::string, double> level_variables;
 
     void add_gravity_force(int key, b2Vec2 force);
@@ -281,11 +263,6 @@ class world : public b2QueryCallback
     std::multimap<uint32_t,    receiver_base*> receivers;
     void add_receiver(uint32_t frequency, receiver_base *t);
     void remove_receiver(uint32_t frequency, receiver_base *t);
-
-    /*            sound_id    soundman */
-    std::multimap<uint32_t,   soundman*> soundmanagers;
-    void add_soundman(uint32_t sound_id, soundman *sm);
-    void remove_soundman(uint32_t sound_id, soundman *sm);
 
     void insert_connection(connection *cc);
     void erase_connection(connection *cc);
@@ -318,7 +295,6 @@ class world : public b2QueryCallback
     int query(tms::camera *cam, int x, int y, entity **out_ent, b2Body **out_body, tvec2 *offs, uint8_t *frame, int layer_mask, bool force_selection=false, b2Fixture **out_fx=0, bool is_exact=false);
     int get_layer_point(tms::camera *cam, int x, int y, float layer, tvec3 *out);
     void solve_electronics(void);
-    void apply_local_gravities();
     int solve_edevice(edevice *e);
 
     /* helper function for raycasting */
@@ -402,8 +378,6 @@ class world : public b2QueryCallback
     {
         return this->all_entities;
     }
-
-    int score_helper; /* ;) */
 
     friend class game;
     friend class entity;

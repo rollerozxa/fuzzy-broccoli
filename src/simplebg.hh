@@ -29,13 +29,6 @@ unpack_rgba(uint32_t color, float *r, float *g, float *b, float *a)
 
 enum {
     BG_WOOD_1,
-    BG_WOOD_2,
-    BG_CONCRETE,
-    BG_SPACE,
-    BG_WOOD_3,
-    BG_OUTDOOR,
-    BG_COLORED,
-    BG_COLORED_SPACE,
 };
 
 class simplebg : public entity
@@ -43,7 +36,6 @@ class simplebg : public entity
     tms::entity *borders[4];
 
   public:
-    bool bottom_only;
     simplebg();
     const char *get_name() { return "Simple BG"; }
     bool set_level_size(uint16_t left, uint16_t right, uint16_t down, uint16_t up);

@@ -11,8 +11,6 @@
 class pscreen;
 class menu_pkg;
 class menu_main;
-class menu_create;
-class menu_play;
 class loading_screen;
 class settings;
 class p_text;
@@ -158,8 +156,6 @@ extern class principia
     loading_screen *s_loading_screen;
     menu_pkg       *s_menu_pkg;
     menu_main      *s_menu_main;
-    menu_create    *s_menu_create;
-    menu_play      *s_menu_play;
 
     std::vector<pscreen*> screens;
 

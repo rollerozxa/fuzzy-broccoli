@@ -4,9 +4,6 @@
 
 enum {
     UD2_TPIXEL_DESC,
-    UD2_PLANT_SECTION,
-    UD2_LADDER_STEP,
-    UD2_CLIMBABLE,
 };
 
 struct ud2_info

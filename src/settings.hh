@@ -14,15 +14,6 @@ enum {
     S_BOOL,
 };
 
-#define TUTORIAL_REPAIR_STATION      (1UL << 0UL)
-#define TUTORIAL_FACTORY             (1UL << 1UL)
-
-#define TUTORIAL_PICKUP_EQUIPMENT    (1UL << 2UL)
-#define TUTORIAL_REPAIR_STATION_DROP (1UL << 3UL)
-#define TUTORIAL_ZAP_WOOD            (1UL << 4UL)
-#define TUTORIAL_CAVE_FIRST_TIME     (1UL << 5UL)
-#define TUTORIAL_BUILD_LADDERS       (1UL << 6UL)
-
 struct cmp_str
 {
    bool operator()(char const *a, char const *b) const

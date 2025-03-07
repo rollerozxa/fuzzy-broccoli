@@ -110,7 +110,6 @@ static const char *level_type_string(uint8_t level_type)
     switch (level_type) {
         case LCAT_PARTIAL:      return "Partial";
         case LCAT_PUZZLE:       return "Puzzle";
-        case LCAT_ADVENTURE:    return "Adventure";
         case LCAT_CUSTOM:       return "Custom";
         default:                return "Unknown";
     }
@@ -330,42 +329,20 @@ class pkginfo
 /* level flags */
 #define LVL_DISABLE_LAYER_SWITCH                (1ULL << 0)  /* if adventure mode, manual layer switching of robot. if puzzle mode, layer switching of objects */
 #define LVL_DISABLE_INTERACTIVE                 (1ULL << 1)  /* disable interaction with all interactive objects */
-#define LVL_DISABLE_FALL_DAMAGE                 (1ULL << 2)  /* disable fall damage for all robots */
 #define LVL_DISABLE_CONNECTIONS                 (1ULL << 3)  /* puzzle mode, disable connection creating */
 #define LVL_DISABLE_STATIC_CONNS                (1ULL << 4)  /* puzzle mode, disable planks to static objects such as platforms */
-#define LVL_DISABLE_JUMP                        (1ULL << 5)  /* adventure mode, disable manual jumping */
-#define LVL_DISABLE_ROBOT_HIT_SCORE             (1ULL << 6)  /* disable score increase by shooting other robots */ /* TODO: fix this */
 #define LVL_DISABLE_ZOOM                        (1ULL << 7)  /* disable zoom */ /* TODO: What modes and states should this be enabled in? */
 #define LVL_DISABLE_CAM_MOVEMENT                (1ULL << 8)  /* disable camera movement */ /* TODO: What modes and states should this be enabled in? */
 #define LVL_DISABLE_INITIAL_WAIT                (1ULL << 9)  /* disable the initial waiting time when starting a level */
-#define LVL_UNLIMITED_ENEMY_VISION              (1ULL << 10) /* enemies always see the player from any distance and always target the player */
 #define LVL_ENABLE_INTERACTIVE_DESTRUCTION      (1ULL << 11) /* enable shooting interactive objects to destroy them */
-#define LVL_ABSORB_DEAD_ENEMIES                 (1ULL << 12) /* dead robots will be absorbed after a short interval */
 #define LVL_SNAP                                (1ULL << 13) /* snap object by default for puzzle levels */
 #define LVL_NAIL_CONNS                          (1ULL << 14) /* Use nail-shaped connections for planks and beams */
-#define LVL_DISABLE_CONTINUE_BUTTON             (1ULL << 15) /* Disable the continue button */
 #define LVL_SINGLE_LAYER_EXPLOSIONS             (1ULL << 16) /* Explosives reach only one layer */
-#define LVL_DISABLE_DAMAGE                      (1ULL << 17) /* robots cannot take damage */
 #define LVL_DISABLE_3RD_LAYER                   (1ULL << 18) /* disable third layer */
-#define LVL_PORTRAIT_MODE                       (1ULL << 19) /* portrait mode */
 #define LVL_DISABLE_RC_CAMERA_SNAP              (1ULL << 20) /* disable the camera from moving to a newly selected RC */
 #define LVL_DISABLE_PHYSICS                     (1ULL << 21) /* disable physics simulation */
-#define LVL_DO_NOT_REQUIRE_DRAGFIELD            (1ULL << 22) /* disable the need for dragfields to interact with interactive objects. */
-#define LVL_DISABLE_ROBOT_SPECIAL_ACTION        (1ULL << 23) /* disable the robots special action (boxing) */
-#define LVL_DISABLE_ADVENTURE_MAX_ZOOM          (1ULL << 24) /* disable the special adventure zoom */
-#define LVL_DISABLE_ROAM_LAYER_SWITCH           (1ULL << 25) /* disable roam robots ability to layerswitch */
 #define LVL_CHUNKED_LEVEL_LOADING               (1ULL << 26) /* load level in chunks */
-#define LVL_DISABLE_CAVEVIEW                    (1ULL << 27) /* disable caveview */
-#define LVL_DISABLE_ROCKET_TRIGGER_EXPLOSIVES   (1ULL << 28) /* disable the rocket and thrusters ability to trigger explosives */
-#define LVL_STORE_SCORE_ON_GAME_OVER            (1ULL << 29)
-#define LVL_ALLOW_HIGH_SCORE_SUBMISSIONS        (1ULL << 30)
-#define LVL_LOWER_SCORE_IS_BETTER               (1ULL << 31)
 #define LVL_DISABLE_ENDSCREENS                  (1ULL << 32) /* disable any end-game sound or messages */
-#define LVL_ALLOW_QUICKSAVING                   (1ULL << 33)
-#define LVL_ALLOW_RESPAWN_WITHOUT_CHECKPOINT    (1ULL << 34)
-#define LVL_DEAD_CREATURE_DESTRUCTION           (1ULL << 35)
-#define LVL_AUTOMATICALLY_SUBMIT_SCORE          (1ULL << 36)
-#define LVL_ENABLE_LUASOCKET                    (1ULL << 37)
 
 /* level format */
 class lvlinfo

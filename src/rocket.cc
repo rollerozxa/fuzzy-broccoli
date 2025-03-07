@@ -1,30 +1,23 @@
 #include "rocket.hh"
+#include "fxemitter.hh"
 #include "model.hh"
 #include "world.hh"
 #include "game.hh"
 #include "explosive.hh"
-#include "fxemitter.hh"
 
 #define ROCKET_THRUST_MUL 4.f
 
 #define ROCKET_TYPE_THRUSTER 0
 #define ROCKET_TYPE_ROCKET   1
 
-rocket::rocket(int size)
+rocket::rocket()
 {
     this->set_flag(ENTITY_DO_STEP, true);
     this->set_flag(ENTITY_DO_UPDATE_EFFECTS, true);
-    this->set_flag(ENTITY_IS_MAGNETIC, true);
 
-    if (size == 0) {
-        this->set_mesh(mesh_factory::get_mesh(MODEL_THRUSTER));
-    } else {
-        this->set_mesh(mesh_factory::get_mesh(MODEL_ROCKET));
-        this->menu_scale = .75f;
-    }
+    this->set_mesh(mesh_factory::get_mesh(MODEL_ROCKET));
+    this->menu_scale = .75f;
     this->set_material(&m_rocket);
-
-    this->rtype = size;
 
     this->num_sliders = 1;
 
@@ -36,20 +29,13 @@ rocket::rocket(int size)
     this->set_num_properties(1);
     this->set_property(0, 12.f);
 
-    if (size == 0)
-        this->s_in[0].lpos = b2Vec2(0.f,0.2f);
-    else
-        this->s_in[0].lpos = b2Vec2(0.f,0.6f);
+    this->s_in[0].lpos = b2Vec2(0.f,0.6f);
 
     this->s_in[0].ctype = CABLE_RED;
 
     this->layer_mask = 14; /* sublayer 2, 3, 4 */
 
-    if (size == 0) {
-        this->set_as_rect(.25f/2.f, .75f/2.f);
-    } else {
-        this->set_as_rect(.5f/2.f, 1.688f/2.f);
-    }
+    this->set_as_rect(.5f/2.f, 1.688f/2.f);
 
     this->query_sides[2].SetZero(); /* down */
 
@@ -94,7 +80,7 @@ void
 rocket::on_slider_change(int s, float value)
 {
     this->properties[0].v.f = value * 40.f;
-    float factor = (this->rtype == 0 ? 1.f : ROCKET_THRUST_MUL);
+    float factor = ROCKET_THRUST_MUL;
     G->show_numfeed(this->properties[0].v.f*factor);
 }
 
@@ -103,14 +89,10 @@ rocket::step()
 {
     if (this->thrustmul > 0.f) {
         if (!this->flames) {
-            this->flames = new flame_effect(this->_pos, this->get_layer(), this->rtype);
+            this->flames = new flame_effect(this->_pos, this->get_layer());
             tms_debugf("rocket %p flame effect: %p", this, this->flames);
             this->flames->set_thrustmul(0.f);
-            if (this->rtype == ROCKET_TYPE_THRUSTER) {
-                this->flames->set_z_offset(.1f);
-            } else {
-                this->flames->set_z_offset(.08f);
-            }
+            this->flames->set_z_offset(.08f);
         }
 
         G->emit(flames, this, b2Vec2(0.f, 0.f));
@@ -123,7 +105,7 @@ rocket::step()
         b2Vec2 force;
         tmath_sincos(bangle, &force.y, &force.x);
 
-        float factor = (this->rtype == 0 ? 1.f : ROCKET_THRUST_MUL) * thrustmul * 4.f;
+        float factor = ROCKET_THRUST_MUL * thrustmul * 4.f;
 
         force.x *= this->properties[0].v.f * factor;
         force.y *= this->properties[0].v.f * factor;
@@ -131,15 +113,9 @@ rocket::step()
         b->ApplyForce(force, centroid);
 
         b2Vec2 p;
-        if (this->rtype == 0) {
-            p = this->local_to_world(b2Vec2(0.f, -.4f), 0);
-            p.x += -.01f + ((rand()%100) / 100.f) * .02f;
-            p.y += -.01f + ((rand()%100) / 100.f) * .02f;
-        } else {
-            p = this->local_to_world(b2Vec2(0.f, -1.05f), 0);
-            p.x += -.1f + ((rand()%100) / 100.f) * .2f;
-            p.y += -.1f + ((rand()%100) / 100.f) * .2f;
-        }
+        p = this->local_to_world(b2Vec2(0.f, -1.05f), 0);
+        p.x += -.1f + ((rand()%100) / 100.f) * .2f;
+        p.y += -.1f + ((rand()%100) / 100.f) * .2f;
 
         b2Vec2 v = b->GetLinearVelocity();//.Length() * b->GetWorldVector(b2Vec2(0.f, -1.f));
 
@@ -166,22 +142,12 @@ rocket::ReportFixture(b2Fixture *f)
         return true;
     }
 
-    if (W->level.version < LEVEL_VERSION_1_5) {
-        if (e->g_id == O_BOMB) {
-            ((explosive*)e)->triggered = true;
-        }
-    } else {
-        if (!world::fixture_in_layer(f, this->get_layer())) {
-            return true;
-        }
+    if (!world::fixture_in_layer(f, this->get_layer())) {
+        return true;
+    }
 
-        if (W->level.flag_active(LVL_DISABLE_ROCKET_TRIGGER_EXPLOSIVES)) {
-            return true;
-        }
-
-        if (e->is_explosive()) {
-            ((explosive*)e)->triggered = true;
-        }
+    if (e->is_explosive()) {
+        ((explosive*)e)->triggered = true;
     }
 
     return true;
@@ -193,13 +159,9 @@ rocket::solve_electronics(void)
     if (!this->s_in[0].is_ready())
         return this->s_in[0].get_connected_edevice();
 
-    if (this->s_in[0].p == 0) {
-        /* cable is unplugged, default to ACTIVE */
-        if (W->level.version >= 25 && W->level.type == LCAT_ADVENTURE)
-            this->set_thrustmul(0.f);
-        else
-            this->set_thrustmul(1.f);
-    } else
+    if (this->s_in[0].p == 0)
+        this->set_thrustmul(1.f);
+    else
         this->set_thrustmul(this->s_in[0].get_value());
 
     return 0;

@@ -17,8 +17,6 @@ class menu_main : public menu_base
     principia_wdg *wdg_create;
     principia_wdg *wdg_browse_community;
 
-    principia_wdg *wdg_featured_level[MAX_FEATURED_LEVELS_FETCHED];
-
   public:
     bool widget_clicked(principia_wdg *w, uint8_t button_id, int pid);
 
