@@ -23,7 +23,6 @@ class ball : public entity
 
     void construct();
     void set_layer(int l);
-    void layermove(int dir);
 
     void add_to_world();
     const char* get_name(){

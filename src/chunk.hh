@@ -36,7 +36,6 @@ class world;
 
 class chunk_window;
 class cable;
-class gentype;
 class level_chunk;
 struct terrain_coord;
 
@@ -55,8 +54,6 @@ class level_chunk : public entity
     uint8_t pixels[3][16][16];
 
     level_chunk *neighbours[8];
-
-    gentype *genslots[GENSLOT_SIZE_X][GENSLOT_SIZE_Y][2]; /* first slot phase 4, other phase 5*/
 
     tpixel_desc merged[3][16*16];
     uint8_t num_merged[3];
@@ -115,7 +112,6 @@ class level_chunk : public entity
 
         memset(pixels, 0, sizeof(pixels));
         //memset(merged, 0, sizeof(merged));
-        memset(this->genslots, 0, sizeof(this->genslots));
     }
 
     ~level_chunk();
@@ -130,14 +126,6 @@ class level_chunk : public entity
     }
 
     void recreate_fixtures(bool initial);
-
-    bool occupy_pixel(int local_x, int local_y, gentype *gt);
-
-    void set_pixel(int x, int y, int z, int material)
-    {
-        this->modified = true;
-        this->pixels[z][y][x] = material;
-    }
 
     int get_pixel(int x, int y, int z)
     {
@@ -190,7 +178,6 @@ class chunk_preloader
     std::multimap<uint32_t, uint32_t>           cable_rels; /* e_id -> cable_id */
     std::map<size_t,        preload_info>       connections; /* ptr -> conn */
     std::multimap<uint32_t, size_t>             connection_rels; /* e_id/o_id -> ptr */
-    std::map<uint32_t,      gentype*>           gentypes;
 
     /* temporary buffers until push_loaded() is called */
     std::map<uint32_t, entity*> loaded_entities;
@@ -222,7 +209,6 @@ class chunk_preloader
     ~chunk_preloader();
     void reset();
     void clear_chunks();
-    bool preload(lvlinfo *lvl, lvlbuf *lb);
 
     void require_chunk_neighbours(level_chunk *c);
 
@@ -241,18 +227,12 @@ class chunk_preloader
     void write_entities(lvlinfo *lvl, lvlbuf *lb);
     void write_cables(lvlinfo *lvl, lvlbuf *lb);
     void write_connections(lvlinfo *lvl, lvlbuf *lb);
-    void write_chunks(lvlinfo *lvl, lvlbuf *lb);
-    void write_gentypes(lvlinfo *lvl, lvlbuf *lb);
-
-    void read_chunks(lvlinfo *lvl, lvlbuf *lb);
-    void read_gentypes(lvlinfo *lvl, lvlbuf *lb);
 
     const std::map<chunk_pos, level_chunk*>& get_active_chunks();
 
     friend class world;
     friend class chunk_window;
     friend class game;
-    friend class gentype;
     friend class level_chunk;
 };
 
@@ -262,7 +242,6 @@ class chunk_window : public tms::entity
   public:
     bool isset;
     int x, y, w, h;
-    uint64_t seed;
     struct tms_texture               *caveview;
     chunk_preloader                   preloader;
     level_chunk                      *slots[MAX_CHUNKS];
@@ -271,22 +250,15 @@ class chunk_window : public tms::entity
     chunk_window();
     const char *get_name() { return "Chunk window"; }
     void reset();
-    void step();
     inline level_chunk *get_chunk(int x, int y, bool soft=false, bool load=true)
     {
         return this->preloader.get_chunk(x,y,soft,load);
     }
-    level_chunk *set_pixel(int gx, int gy, int z, int material);
-    int get_pixel(int gx, int gy, int z);
 
     float get_height(float x);
     float *get_heights(int x, bool must_be_valid=false);
     float *generate_heightmap(int chunk_x, bool search=true);
-    void set_seed(uint64_t seed);
-    int find_slot(){for (int x=0; x<MAX_CHUNKS; x++) {if (!this->slots[x]) return x;}; return -1;};
     void load_slot(int s, level_chunk *c);
     void unload_slot(int s);
     void set(b2Vec2 lower, b2Vec2 upper);
-
-    void recreate_caveview_texture(float px, float py, float ax, float ay);
 };

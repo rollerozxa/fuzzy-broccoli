@@ -334,41 +334,10 @@ sm_sound sm::explosion;
 sm_sound sm::explosion_light;
 sm_sound sm::sheet_metal;
 sm_sound sm::rubber;
-sm_sound sm::absorb;
-sm_sound sm::emit;
 sm_sound sm::metal_metal;
 sm_sound sm::metal_metal2;
 sm_sound sm::win;
-sm_sound sm::lose;
-sm_sound sm::motor_startstop;
-sm_sound sm::ding;
-sm_sound sm::weird;
-sm_sound sm::detect;
-sm_sound sm::warning;
-sm_sound sm::drum1;
-sm_sound sm::drum2;
-sm_sound sm::bubbles;
-sm_sound sm::rocket_launcher_shoot;
-sm_sound sm::cash_register;
-sm_sound sm::discharge;
-sm_sound sm::plasma_shoot;
-sm_sound sm::buster_shoot;
-sm_sound sm::buster_shoot_maxcharge;
-sm_sound sm::buster_charge;
 sm_sound sm::stone_stone;
-sm_sound sm::chest_open;
-sm_sound sm::chest_open_rare;
-sm_sound sm::mining_hit_ore;
-sm_sound sm::zapper;
-sm_sound sm::happy;
-sm_sound sm::compressor;
-sm_sound sm::compressor_reverse;
-sm_sound sm::saw_loop;
-sm_sound sm::chop_wood;
-sm_sound sm::swish_hammer;
-sm_sound sm::swish_blade;
-sm_sound sm::swish_spear;
-sm_sound sm::swish_axe;
 
 sm_sound* sm::sound_lookup[SND__NUM];
 genwave_data sm::generated[SM_MAX_CHANNELS];
@@ -578,7 +547,6 @@ sm::init()
 
     sm::click.min_repeat_ms = 80;
     sm::robot.min_repeat_ms = 40;
-    sm::buster_charge.min_repeat_ms = 30;
 
     for (int x=0; x<num_chunks_to_load; ++x) {
         struct sm_load_data *data = &load_data[x];
@@ -727,8 +695,6 @@ sm::stop_all(void)
     sm::explosion_light.reset();
     sm::sheet_metal.reset();
     sm::rubber.reset();
-    sm::absorb.reset();
-    sm::emit.reset();
 
     for (int x=0; x<SM_MAX_CHANNELS; x++) {
         sm::channels[x].playing = false;

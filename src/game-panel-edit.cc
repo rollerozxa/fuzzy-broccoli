@@ -62,56 +62,25 @@ game::init_panel_edit()
     btns[4].ex = 1; btns[4].ey = 2;
     btns[4].rx = 1; btns[4].ry = 1;
 
-    btns[5].s = gui_spritesheet::get_sprite(S_RADIAL_2);
-    btns[5].type = PANEL_RADIAL;
-    btns[5].ex = 3; btns[5].ey = 0;
-    btns[5].rx = 2; btns[5].ry = 2;
+    btns[5].s = gui_spritesheet::get_sprite(S_EMPTY);
+    btns[5].type = PANEL_BTN;
+    btns[5].ex = 4; btns[5].ey = 2;
+    btns[5].rx = 1; btns[5].ry = 1;
 
-    btns[6].s = gui_spritesheet::get_sprite(S_EMPTY);
-    btns[6].type = PANEL_BTN;
-    btns[6].ex = 4; btns[6].ey = 2;
-    btns[6].rx = 1; btns[6].ry = 1;
+    btns[6].s = gui_spritesheet::get_sprite(S_SLIDER_3);
+    btns[6].type = PANEL_BIGSLIDER;
+    btns[6].ex = 0; btns[6].ey = 0;
+    btns[6].rx = 3; btns[6].ry = 1;
 
-    btns[7].s = gui_spritesheet::get_sprite(S_SLIDER_3);
-    btns[7].type = PANEL_BIGSLIDER;
-    btns[7].ex = 0; btns[7].ey = 0;
-    btns[7].rx = 3; btns[7].ry = 1;
+    btns[7].s = gui_spritesheet::get_sprite(S_SLIDER_2);
+    btns[7].type = PANEL_VSLIDER;
+    btns[7].ex = 6; btns[7].ey = 0;
+    btns[7].rx = 1; btns[7].ry = 2;
 
-    btns[8].s = gui_spritesheet::get_sprite(S_SLIDER_2);
-    btns[8].type = PANEL_VSLIDER;
-    btns[8].ex = 6; btns[8].ey = 0;
-    btns[8].rx = 1; btns[8].ry = 2;
-
-    btns[9].s = gui_spritesheet::get_sprite(S_SLIDER_3);
-    btns[9].type = PANEL_VBIGSLIDER;
-    btns[9].ex = 5; btns[9].ey = 0;
-    btns[9].rx = 1; btns[9].ry = 3;
-
-    btns[10].s = gui_spritesheet::get_sprite(S_RADIAL_3);
-    btns[10].type = PANEL_BIGRADIAL;
-    btns[10].ex = 7; btns[10].ey = 0;
-    btns[10].rx = 3; btns[10].ry = 3;
-
-    btns[11].s = gui_spritesheet::get_sprite(S_FIELD_2);
-    btns[11].type = PANEL_FIELD;
-    btns[11].ex = 13;
-    btns[11].ey = 0;
-    btns[11].rx = 2;
-    btns[11].ry = 2;
-
-    btns[12].s = gui_spritesheet::get_sprite(S_FIELD_3);
-    btns[12].type = PANEL_BIGFIELD;
-    btns[12].ex = 10;
-    btns[12].ey = 0;
-    btns[12].rx = 3;
-    btns[12].ry = 3;
-
-    btns[PANEL_BTN_RADIAL].type = PANEL_BTN_RADIAL;
-    btns[PANEL_BTN_RADIAL].s  = gui_spritesheet::get_sprite(S_RADIAL_2);
-    btns[PANEL_BTN_RADIAL].ex = 15;
-    btns[PANEL_BTN_RADIAL].ey = 0;
-    btns[PANEL_BTN_RADIAL].rx = 2;
-    btns[PANEL_BTN_RADIAL].ry = 2;
+    btns[8].s = gui_spritesheet::get_sprite(S_SLIDER_3);
+    btns[8].type = PANEL_VBIGSLIDER;
+    btns[8].ex = 5; btns[8].ey = 0;
+    btns[8].rx = 1; btns[8].ry = 3;
 
     for (int x=0; x<NUM_PANEL_WIDGET_TYPES;x++) {
         btns[x].sx = btns[x].rx;
@@ -290,34 +259,6 @@ game::panel_edit_handle_event(tms::event *ev)
                             }
                             break;
 
-                        case PANEL_FIELD:
-                        case PANEL_BIGFIELD:
-                            {
-                                value = (rx + 1.f) / 2.f;
-                                value2 = (ry + 1.f) / 2.f;
-                            }
-                            break;
-
-                        case PANEL_RADIAL:
-                        case PANEL_BIGRADIAL:
-                            {
-                                tvec2 d = (tvec2){rx, ry};
-                                tvec2_normalize(&d);
-
-                                value = atan2f(d.y, d.x);
-
-                                if (value < 0.f)
-                                    value += 2.f*M_PI;
-
-                                value /= M_PI/90.f;
-                                value = roundf(value);
-                                value *= M_PI/90.f;
-
-                                G->show_numfeed(value * (180.f/M_PI));
-
-                                value /= 2.f*M_PI;
-                            }
-                            break;
                     }
 
                     w->default_value[0] = value;
@@ -371,10 +312,6 @@ game::panel_edit_handle_event(tms::event *ev)
                 } else if (id == PANEL_VBIGSLIDER && sy > 0 && sy < 3) {
                     /* same as above comment, except y and vertical big slider */
                     sy = 0;
-                } else if ((id == PANEL_BIGRADIAL || id == PANEL_BIGFIELD) && sy > 0 && sx > 0 && sy < 3 && sx < 3) {
-                    /* same as above comment, except x AND y for big radial */
-                    sx = 0;
-                    sy = 0;
                 }
 
                 if (sx >= 0 && sy >= 0) {
@@ -387,14 +324,6 @@ game::panel_edit_handle_event(tms::event *ev)
                             for (int x=0; x<btns[id].sx; x++) {
                                 if (p->slot_used(sx+x, sy+y, z)) {
 
-                                    if (num_skipped == 0 && id == PANEL_RADIAL) {
-                                        /* special case for the radial, one of the slots are
-                                         * allowed to be used if the other is a radial too */
-                                        if (p->slot_owned_by_radial(sx+x, sy+y, z)) {
-                                            num_skipped ++;
-                                            continue;
-                                        }
-                                    }
                                     used = true;
                                     break;
                                 }

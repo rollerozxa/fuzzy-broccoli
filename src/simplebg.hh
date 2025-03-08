@@ -39,7 +39,6 @@ class simplebg : public entity
     simplebg();
     const char *get_name() { return "Simple BG"; }
     bool set_level_size(uint16_t left, uint16_t right, uint16_t down, uint16_t up);
-    void set_repeating(bool repeat);
     void set_color(tvec4 c);
     void set_color(uint32_t color)
     {

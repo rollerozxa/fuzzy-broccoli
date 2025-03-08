@@ -1498,24 +1498,6 @@ entity::update_protection_status()
     this->protection_status = new_status;
 }
 
-bool
-entity::is_protected(bool include_platforms/*=false*/)
-{
-    if (!W->is_paused() && this->protection_status & ENTITY_NOT_SEARCHED) {
-        this->update_protection_status();
-    }
-
-    if (this->protection_status & ENTITY_PROT_AUTOPROTECTOR) {
-        return true;
-    }
-
-    if (include_platforms && this->protection_status & ENTITY_PROT_PLATFORM) {
-        return true;
-    }
-
-    return false;
-}
-
 void
 entity::prepare_fadeout()
 {
@@ -1531,85 +1513,4 @@ entity::prepare_fadeout()
         this->update();*/
 
     //this->M[14]+=.01f;
-}
-
-float
-entity::distance_to_fixture(const b2Vec2 &query_point, b2Fixture *fx)
-{
-    float dist = INFINITY;
-
-    switch (fx->GetType()) {
-        case b2Shape::e_circle:
-            {
-                b2Vec2 p = fx->GetBody()->GetWorldPoint(((b2CircleShape*)fx->GetShape())->m_p);
-                p = query_point - p;
-                dist = p.Length() - ((b2CircleShape*)fx->GetShape())->m_radius;
-            }
-            break;
-
-        case b2Shape::e_polygon:;
-            {
-                b2Vec2 *ov = (((b2PolygonShape*)fx->GetShape())->m_vertices);
-                int num_verts = ((b2PolygonShape*)fx->GetShape())->m_count;
-
-                tvec2 verts[num_verts];
-                for (int x=0; x<num_verts; x++) {
-                    b2Vec2 tv = fx->GetBody()->GetWorldPoint(ov[x]);
-                    verts[x].x = tv.x;
-                    verts[x].y = tv.y;
-                }
-
-                dist = tintersect_point_poly_distance((tvec2*)&(query_point), verts, num_verts);
-            }
-            break;
-
-        default:
-#ifdef DEBUG
-            tms_fatalf("Unhandled fixture type in entity::distance_to_fixture: %d", fx->GetType());
-#endif
-            break;
-    }
-
-    return dist;
-}
-
-tvec2
-entity::get_nearest_point(const b2Vec2 &query_point, b2Fixture *fx)
-{
-    tvec2 nearest;
-
-    switch (fx->GetType()) {
-        case b2Shape::e_circle:
-            {
-                b2Vec2 p = fx->GetBody()->GetWorldPoint(((b2CircleShape*)fx->GetShape())->m_p);
-                b2Vec2 v = query_point - p;
-                v*=1.f/v.Length();
-                nearest = (tvec2){p.x+v.x *((b2CircleShape*)fx->GetShape())->m_radius , p.y+v.y*((b2CircleShape*)fx->GetShape())->m_radius};
-            }
-            break;
-
-        case b2Shape::e_polygon:;
-            {
-                b2Vec2 *ov = (((b2PolygonShape*)fx->GetShape())->m_vertices);
-                int num_verts = ((b2PolygonShape*)fx->GetShape())->m_count;
-
-                tvec2 verts[num_verts];
-                for (int x=0; x<num_verts; x++) {
-                    b2Vec2 tv = fx->GetBody()->GetWorldPoint(ov[x]);
-                    verts[x].x = tv.x;
-                    verts[x].y = tv.y;
-                }
-
-                nearest = tintersect_point_poly_nearest((tvec2*)&(query_point), verts, num_verts);
-            }
-            break;
-
-        default:
-#ifdef DEBUG
-            tms_fatalf("Unhandled fixture type in entity::distance_to_fixture: %d", fx->GetType());
-#endif
-            break;
-    }
-
-    return nearest;
 }

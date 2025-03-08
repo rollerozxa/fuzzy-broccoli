@@ -85,12 +85,6 @@ tpixel_mat_to_chunk_mat(uint8_t mat)
     return mat + 1;
 }
 
-inline uint8_t
-chunk_mat_to_tpixel_mat(uint8_t mat)
-{
-    return mat - 1;
-}
-
 #define GAMMA_CORRECTF(f) (_tms.gamma_correct ? powf(f, 2.2) : f)
 
 #define VEC2_INLINE(v) (v).x, (v).y

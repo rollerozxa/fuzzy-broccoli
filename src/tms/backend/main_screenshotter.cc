@@ -206,29 +206,6 @@ main(int argc, char **argv)
 
                 G->set_follow_object(0, false, false);
 
-                if (W->level.flag_active(LVL_CHUNKED_LEVEL_LOADING)) {
-                    bool all_chunks_loaded = true;
-
-                    const std::map<chunk_pos, level_chunk*> &active_chunks = W->cwindow->preloader.get_active_chunks();
-
-                    /* This never fails, but I'll leave it for now! */
-                    for (std::map<chunk_pos, level_chunk*>::const_iterator it = active_chunks.begin();
-                            it != active_chunks.end(); ++it) {
-                        if (it->second->slot != -1 && it->second->load_phase != 2) {
-                            tms_infof("Chunk %p load phase: %d", it->second, it->second->load_phase);
-                            all_chunks_loaded = false;
-                            break;
-                        }
-                    }
-
-                    if (!all_chunks_loaded) {
-                        tms_infof("Waiting for chunks to fully load...")
-                        break;
-                    }
-
-                    tms_infof("Num loaded chunks: %d", (int)active_chunks.size());
-                }
-
                 set_state(STATE_WORKING);
                 step = STEP_SNAP;
 
@@ -273,31 +250,6 @@ main(int argc, char **argv)
         tms_render();
 
         if (step == STEP_SCREENSHOT) {
-            if (W->level.flag_active(LVL_CHUNKED_LEVEL_LOADING)) {
-                int32_t step_diff = G->state.step_num - snap_step_num;
-                if (step_diff < 1) {
-                    tms_infof("Step diff is %d, waiting...", step_diff);
-                    break;
-                }
-                bool all_chunks_loaded = true;
-
-                const std::map<chunk_pos, level_chunk*> &active_chunks = W->cwindow->preloader.get_active_chunks();
-                /* This never fails, but I'll leave it for now! */
-                for (std::map<chunk_pos, level_chunk*>::const_iterator it = active_chunks.begin();
-                        it != active_chunks.end(); ++it) {
-                    if (it->second->slot != -1 && it->second->load_phase != 2) {
-                        tms_infof("Chunk %p load phase: %d", it->second, it->second->load_phase);
-                        all_chunks_loaded = false;
-                        break;
-                    }
-                }
-
-                if (!all_chunks_loaded) {
-                    tms_infof("Waiting for chunks to fully load...");
-                    break;
-                }
-            }
-
             char filename[256];
             snprintf(filename, 256, "ss-%d.png", ss_id++);
 

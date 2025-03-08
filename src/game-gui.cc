@@ -433,9 +433,6 @@ game::menu_handle_event(tms::event *ev)
             this->state.modified = true;
             return this->panel_edit_handle_event(ev);
 
-        case GAME_MODE_INVENTORY:
-            return this->inventory_handle_event(ev);
-
         case GAME_MODE_SELECT_OBJECT:
             return EVENT_CONT;
     }
@@ -1409,11 +1406,7 @@ game::init_gui(void)
             GW_REMOVE, AREA_BOTTOM_LEFT,
             gui_spritesheet::get_sprite(S_CLOSE), 0);
     this->wdg_remove->priority = 900;
-#ifdef TMS_BACKEND_PC
-    this->wdg_remove->set_tooltip("Remove object (key binding: Delete)");
-#else
     this->wdg_remove->set_tooltip("Remove object");
-#endif
     this->wdg_remove->marker = true;
     this->wdg_remove->marker_color.r = 1.5f;
 
@@ -1729,7 +1722,7 @@ game::refresh_widgets()
         return;
     }
 
-    this->wdg_username->add();
+    //this->wdg_username->add();
     this->wdg_menu->add();
 
 #ifdef TMS_BACKEND_MOBILE
@@ -2340,11 +2333,6 @@ game::render_gui(void)
         tms_assertf((ierr = glGetError()) == 0, "gl error %d after rendering sandbox menu", ierr);
     }
 
-    if (this->get_mode() == GAME_MODE_INVENTORY) {
-        this->render_inventory();
-        return;
-    }
-
     if (this->active_hori_wdg && this->active_vert_wdg && this->active_hori_wdg->type == TMS_WDG_RADIAL) {
         tms_ddraw_set_color(this->get_surface()->ddraw, 1.f, 1.f, 1.f, 1.f);
 
@@ -2497,7 +2485,7 @@ game::render_sandbox_menu()
 
     float btn_outer_x = _tms.xppcm * 1.1f;
     float btn_outer_y = _tms.yppcm * 1.1f;
-    float top = -_tms.yppcm/4.f + (_tms.window_height - btn_outer_y/2.f);
+    float top = -_tms.yppcm/4.f + (_tms.window_height - btn_outer_y/4.f);
 
     int xx = roundf((this->get_menu_width()) / btn_outer_x);
     if (xx < 1) xx = 1;
@@ -2763,21 +2751,6 @@ game::render_noselection_gui(void)
 void
 game::render_selection_gui(void)
 {
-}
-
-void
-game::render_inventory(void)
-{
-
-        this->set_mode(GAME_MODE_DEFAULT);
-        return;
-}
-
-int
-game::inventory_handle_event(tms::event *ev)
-{
-
-    return EVENT_CONT;
 }
 
 void

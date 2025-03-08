@@ -181,7 +181,6 @@ class world : public b2QueryCallback
     std::set<entity*>         post_interact;
     std::set<pending_absorb>  to_be_absorbed;
     std::set<b2Joint*>        to_be_destroyed;
-    std::set<level_chunk*>    to_be_reloaded;
 
     std::map<uint32_t, int64_t> timed_absorb;
     std::map<b2Joint*, float> destructable_joints;
@@ -254,8 +253,6 @@ class world : public b2QueryCallback
     void absorb_all();
     void destroy_joints();
 
-    std::map<std::string, double> level_variables;
-
     void add_gravity_force(int key, b2Vec2 force);
     void remove_gravity_force(int key);
 
@@ -271,8 +268,7 @@ class world : public b2QueryCallback
     void open_autosave(void);
     bool open(int id_type, uint32_t id, bool paused, bool sandbox, uint32_t save_id=0);
     void begin();
-    bool read_cache(int level_type, uint32_t id, uint32_t save_id=0);
-    bool save_cache(int level_type, uint32_t id, uint32_t save_id=0);
+
     bool save(int save_type=SAVE_TYPE_DEFAULT);
     void calculate_bounds(std::set<entity*> *entities, float *min_x, float *max_x, float *min_y, float *max_y);
     bool load_partial_from_buffer(lvlbuf *lb, b2Vec2 position, std::map<uint32_t, entity*> *entities, std::map<uint32_t, group*> *groups, std::set<connection*> *connections, std::set<cable*> *cables);

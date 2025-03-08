@@ -94,19 +94,9 @@ beam::beam(int btype)
     this->set_flag(ENTITY_DO_TICK,      true);
     this->set_flag(ENTITY_IS_BEAM,      true);
 
-    switch (this->btype) {
-        case BEAM_THICK:
-            this->set_num_properties(1); /* 1 property for the size */
-            this->set_mesh(mesh_factory::get_mesh(MODEL_PLANK4));
-            this->set_material(&m_wood);
-            break;
-
-        case BEAM_THIN:
-            this->set_num_properties(1); /* 1 property for the size */
-            this->set_mesh(mesh_factory::get_mesh(MODEL_THINPLANK4));
-            this->set_material(&m_wood);
-            break;
-    }
+    this->set_num_properties(1); /* 1 property for the size */
+    this->set_mesh(mesh_factory::get_mesh(MODEL_THINPLANK4));
+    this->set_material(&m_wood);
 
     this->set_property(0, (uint32_t)3);
 
@@ -140,19 +130,6 @@ beam::on_load(bool created, bool has_state)
     this->update_fixture();
 }
 
-
-void
-beam::set_color(tvec4 c)
-{
-
-}
-
-tvec4
-beam::get_color()
-{
-    return tvec4f(0.f, 0.f, 0.f, 0.f);
-}
-
 void
 beam::update_fixture()
 {
@@ -162,20 +139,9 @@ beam::update_fixture()
 
     this->set_property(0, (uint32_t)size);
 
-    switch (this->btype) {
+    this->set_mesh(mesh_factory::models[MODEL_THINPLANK1+size].mesh);
 
-        case BEAM_THICK:
-            this->set_mesh(mesh_factory::models[MODEL_PLANK1+size].mesh);
-
-            this->set_as_rect(((float)size+1.f)/2.f, .15f);
-            break;
-
-        case BEAM_THIN:
-            this->set_mesh(mesh_factory::models[MODEL_THINPLANK1+size].mesh);
-
-            this->set_as_rect(((float)size+1.f)/2.f, .125f);
-            break;
-    }
+    this->set_as_rect(((float)size+1.f)/2.f, .125f);
 
     if (this->body) {
         this->recreate_shape();

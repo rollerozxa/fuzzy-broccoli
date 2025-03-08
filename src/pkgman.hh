@@ -181,16 +181,6 @@ class pkgman
     static bool get_level_name(int level_type, uint32_t id, uint32_t save_id, char *output);
     static bool get_level_data(int level_type, uint32_t id, uint32_t save_id, char *o_name, uint8_t *o_version);
     static pkginfo* get_pkgs(int type);
-
-    static bool mtime_asc(lvlfile* a, lvlfile* b)
-    {
-        return a->mtime < b->mtime;
-    }
-
-    static bool mtime_desc(lvlfile* a, lvlfile* b)
-    {
-        return a->mtime > b->mtime;
-    }
 };
 
 class pkginfo

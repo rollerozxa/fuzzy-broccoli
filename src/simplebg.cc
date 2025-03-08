@@ -17,16 +17,6 @@ simplebg::simplebg()
     tmat3_load_identity(this->N);
 }
 
-void
-simplebg::set_repeating(bool repeat)
-{
-    if (repeat) {
-        this->set_material(&m_bg);
-    } else {
-        this->set_material(&m_bg_fixed);
-    }
-}
-
 bool
 simplebg::set_level_size(uint16_t left, uint16_t right, uint16_t down, uint16_t up)
 {

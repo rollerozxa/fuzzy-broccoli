@@ -18,7 +18,6 @@
 #include "wheel.hh"
 #include "ysplitter.hh"
 
-static entity* new_plank(void){return new beam(BEAM_THICK);};
 static entity* new_thinplank(void){return new beam(BEAM_THIN);};
 static entity* new_shelf(void){return new shelf();};
 
@@ -48,7 +47,7 @@ uint32_t of::_id = 1;
 
 static entity* (*c_creator[])(void) = {
     &new_thinplank, /* 0 */
-    &new_plank,
+    NULL,
     &new_ball_wood,
     &new_cylinder,
     NULL,

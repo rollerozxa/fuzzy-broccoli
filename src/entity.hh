@@ -491,8 +491,6 @@ class entity : public tms::entity
         return this->flag_active(ENTITY_IS_MOVEABLE);
     }
 
-    bool is_protected(bool include_platforms=false);
-
     uint8_t num_sliders;
     int  cull_effects_method;
     float interactive_hp;
@@ -821,9 +819,6 @@ class entity : public tms::entity
     {
         this->set_density_scale(ENTITY_DENSITY_SCALE_MIN + value*(ENTITY_DENSITY_SCALE_MAX-ENTITY_DENSITY_SCALE_MIN));
     }
-
-    static float distance_to_fixture(const b2Vec2 &query_point, b2Fixture *fx);
-    static tvec2 get_nearest_point(const b2Vec2 &query_point, b2Fixture *fx);
 
     virtual void set_density_scale(float v) {}
     virtual float get_density_scale(){return 1.f;};

@@ -5,36 +5,6 @@
 #include "types.hh"
 #include <cmath>
 
-
-class gentype;
-
-#define GENTYPE_MAX_REACH_X 4
-#define GENTYPE_MAX_REACH_Y 18
-
-#define TERRAIN_EDIT_LAYER0   (1<<0)
-#define TERRAIN_EDIT_LAYER1   (1<<1)
-#define TERRAIN_EDIT_LAYER2   (1<<2)
-#define TERRAIN_EDIT_TOUCH    (1<<3)  /* only touch/occupy the pixel, do not modify it */
-#define TERRAIN_EDIT_SOFT     (1<<4)  /* soft modify, only set the pixel if it is empty, do not modify already existing materials*/
-#define TERRAIN_EDIT_INC      (1<<5)  /* increase the pixel material only */
-#define TERRAIN_EDIT_DEC      (1<<6)  /* decrease the pixel material only */
-#define TERRAIN_EDIT_SOFTEN   (1<<7)  /* decrease the pixel material by one step */
-#define TERRAIN_EDIT_HARDEN   (1<<8)  /* increase the pixel material by one step */
-#define TERRAIN_EDIT_NONEMPTY (1<<9)  /* only set the pixel if it is NOT empty */
-
-struct terrain_edit {
-    uint32_t flags;
-    int      data;
-
-    terrain_edit(uint32_t flags, int data)
-    {
-        this->flags = flags;
-        this->data = data;
-    }
-
-    terrain_edit(){};
-};
-
 struct terrain_coord {
     int chunk_x;
     int chunk_y;
@@ -110,57 +80,6 @@ struct terrain_coord {
     {
         return (_xy >> 4) & 0xf;
     }
-};
-
-enum {
-    TERRAIN_TRANSACTION_EMPTY        = 0,
-    TERRAIN_TRANSACTION_READY        = 1,
-    TERRAIN_TRANSACTION_OCCUPYING    = 2,
-    TERRAIN_TRANSACTION_OCCUPIED     = 3,
-    //TERRAIN_TRANSACTION_FAILED       = 4,
-    TERRAIN_TRANSACTION_APPLIED      = 5,
-    TERRAIN_TRANSACTION_INVALIDATED  = 6,
-};
-
-struct terrain_transaction
-{
-    /* multimap sorted by chunk (see < operator of terrain_coord) */
-    std::multimap<terrain_coord, terrain_edit> modifications;
-    int                                        state;
-    int                                        start_x;
-    int                                        start_y;
-    bool                                       reached_limit;
-
-    terrain_transaction()
-    {
-        this->state = TERRAIN_TRANSACTION_EMPTY;
-        this->start_x = 0;
-        this->start_y = 0;
-        this->reached_limit = false;
-    }
-
-    void add(terrain_coord coord, terrain_edit edit)
-    {
-        if (std::abs(coord.chunk_x - start_x) > GENTYPE_MAX_REACH_X) {
-            this->reached_limit = true;
-            return;
-        }
-        if (std::abs(coord.chunk_y - start_y) > GENTYPE_MAX_REACH_Y) {
-            this->reached_limit = true;
-            return;
-        }
-
-#ifdef DEBUG_PRELOADER_SANITY
-        tms_assertf(std::abs(coord.chunk_x) < 1000 && std::abs(coord.chunk_y) < 1000, "suspicious transaction chunks %d,%d", coord.chunk_x, coord.chunk_y);
-#endif
-
-        this->state = TERRAIN_TRANSACTION_READY;
-
-        modifications.insert(std::make_pair(coord, edit));
-    }
-
-    void occupy(gentype *gt);
-    void apply();
 };
 
 /**

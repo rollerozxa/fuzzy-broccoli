@@ -191,15 +191,6 @@ struct widget_info widget_data[NUM_PANEL_WIDGET_TYPES] = {
         LEVEL_VERSION_ANY,
         false
     },
-    { // PANEL_RADIAL
-        TMS_WDG_RADIAL,
-        gui_spritesheet::get_rsprite(S_RADIAL_2), gui_spritesheet::get_rsprite(S_RADIAL_KNOB),
-        2, 2,
-        1,
-        { 0.f, 0.f },
-        LEVEL_VERSION_ANY,
-        true
-    },
     { // PANEL_BTN
         TMS_WDG_BUTTON,
         gui_spritesheet::get_rsprite(S_EMPTY), 0,
@@ -234,42 +225,6 @@ struct widget_info widget_data[NUM_PANEL_WIDGET_TYPES] = {
         1,
         { 0.f, 0.f },
         LEVEL_VERSION_ANY,
-        true
-    },
-    { // PANEL_BIGRADIAL
-        TMS_WDG_RADIAL,
-        gui_spritesheet::get_rsprite(S_RADIAL_3), gui_spritesheet::get_rsprite(S_RADIAL_KNOB),
-        3, 3,
-        1,
-        { 0.f, 0.f },
-        LEVEL_VERSION_ANY,
-        true
-    },
-    { // PANEL_FIELD
-        TMS_WDG_FIELD,
-        gui_spritesheet::get_rsprite(S_FIELD_2), gui_spritesheet::get_rsprite(S_FIELD_KNOB),
-        2, 2,
-        2,
-        { 0.f, 0.f },
-        LEVEL_VERSION_1_5,
-        true
-    },
-    { // PANEL_BIGFIELD
-        TMS_WDG_FIELD,
-        gui_spritesheet::get_rsprite(S_FIELD_3), gui_spritesheet::get_rsprite(S_FIELD_KNOB),
-        3, 3,
-        2,
-        { 0.f, 0.f },
-        LEVEL_VERSION_1_5,
-        true
-    },
-    { // PANEL_BTN_RADIAL
-        TMS_WDG_BTN_RADIAL,
-        gui_spritesheet::get_rsprite(S_RADIAL_W_KNOB), gui_spritesheet::get_rsprite(S_RADIAL_2),
-        2, 2,
-        2,
-        { 0.f, 0.f },
-        LEVEL_VERSION_1_5,
         true
     },
 };
@@ -606,10 +561,6 @@ panel::update_panel_key_labels()
                 case PANEL_BIGSLIDER:
                 case PANEL_VSLIDER:
                 case PANEL_VBIGSLIDER:
-                case PANEL_RADIAL:
-                case PANEL_FIELD:
-                case PANEL_BIGFIELD:
-                case PANEL_BIGRADIAL:
                                   if (wdg_slider_i < MAX_SLIDERS) {
                                       this->widgets[x].glyph = font->get_glyph(slider_chars[wdg_slider_i]);
                                       ++ wdg_slider_i;
@@ -631,10 +582,7 @@ panel::slot_owned_by_radial(int x, int y, int z)
         if (this->widgets[i].used) {
             for (int j=0; j<this->widgets[i].num_socks;j ++) {
                 if (this->widgets[i].sock[j] == v) {
-                    if (this->widgets[i].wtype == PANEL_RADIAL)
-                        return true;
-                    else
-                        return false;
+                    return false;
                 }
             }
         }

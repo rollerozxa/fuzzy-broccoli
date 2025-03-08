@@ -99,9 +99,6 @@ struct game_debug_line
 
 #define CLICK_MAX_STEPS            25
 
-#define NUM_PROMPT_SLOTS           5
-#define PROMPT_TIME                5*1000*1000
-
 #define MAX_RECENT 6
 
 enum {
@@ -454,10 +451,6 @@ class game : public pscreen
     tms::camera *ao_cam;
 
   public:
-    struct tms_entity *caveview;
-    float caveview_size;
-    float caveview_zoom;
-    tvec2 caveview_pos;
     tvec3 cam_vel;
     b2Vec2 cam_rel_pos;
     b2Vec2 adv_rel_pos;
@@ -664,8 +657,6 @@ class game : public pscreen
     void add_menu_item(int cat, entity *e);
     int menu_handle_event(tms::event *ev);
     int panel_edit_handle_event(tms::event *ev);
-    int inventory_handle_event(tms::event *ev);
-    void render_inventory(void);
     void render_panel_edit(void);
     void update_pairs();
     void panel_edit_refresh(void);
@@ -776,10 +767,6 @@ class game : public pscreen
     void init_camera();
     void init_gui();
 
-#ifdef DEBUG
-    void print_stats();
-    void print_screen_point_info(int x, int y);
-#endif
 
     int render();
     int post_render();

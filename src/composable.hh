@@ -48,8 +48,6 @@ class composable : public entity
     b2Body *get_body(uint8_t frame);
     void set_as_circle(float r);
     virtual void set_as_rect(float width, float height);
-    void set_as_tri(float width, float height);
-    void set_as_poly(b2Vec2 *verts, int num_verts);
     void recreate_shape(void);
     void update_shape(b2Vec2 local_pos, float local_angle);
     virtual void update_frame(bool hard){};

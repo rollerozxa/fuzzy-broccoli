@@ -1,7 +1,6 @@
 #include "progress.hh"
 #include <stdio.h>
 #include <string.h>
-#include <zlib.h>
 
 #include <cstdlib>
 

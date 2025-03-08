@@ -1,6 +1,5 @@
 #include "solver_ingame.hh"
 #include "entity.hh"
-#include "ball.hh"
 #include "game.hh"
 #include "explosive.hh"
 #include "button.hh"
@@ -8,10 +7,6 @@
 #include "ud2.hh"
 
 #include <tms/bindings/cpp/cpp.hh>
-
-static void begincontact_creature(b2Contact *contact, entity *a, entity *b, int rev);
-
-static void postsolve_creature(b2Contact *contact, entity *a, entity *b, int rev, const b2ContactImpulse *impulse);
 
 static void (*presolve_handler[13][13])(b2Contact *contact, entity *a, entity *b, int rev, const b2Manifold *man) =
 {
@@ -163,9 +158,9 @@ void solver_ingame::BeginContact(b2Contact *contact)
             }
 
             if (!material_a)
-                material_a = &m_border;
+                material_a = &m_wood;
             if (!material_b)
-                material_b = &m_border;
+                material_b = &m_wood;
 
             /*
             if (material_a->type == TYPE_METAL || material_a->type == TYPE_SHEET_METAL || material_a->type == TYPE_METAL2 ||
@@ -400,15 +395,3 @@ void solver_ingame::PostSolve(b2Contact *contact, const b2ContactImpulse *impuls
     }
 }
 
-
-static void
-postsolve_creature(b2Contact *contact, entity *a, entity *b, int rev, const b2ContactImpulse *impulse)
-{
-
-}
-
-static void
-begincontact_creature(b2Contact *contact, entity *a, entity *b, int rev)
-{
-
-}

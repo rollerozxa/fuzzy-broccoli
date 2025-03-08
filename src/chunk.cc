@@ -1,9 +1,6 @@
 #include "chunk.hh"
 #include "game.hh"
-#include "model.hh"
-#include "group.hh"
 #include "terrain.hh"
-#include "gentype.hh"
 
 /* chunked loading/unloading
  *
@@ -214,34 +211,6 @@ level_chunk::init_chunk_neighbours()
 }
 
 void
-level_chunk::load_neighbours()
-{
-    if (this->loaded_neighbours) {
-        //return;
-    }
-
-    if (this->num_fixtures > 0) {
-        W->cwindow->preloader.require_chunk_neighbours(this);
-
-        for (int x=0; x<8; x++) {
-            W->cwindow->preloader.load(this->neighbours[x], 2);
-        }
-
-        this->loaded_neighbours = true;
-    } else if (this->num_dyn_fixtures > 0) {
-        W->cwindow->preloader.require_chunk_neighbours(this);
-
-        W->cwindow->preloader.load(this, 2);
-
-        for (int x=0; x<8; x++) {
-            W->cwindow->preloader.load(this->neighbours[x], 1);
-        }
-
-        this->loaded_neighbours = true;
-    }
-}
-
-void
 level_chunk::add_fixture(b2Fixture *fx, entity *owner)
 {
     if (owner->flag_active(ENTITY_DYNAMIC_UNLOADING)) {
@@ -263,82 +232,6 @@ level_chunk::remove_fixture(b2Fixture *fx, entity *owner)
     } else {
         this->num_fixtures --;
     }
-}
-
-bool
-level_chunk::is_focused()
-{
-    chunk_window *win = W->cwindow;
-    if (this->pos_y < win->y || this->pos_y > win->y+win->h
-        || this->pos_x < win->x || this->pos_x > win->x+win->w) {
-        return false;
-    }
-
-    return true;
-}
-
-bool
-level_chunk::occupy_pixel(int local_x, int local_y, gentype *gt)
-{
-    int cisx = std::abs(local_x % GENSLOT_SIZE_X);
-    int cisy = std::abs(local_y % GENSLOT_SIZE_Y);
-    gentype *previous = 0;
-
-    if (gt->lock) {
-        return false;
-    }
-
-    tms_assertf(this->generate_phase < 5, "can't occupy a chunk of gen phase %d", this->generate_phase);
-
-    if (this->genslots[cisx][cisy][gt->sorting] != 0) {
-        if (this->genslots[cisx][cisy][gt->sorting] == gt) {
-            return true;
-        }
-
-        previous = this->genslots[cisx][cisy][gt->sorting];
-
-        //tms_debugf("found previous %p", previous);
-
-        if (previous->transaction.state != TERRAIN_TRANSACTION_INVALIDATED) {
-            //tms_debugf("Slot at %d/%d[%d/%d] is occupied by %p", local_x, local_y, cisx, cisy, this->genslots[cisx][cisy][gt->sorting]);
-            if (previous->priority > gt->priority) {
-                return false;
-            } else if (previous->priority == gt->priority) {
-                if (std::abs(previous->coord.get_world_x()) < std::abs(gt->coord.get_world_x())) {
-                    return false;
-                } else if (std::abs(previous->coord.get_world_x()) == std::abs(gt->coord.get_world_x())) {
-                    if (std::abs(previous->coord.get_world_y()) < std::abs(gt->coord.get_world_y())) {
-                        return false;
-                    }
-                }
-            }
-
-            previous->transaction.state = TERRAIN_TRANSACTION_INVALIDATED;
-        }
-
-        /* the following should not be necessary */
-#if 0
-        std::vector<genslot>::iterator i = std::find(previous->genslots.begin(),
-                previous->genslots.end(), genslot(this->pos_x, this->pos_y, cisx, cisy, gt->sorting));
-        if (i != previous->genslots.end()) {
-            previous->genslots.erase(i);
-        } else {
-            tms_warnf("what? previous gentype did not have a genslot for this");
-        }
-#endif
-    }
-
-#ifdef DEBUG_SPECIFIC_CHUNK
-    if (this->pos_x == DEBUG_CHUNK_X && this->pos_y == DEBUG_CHUNK_Y) {
-        tms_debugf("(chunk %d,%d) occupied slot %d %d, sorting %d",
-                DEBUG_CHUNK_X, DEBUG_CHUNK_Y,
-                cisx, cisy, gt->sorting);
-    }
-#endif
-
-    this->genslots[cisx][cisy][gt->sorting] = gt;
-    gt->genslots.push_back(genslot(this->pos_x, this->pos_y, cisx, cisy, gt->sorting));
-    return true;
 }
 
 void

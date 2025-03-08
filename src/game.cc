@@ -26,10 +26,6 @@
 #include "ui.hh"
 #include "gui.hh"
 #include "menu_pkg.hh"
-#ifdef DEBUG
-/* for print_screen_point_info */
-#include "terrain.hh"
-#endif
 
 #include <tms/backend/opengl.h>
 #include <unistd.h>
@@ -123,7 +119,6 @@ static uint8_t wdg_right_i = 0;
 static uint8_t wdg_btn_i = 0;
 static uint8_t wdg_misc_i = 0;
 static entity *copy_entity[MAX_COPY_ENTITIES];
-static uint64_t prompt_slot[NUM_PROMPT_SLOTS];
 static tvec3 old_cam_pos;
 
 static int box_select_pid = 0;
@@ -628,7 +623,7 @@ render_hidden_prio(struct tms_rstate *rstate, void *value)
         glEnable(GL_BLEND);
         /*glDepthMask(true);
         glEnable(GL_DEPTH_TEST);*/
-        glBlendColor(1.f, 1.f, 1.f, G->caveview_size > 0.f ? 1.f-(tclampf(G->caveview_size, 0.0f, 1.f)) : .125f);
+        glBlendColor(1.f, 1.f, 1.f, .125f);
         glBlendFunc(GL_CONSTANT_ALPHA, GL_ONE_MINUS_CONSTANT_ALPHA);
     } else {
         return 1;
@@ -773,17 +768,13 @@ game::game()
     this->hov_ent = 0;
 #endif
 
-    this->caveview_size = 0.f;
-    this->caveview_zoom = 0.f;
     this->inventory_highest_y = 0.f;
     this->inventory_scroll_offset = 0.f;
     this->dropping = -1;
     this->drop_step = 0;
     this->drop_amount = 0;
     this->drop_speed = 1.f;
-    for (int x=0; x<NUM_PROMPT_SLOTS; ++x) {
-        prompt_slot[x] = 0;
-    }
+
     for (int x=0; x<MAX_RECENT; ++x) {
         this->recent[x] = -1;
     }
@@ -858,16 +849,6 @@ game::game()
     this->bgent = new simplebg();
     this->grident = new grid();
 
-    this->caveview = tms_entity_alloc();
-    this->caveview->prio = 3;
-    tms_entity_set_mesh(caveview, tms_ddraw_circle_mesh);
-    tms_entity_set_material(caveview, &m_cavemask);
-    tmat4_load_identity(caveview->M);
-    tmat3_load_identity(caveview->N);
-
-    //this->reset();
-    //
-
     this->cam_rel_pos = b2Vec2(0,0);
     this->adv_rel_pos = b2Vec2(0,0);
 
@@ -903,23 +884,6 @@ game::~game()
         free(mo.name);
         delete mo.e;
     }
-}
-
-bool
-game::occupy_prompt_slot()
-{
-    uint64_t cur_time = _tms.last_time;
-
-    for (int x=0; x<NUM_PROMPT_SLOTS; ++x) {
-        uint64_t dt = cur_time - prompt_slot[x];
-        if (dt > PROMPT_TIME) {
-            prompt_slot[x] = cur_time;
-            tms_infof("Took prompt slot %d", x);
-            return true;
-        }
-    }
-
-    return false;
 }
 
 void
@@ -3706,15 +3670,6 @@ game::setup_panel(panel *p)
                                   }
                                   break;
 
-                case PANEL_RADIAL:
-                case PANEL_BIGRADIAL:
-                case PANEL_FIELD:
-                case PANEL_BIGFIELD:
-                    if (wdg_misc_i < MAX_MISC_WIDGETS) {
-                        wdg_misc[wdg_misc_i++] = &p->widgets[x];
-                    }
-                    break;
-
                 case PANEL_SLIDER:
                 case PANEL_BIGSLIDER:
                     if (wdg_misc_i < MAX_MISC_WIDGETS) {
@@ -3826,7 +3781,6 @@ game::reset()
     sm::stop_all();
     this->selection.disable();
     this->reset_touch(true);
-    W->cwindow->reset();
     this->clear_entities();
     W->cwindow->preloader.clear_chunks();
 
@@ -3875,9 +3829,6 @@ game::reset()
     for (int x=0; x<MAX_COPY_ENTITIES; ++x) {
         copy_entity[x] = 0;
     }
-    for (int x=0; x<NUM_PROMPT_SLOTS; ++x) {
-        prompt_slot[x] = 0;
-    }
 
     this->force_static_update = 1;
     this->do_static_update = false;
@@ -3924,9 +3875,6 @@ game::reset()
 #endif
 
     this->cam->up = (tvec3){0.f, 1.f, 0.f};
-
-    G->caveview_size = 0.f;
-    G->caveview_zoom = 0.f;
 }
 
 /**
@@ -4095,13 +4043,7 @@ game::get_state_size()
 void
 game::apply_level_properties()
 {
-    W->cwindow->set_seed(W->level.seed);
-
     this->state.adventure_id = W->level.get_adventure_id();
-
-    if (!this->caveview->scene) {
-        this->get_scene()->add_entity(static_cast<tms::entity*>(this->caveview));
-    }
 
     if (this->state.abo_architect_mode) {
         this->set_architect_mode(false);
@@ -4166,7 +4108,6 @@ static bool just_paused = false;
 void
 game::do_pause()
 {
-    W->save_cache(W->level_id_type, W->level.local_id);
 
 #ifdef TMS_BACKEND_PC
     SDL_SetWindowGrab((SDL_Window*)_tms._window, SDL_FALSE);
@@ -4740,10 +4681,6 @@ game::handle_input_playing(tms::event *ev, int action)
             case TMS_KEY_Q:
                 if (ev->data.key.mod & TMS_MOD_CTRL) {
                     ui::open_dialog(DIALOG_CONFIRM_QUIT);
-                } else {
-#ifdef DEBUG
-                    this->print_stats();
-#endif
                 }
                 break;
 
@@ -5328,8 +5265,6 @@ void
 game::finish(bool success)
 {
     if (!this->state.finished) {
-        W->save_cache(W->level_id_type, W->level.local_id);
-
         this->state.finish_step = W->step_count;
         this->state.finished = true;
         this->state.success = success;
@@ -5374,10 +5309,7 @@ game::finish(bool success)
         if (!W->level.flag_active(LVL_DISABLE_ENDSCREENS)) {
             if (success) {
                 sm::play(&sm::win, 0.f, 0.f, 0, 1.f, false, 0, true);
-            } else {
-                sm::play(&sm::lose, 0.f, 0.f, 0, 1.f, false, 0, true);
             }
-
         }
 
         tms_infof("game FINISH");
@@ -6143,10 +6075,6 @@ game::handle_input_paused(tms::event *ev, int action)
                         this->animate_disconnect(this->selection.e);
                         this->state.modified = true;
                     }
-                } else {
-#ifdef DEBUG
-                    this->print_stats();
-#endif
                 }
                 break;
 
@@ -7731,9 +7659,6 @@ game::handle_input(tms::event *ev, int action)
     switch (ev->type) {
         case TMS_EV_POINTER_DOWN:
 #ifdef TMS_BACKEND_PC
-# ifdef DEBUG
-            this->print_screen_point_info((int)ev->data.motion.x, (int)ev->data.motion.y);
-# endif
 # ifndef NO_UI
             if (prompt_is_open) return T_OK;
 # endif
@@ -8753,56 +8678,6 @@ game::apply_multiselection(entity *e)
         return false;
     }
 }
-
-#ifdef DEBUG
-
-void game::print_screen_point_info(int x, int y)
-{
-    tvec3 tproj[3];
-    for (int l=0; l<3; l++) { W->get_layer_point(this->cam, x, y, l, &tproj[l]); }
-    terrain_coord coord(tproj[0].x, tproj[0].y);
-
-    level_chunk *c = W->cwindow->get_chunk(coord.chunk_x,coord.chunk_y);
-
-    printf("--- CLICK AT %d %d ---\n", x, y);
-    printf("pt layer 0: %f %f\n", tproj[0].x, tproj[0].y);
-    printf("pt layer 1: %f %f\n", tproj[1].x, tproj[1].y);
-    printf("pt layer 2: %f %f\n", tproj[2].x, tproj[2].y);
-    printf("chunk x: %d\n", coord.chunk_x);
-    printf("chunk y: %d\n", coord.chunk_y);
-    printf("chunk in active?: %d\n", (W->cwindow->preloader.active_chunks.find(chunk_pos(coord.chunk_x, coord.chunk_y)) != W->cwindow->preloader.active_chunks.end()));
-    printf("chunk num_fixtures: %d\n", c->num_fixtures);
-    printf("chunk num_dyn_fixtures: %d\n", c->num_dyn_fixtures);
-    printf("chunk load phase: %d\n", c->load_phase);
-    printf("chunk generate phase: %d\n", c->generate_phase);
-    printf("chunk in wastebin?: %d\n", (W->cwindow->preloader.wastebin.find(chunk_pos(coord.chunk_x, coord.chunk_y)) != W->cwindow->preloader.wastebin.end()));
-
-    if (c) {
-        printf("chunk num fixtures: %d\n", c->num_fixtures);
-        printf("chunk garbage: %d\n", c->num_fixtures);
-
-        for (int x=0; x<8; x++) {
-            if (c->neighbours[x]) {
-                tms_debugf("chunk neighbour %d num fixtures: %d", x, c->neighbours[x]->num_fixtures);
-                tms_debugf("chunk neighbour %d garbage:      %d", x, c->neighbours[x]->garbage);
-            }
-        }
-    }
-
-}
-
-void game::print_stats()
-{
-    printf("--- CHUNK PRELOADER ---\n");
-    printf("heap size:\t\t%" PRIu64 "/%" PRIu64 "\n", W->cwindow->preloader.heap.size, W->cwindow->preloader.heap.cap);
-    printf("level size:\t\t%" PRIu64 "/%" PRIu64 "\n", W->cwindow->preloader.w_lb.size, W->cwindow->preloader.w_lb.cap);
-    printf("active chunks:\t\t%u\n", (int)W->cwindow->preloader.active_chunks.size());
-    printf("wastebin:\t\t%u\n", (int)W->cwindow->preloader.wastebin.size());
-    printf("gentypes:\t\t%u\n", (int)W->cwindow->preloader.gentypes.size());
-    SDL_Delay(5000);
-}
-
-#endif
 
 bool
 game::autosave_exists()

@@ -196,18 +196,6 @@ composable::set_as_circle(float r)
 }
 
 void
-composable::set_as_poly(b2Vec2 *verts, int num_verts)
-{
-    this->orig.poly.shape = b2PolygonShape();
-    this->orig.poly.shape.Set(verts, num_verts, true);
-
-    this->width = 1.f; /* XXX TODO estimate width and height */
-    this->height = 1.f;
-
-    this->refresh_poly_shape();
-}
-
-void
 composable::set_as_rect(float width, float height)
 {
     this->orig.poly.shape = b2PolygonShape();
@@ -219,23 +207,6 @@ composable::set_as_rect(float width, float height)
     this->refresh_poly_shape();
 }
 
-void
-composable::set_as_tri(float width, float height)
-{
-    b2Vec2 verts[3] = {
-        b2Vec2(width/2.f, height/2.f),
-        b2Vec2(-width/2.f, -height/2.f),
-        b2Vec2(width/2.f, -height/2.f),
-    };
-
-    this->orig.poly.shape = b2PolygonShape();
-    this->orig.poly.shape.Set(verts, 3);
-
-    this->width = width;
-    this->height = height;
-
-    this->refresh_poly_shape();
-}
 
 void
 composable::recreate_fixtures(bool initial)

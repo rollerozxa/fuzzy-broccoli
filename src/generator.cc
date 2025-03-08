@@ -48,36 +48,25 @@ generator::generator()
 float
 generator::get_slider_value(int s)
 {
-    if (W->level.version >= LEVEL_VERSION_1_3_0_3)
-        return tclampf((this->properties[0].v.f - 1.f) / 23.f, 0.f, 1.f);
-    else
-        return tclampf((this->properties[0].v.f - 1.f) / 47.f, 0.f, 1.f);
+    return tclampf((this->properties[0].v.f - 1.f) / 23.f, 0.f, 1.f);
 }
 
 void
 generator::on_load(bool created, bool has_state)
 {
-    if (W->level.version >= LEVEL_VERSION_1_3_0_3) {
-        if (this->properties[0].v.f > 24.f) this->properties[0].v.f = 24.f;
-    }
+    if (this->properties[0].v.f > 24.f) this->properties[0].v.f = 24.f;
 }
 
 float
 generator::get_slider_snap(int s)
 {
-    if (W->level.version >= LEVEL_VERSION_1_3_0_3)
-        return 1.f / 23.f;
-    else
-        return 1.f / 47.f;
+    return 1.f / 23.f;
 }
 
 void
 generator::on_slider_change(int s, float value)
 {
-    if (W->level.version >= LEVEL_VERSION_1_3_0_3) {
-        this->properties[0].v.f = (value * 23.f) + 1.f;
-    } else
-        this->properties[0].v.f = (value * 47.f) + 1.f;
+    this->properties[0].v.f = (value * 23.f) + 1.f;
     G->show_numfeed(this->properties[0].v.f);
 }
 

@@ -247,19 +247,7 @@ world::remove_receiver(uint32_t frequency, receiver_base *t)
 void
 world::reload_modified_chunks()
 {
-    for (std::set<level_chunk*>::iterator i = this->to_be_reloaded.begin();
-            i != this->to_be_reloaded.end(); i++) {
-        level_chunk *c = (*i);
-        int slot = c->slot;
 
-        c->recreate_fixtures(false);
-
-        if (slot >= 0) {
-            this->cwindow->unload_slot(slot);
-            this->cwindow->load_slot(slot, c);
-        }
-    }
-    this->to_be_reloaded.clear();
 }
 
 /* return true if we have another step to do */
@@ -282,7 +270,6 @@ world::step()
 #ifdef PROFILING
             Uint32 ss = SDL_GetTicks();
 #endif
-            this->cwindow->step();
 
 #ifndef SCREENSHOT_BUILD
             if (!this->level.flag_active(LVL_DISABLE_PHYSICS)) {
@@ -441,8 +428,6 @@ world::step()
     } else {
         if (G->get_mode() != GAME_MODE_EDIT_PANEL
                 && G->get_mode() != GAME_MODE_SELECT_SOCKET && G->get_mode() != GAME_MODE_SELECT_CONN_TYPE) {
-
-            this->cwindow->step();
 
 #if 0
             if (this->step_count < 80) {
@@ -1286,13 +1271,11 @@ world::reset()
     this->gravity_y = 0;
     this->last_gravity = b2Vec2(0.f, 0.f);
 
-    this->cwindow->reset();
     this->cwindow->preloader.reset();
     this->timed_absorb.clear();
 
     this->to_be_absorbed.clear();
 
-    this->level_variables.clear();
     this->b2->SetContactListener(0);
 
     for (std::set<connection *>::iterator i = this->connections.begin();
@@ -1421,8 +1404,6 @@ world::init_level(bool soft)
             }
         }
     }
-
-    this->cwindow->set_seed(this->level.seed);
 }
 
 /**
@@ -1568,13 +1549,7 @@ world::load_entity(lvlbuf *buf, int version, uint32_t id_modifier, b2Vec2 displa
             std::map<uint32_t, group*>::iterator r = this->groups.find((uint32_t)group_id);
             group *g = r->second;
 
-            if (r == this->groups.end()) {
-                /* group has not been loaded, try to fetch it from the preloader */
-                tms_debugf("group id unknown, attempting to find in preloader ");
-                g = this->cwindow->preloader.load_group(group_id);
-            } else {
-                g = r->second;
-            }
+            g = r->second;
 
             if (g) {
                 g->push_entity((composable*)e, e->_pos, e->_angle);
@@ -1654,12 +1629,6 @@ world::load_cable(lvlbuf *buf, int version, uint64_t flags, uint32_t id_modifier
         float px = buf->r_float() + displacement.x;
         float py = buf->r_float() + displacement.y;
 
-        if (!e && (flags & LVL_CHUNKED_LEVEL_LOADING)) {
-            tms_debugf("cable entity %u not found, checking in preloader", e_id);
-            e = this->cwindow->preloader.load_entity(e_id);
-            tms_debugf("found? %p", e);
-        }
-
         if (e != 0) {
             //tms_infof("%p, %p(%s)(%u), %d", c->p[x], e->get_edevice(), e->get_name(), e->id, s_index);
             bool ret = c->connect(c->p[x], e->get_edevice(), s_index);
@@ -1738,22 +1707,6 @@ world::load_connection(lvlbuf *buf, int version, uint64_t flags, uint32_t id_mod
             c.o->add_to_world();
         } else {
             c.o = this->get_entity_by_id(_o_id + id_modifier);
-        }
-    }
-
-    if (version >= LEVEL_VERSION_1_5 && (flags & (LVL_CHUNKED_LEVEL_LOADING))) {
-        if (!c.e) {
-            tms_debugf("e_id invalid, checking in preloader");
-            c.e = this->cwindow->preloader.load_entity(_e_id);
-        }
-
-        if (!c.o) {
-            if (_o_id != 0) {
-                tms_debugf("o_id invalid, checking in preloader");
-                c.o = this->cwindow->preloader.load_entity(_o_id);
-            } else {
-                tms_errorf("entity connected to chunk, but chunk could not be found");
-            }
         }
     }
 
@@ -2172,7 +2125,7 @@ world::save(int save_type)
     this->level.num_chunks = this->cwindow->preloader.active_chunks.size()
                            + this->cwindow->preloader.wastebin.size()
                            + this->cwindow->preloader.chunks.size();
-    this->level.num_gentypes = this->cwindow->preloader.gentypes.size();
+    this->level.num_gentypes = 0;
     this->level.state_size = (save_type == SAVE_TYPE_STATE ? G->get_state_size() : 0);
     this->level.write(&this->lb);
 
@@ -2185,10 +2138,8 @@ world::save(int save_type)
         tms_infof("fill buffer (v.%d, id mod:%u, displ: %f %f): groups:%d, entities:%d, conns:%d, cables:%d",
                 lvl->version, 0, 0.f, 0.f, lvl->num_groups, lvl->num_entities, lvl->num_connections, lvl->num_cables);
     }
-    this->fill_buffer(&this->level, &this->lb, &this->groups, &this->all_entities, &this->connections, &this->cables, 0, b2Vec2(0.f, 0.f), true, (save_type == SAVE_TYPE_STATE));
-
-    this->cwindow->preloader.write_gentypes(&this->level, &this->lb);
-    this->cwindow->preloader.write_chunks(&this->level, &this->lb);
+    this->fill_buffer(&this->level, &this->lb, &this->groups, &this->all_entities, &this->connections, &this->cables,
+         0, b2Vec2(0.f, 0.f), true, (save_type == SAVE_TYPE_STATE));
 
     char filename[1024];
 
@@ -2229,7 +2180,6 @@ world::save(int save_type)
             }
 
             pkgman::get_level_full_path(level_type, this->level.local_id, this->level.save_id, filename);
-            this->save_cache(level_type, this->level.local_id, this->level.save_id);
             break;
     }
 
@@ -2413,13 +2363,6 @@ world::open(int id_type, uint32_t id, bool paused, bool sandbox, uint32_t save_i
         if (!this->level.read(&this->lb)) {
             ui::message("You need to update Principia to play this level.", true);
             return false;
-        } else {
-            tms_debugf("Successfully read level");
-            tms_debugf("Version: %u", this->level.version);
-        }
-
-        if (!this->read_cache(id_type, id, save_id)) {
-
         }
 
         if (!sandbox && this->level.visibility == LEVEL_LOCKED && G->state.pkg == 0) {
@@ -2447,16 +2390,7 @@ world::open(int id_type, uint32_t id, bool paused, bool sandbox, uint32_t save_i
         this->state_ptr = this->lb.rp;
         this->lb.rp += this->level.state_size;
 
-        bool result;
-
-        if (this->level.flag_active(LVL_CHUNKED_LEVEL_LOADING)) {
-            result = this->cwindow->preloader.preload(&this->level, &this->lb);
-        } else {
-            result = this->load_buffer(&this->level, &this->lb);
-            /* preloader is always used to load and write chunks, disregarding chunked level loading flag */
-            this->cwindow->preloader.read_gentypes(&this->level, &this->lb);
-            this->cwindow->preloader.read_chunks(&this->level, &this->lb);
-        }
+        bool result = this->load_buffer(&this->level, &this->lb);
 
         if (!result) {
             ui::message("Could not load level. You may need to update Principia to the latest version.", true);
@@ -2465,12 +2399,14 @@ world::open(int id_type, uint32_t id, bool paused, bool sandbox, uint32_t save_i
         }
 
 
+        /*
+        WTF?
         uint8_t extra = this->lb.r_uint8();
 
         if (extra == (uint8_t)1 && sandbox) {
             this->reset();
             return false;
-        }
+        }*/
 
         if (!sandbox && this->level.type == LCAT_PUZZLE) this->apply_puzzle_constraints();
         if (!paused) this->optimize_connections();
@@ -2489,7 +2425,6 @@ world::begin()
 
     tms_assertf(this->to_be_absorbed.empty(),  "Pending absorbs not empty in world::begin");
     tms_assertf(this->to_be_destroyed.empty(), "Pending joint destructions not empty in world::begin");
-    tms_assertf(this->to_be_reloaded.empty(),  "Pending reloads not empty in world::begin");
     tms_assertf(this->post_interact.empty(),   "Post interact not empty in world::begin");
 
     if (!paused && this->level_id_type < LEVEL_LOCAL_STATE) {
@@ -2534,97 +2469,6 @@ world::apply_puzzle_constraints()
     }
 }
 
-bool
-world::read_cache(int level_type, uint32_t id, uint32_t save_id/*=0*/)
-{
-    char cache_path[1024];
-
-    pkgman::get_cache_full_path(level_type, id, save_id, cache_path);
-
-    tms_debugf("Reading cache (%s)", cache_path);
-
-    FILE *fh = fopen(cache_path, "r");
-
-    if (!fh) {
-        tms_debugf("No cache file available.");
-        return false;
-    }
-
-    char buf[256];
-
-    while (fgets(buf, 256, fh) != NULL) {
-        if (strchr(buf, '=') == NULL) continue;
-        size_t sz = strlen(buf);
-        char key[64];
-        char val[64];
-        int k = 0;
-
-        bool on_key = true;
-
-        for (size_t i = 0; i < sz; ++i) {
-            if (buf[i] == '\n' || buf[i] == ' ') continue;
-
-            if (k == 62) {
-                if (on_key) {
-                    key[k++] = '\0';
-                    k = 0;
-                    on_key = false;
-                }
-                else {
-                    break;
-                }
-            }
-
-            if (buf[i] == '=') {
-                if (on_key) key[k++] = '\0';
-                k = 0;
-                on_key = false;
-                continue;
-            }
-
-            if (on_key) {
-                key[k++] = buf[i];
-            } else {
-                val[k++] = buf[i];
-            }
-        }
-
-        val[k] = '\0';
-
-        tms_debugf("Val: %.25f", atof(val));
-        this->level_variables.insert(std::pair<std::string, double>(key, atof(val)));
-    }
-
-    fclose(fh);
-
-    return true;
-}
-
-bool
-world::save_cache(int level_type, uint32_t id, uint32_t save_id/*=0*/)
-{
-    char cache_path[1024];
-
-    pkgman::get_cache_full_path(level_type, id, save_id, cache_path);
-
-    tms_debugf("Saving cache (%s)", cache_path);
-
-    FILE *fh = fopen(cache_path, "w+");
-
-    if (!fh) {
-        tms_errorf("no file to open!");
-        return false;
-    }
-
-    for (std::map<std::string, double>::iterator i = this->level_variables.begin();
-            i != this->level_variables.end(); ++i) {
-        fprintf(fh, "%s=%.15f\n", i->first.c_str(), i->second);
-    }
-
-    fclose(fh);
-
-    return true;
-}
 
 entity *
 world::get_entity_by_id(uint32_t id)
@@ -2643,96 +2487,13 @@ world::get_entity_by_id(uint32_t id)
 void
 world::b2_sleep_listener::OnSleep(b2Body *b)
 {
-    /*tms_debugf("body %p went to sleep", b);
-    tms_debugf("%p", b->GetFixtureList()->GetUserData());*/
-    /*if (b->GetFixtureList()->GetUserData()) {
-        tms_debugf("%s", static_cast<entity*>(b->GetFixtureList()->GetUserData())->get_name());
-    }*/
 
-    if (!(W->level.flags & LVL_CHUNKED_LEVEL_LOADING)) {
-        return;
-    }
-
-    /* loop through all fixtures and decrement the num fixtures in the chunks their
-     * contained in */
-    b2Fixture *f, *my;
-    entity *e;
-    entity *ee;
-    b2ContactEdge *c;
-
-    for (c = b->GetContactList(); c; c = c->next) {
-        if (c->other->GetType() == b2_staticBody && c->contact->IsTouching()) {
-            if (c->contact->GetFixtureA()->GetBody() == b) {
-                f = c->contact->GetFixtureB();
-                my = c->contact->GetFixtureA();
-            } else {
-                f = c->contact->GetFixtureA();
-                my = c->contact->GetFixtureB();
-            }
-
-            if (!(ee = static_cast<entity*>(my->GetUserData()))) {
-                continue;
-            }
-
-            /*
-            if (ee->flag_active(ENTITY_DYNAMIC_UNLOADING)) {
-                continue;
-            }
-            */
-
-            if ((e = static_cast<entity*>(f->GetUserData()))) {
-                if (e->g_id == O_CHUNK && f->IsSensor()) {
-                    static_cast<level_chunk*>(e)->remove_fixture(my, ee);
-                }
-            }
-        }
-    }
 }
 
 void
 world::b2_sleep_listener::OnWakeup(b2Body *b)
 {
-    if (!(W->level.flags & LVL_CHUNKED_LEVEL_LOADING)) {
-        return;
-    }
 
-    b2Fixture *f, *my;
-    entity *e;
-    entity *ee;
-    b2ContactEdge *c;
-
-    for (c = b->GetContactList(); c; c = c->next) {
-        if (c->other->GetType() == b2_staticBody && c->contact->IsTouching()) {
-            if (c->contact->GetFixtureA()->GetBody() == b) {
-                f = c->contact->GetFixtureB();
-                my = c->contact->GetFixtureA();
-            } else {
-                f = c->contact->GetFixtureA();
-                my = c->contact->GetFixtureB();
-            }
-
-            if (!(ee = static_cast<entity*>(my->GetUserData()))) {
-                continue;
-            }
-
-            /*if (ee->flag_active(ENTITY_DYNAMIC_UNLOADING)) {
-                continue;
-            }*/
-
-            if ((b->m_flags & b2Body::e_forceSleepFlag3) && ee->flag_active(ENTITY_STATE_SLEEPING)) {
-                ee->set_flag(ENTITY_STATE_SLEEPING, false);
-                ee->num_chunk_intersections = 0;
-            }
-
-            if ((e = static_cast<entity*>(f->GetUserData()))) {
-                if (e->g_id == O_CHUNK && f->IsSensor()) {
-                    static_cast<level_chunk*>(e)->add_fixture(my, ee);
-                }
-            }
-        }
-    }
-
-    b->m_flags &= ~b2Body::e_forceSleepFlag3;
 }
 
 void

@@ -560,7 +560,7 @@ widget_manager::init_areas()
     this->areas[AREA_TOP_LEFT].base_x = MARGIN_X + 0.f;
     this->areas[AREA_TOP_LEFT].base_y = _tms.window_height - MARGIN_Y;
     this->areas[AREA_TOP_LEFT].imodx  =  1.0f;
-    this->areas[AREA_TOP_LEFT].imody  = -0.5f;
+    this->areas[AREA_TOP_LEFT].imody  = -1.0f;
     this->areas[AREA_TOP_LEFT].modx   =  0.0f;
     this->areas[AREA_TOP_LEFT].mody   = -1.0f;
     this->areas[AREA_TOP_LEFT].tmodx  =  1.0f;

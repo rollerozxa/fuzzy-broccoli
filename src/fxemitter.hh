@@ -113,26 +113,6 @@ class break_effect : public base_effect
     void update_effects();
 };
 
-class discharge_effect : public base_effect
-{
-  private:
-    b2Vec2 p[2];
-    float  life;
-    float  start_z;
-    float  end_z;
-    float  shift_dir;
-    float  displ[DISCHARGE_MAX_POINTS];
-    int    num_points;
-
-  public:
-    float  line_width;
-
-    discharge_effect(b2Vec2 start, b2Vec2 end, float start_z, float end_z, int num_points, float life);
-    void set_points(b2Vec2 start, b2Vec2 end, float start_z, float end_z);
-    void mstep();
-    void update_effects();
-};
-
 class flame_effect : public base_effect
 {
   private:

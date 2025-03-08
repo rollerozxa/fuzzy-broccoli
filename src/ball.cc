@@ -79,20 +79,6 @@ ball::set_layer(int l)
 }
 
 void
-ball::layermove(int dir)
-{
-    int newlayer = this->get_layer()+dir;
-    if (newlayer < 0) newlayer = 0;
-    else if (newlayer > 2) newlayer = 2;
-
-    this->layer_new = (float)newlayer;
-    this->layer_old = this->get_layer();
-    this->layer_blend = 0.f;
-
-    this->set_layer(newlayer);
-}
-
-void
 ball::add_to_world()
 {
     if (W->is_paused())
