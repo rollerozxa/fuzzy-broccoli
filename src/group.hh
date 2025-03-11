@@ -59,7 +59,7 @@ class group : public entity
 
     void push_entity(composable *e, b2Vec2 p, float angle);
     void push_connection(connection *c);
-    virtual void on_load(bool created, bool has_state);
+    virtual void on_load(bool created);
 
     void rebuild();
 

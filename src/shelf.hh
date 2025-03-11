@@ -16,5 +16,5 @@ class shelf : public entity
     const char *get_slider_label(int s){return "Size";};
     float update_mesh();
     void recreate_shape();
-    void on_load(bool created, bool has_state);
+    void on_load(bool created);
 };

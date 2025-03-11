@@ -372,7 +372,7 @@ group::merge(group *g, connection *c)
 }
 
 void
-group::on_load(bool created, bool has_state)
+group::on_load(bool created)
 {
     b2BodyDef bd;
     bd.position = this->_pos;

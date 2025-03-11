@@ -25,8 +25,6 @@
 
 static const char *_level_path[4];
 static char *_state_path = 0;
-static const char *_cache_path[4];
-static char *_cache_state_path = 0;
 static const char *_pkg_path[4];
 static const char *_dir_names[] = {
     "local", "db", "main", "sys"
@@ -55,8 +53,6 @@ lvlinfo::create(int type, uint64_t seed/*=0*/, uint32_t version/*=0*/)
     this->revision = 0;
     this->parent_id = 0;
     this->parent_revision = 0;
-    this->pause_on_finish = true;
-    this->show_score = false;
     this->descr_len = 0;
     this->visibility = LEVEL_VISIBLE;
 
@@ -65,8 +61,6 @@ lvlinfo::create(int type, uint64_t seed/*=0*/, uint32_t version/*=0*/)
     };
 
     this->bg = random_bgs[rand()%(sizeof(random_bgs)/sizeof(int))];
-
-    this->bg_color = 0;
 
     this->descr = 0;
     this->size_x[0] = 100;
@@ -80,8 +74,6 @@ lvlinfo::create(int type, uint64_t seed/*=0*/, uint32_t version/*=0*/)
     this->max_x = 0;
     this->min_y = 0;
     this->max_y = 0;
-    this->final_score = 0;
-    memset(this->icon, 0, 128*128);
 
     this->sandbox_cam_x = 0.f;
     this->sandbox_cam_y = 0.f;
@@ -90,48 +82,18 @@ lvlinfo::create(int type, uint64_t seed/*=0*/, uint32_t version/*=0*/)
     this->velocity_iterations = 10;
     this->position_iterations = 10;
 
-    this->seed = 0;
-    this->adventure_id = 0xffffffff;
-
     this->prismatic_tolerance = 0.0125f;
     this->pivot_tolerance = 0.0125f;
 
     this->linear_damping = 0.1f;
     this->angular_damping = 0.2f;
     this->joint_friction = 0.3f;
-    this->dead_enemy_absorb_time = 10.0f;
-    this->time_before_player_can_respawn = 1.5f;
     this->compression_length = 0;
 
     this->num_groups = 0;
     this->num_entities = 0;
     this->num_connections = 0;
     this->num_cables = 0;
-    this->num_chunks = 0;
-    this->state_size = 0;
-    this->num_gentypes = 0;
-}
-
-/* make sure things added in later version are not used by old levels */
-void
-lvlinfo::sanity_check()
-{
-    if (this->version < LEVEL_VERSION_1_5) {
-        /* remove flags added in 1.5 */
-        this->flags &= ~(
-                LVL_CHUNKED_LEVEL_LOADING |
-                LVL_DISABLE_ENDSCREENS
-            );
-
-        this->dead_enemy_absorb_time = 10.0f;
-        this->time_before_player_can_respawn = 1.5f;
-        this->linear_damping = 0.0f;
-        this->angular_damping = 0.0f;
-        this->joint_friction = 0.0f;
-        this->seed = 0;
-        this->adventure_id = 0xffffffff;
-        this->compression_length = 0;
-    }
 }
 
 int
@@ -140,62 +102,49 @@ lvlinfo::get_size() const
     return sizeof(uint8_t)  /* version */
           +sizeof(uint8_t)  /* type */
           +sizeof(uint32_t) /* community_id */
-          +(this->version >= LEVEL_VERSION_1_5 ? sizeof(uint32_t) : 0) /* autosave_id */
+          +sizeof(uint32_t) /* autosave_id */
           +sizeof(uint32_t) /* revision */
           +sizeof(uint32_t) /* parent_id */
           +sizeof(uint8_t)  /* name_len */
           +sizeof(uint16_t) /* descr_len */
-          +sizeof(uint8_t)  /* allow_derivatives */
-          +(this->version >= 3 ? sizeof(uint8_t) : 0) /* visibility */
-          +(this->version >= 7 ? sizeof(uint32_t) : 0) /* parent_revision */
-          +(this->version >= 7 ? sizeof(uint8_t) : 0) /* pause_on_finish */
-          +(this->version >= 7 ? sizeof(uint8_t) : 0) /* show_score */
+          +sizeof(uint8_t) /* visibility */
+          +sizeof(uint32_t) /* parent_revision */
 
           +sizeof(uint8_t)  /* bg */
-          +(this->version >= LEVEL_VERSION_1_5 ? sizeof(uint32_t) : 0) /* bg color, stored as uint32_t */
 
           +sizeof(uint16_t)  /* size_x */
           +sizeof(uint16_t)  /* size_y */
-          +(this->version>=12 ? sizeof(uint16_t) : 0)  /* size_x 2 */
-          +(this->version>=12 ? sizeof(uint16_t) : 0)  /* size_y 2 */
+          +sizeof(uint16_t)  /* size_x 2 */
+          +sizeof(uint16_t)  /* size_y 2 */
 
           +sizeof(uint8_t)  /* velocity_iterations */
           +sizeof(uint8_t)  /* position_iterations */
-          +sizeof(uint32_t)  /* final_score */
           +sizeof(float)  /* sandbox_cam_x */
           +sizeof(float)  /* sandbox_cam_y */
           +sizeof(float)  /* sandbox_cam_zoom */
-          +(this->version >= 3 ? sizeof(float) : 0)  /* gravity_x */
-          +(this->version >= 3 ? sizeof(float) : 0)  /* gravity_y */
-          +(this->version >= 13 ? sizeof(float)*4 : 0) /* bounds */
-          +(this->version >= 9 ? sizeof(uint64_t) : 0)  /* flags */
+          +sizeof(float)  /* gravity_x */
+          +sizeof(float)  /* gravity_y */
+          +sizeof(float)*4 /* bounds */
+          +sizeof(uint64_t)  /* flags */
 
-          +(this->version >= LEVEL_VERSION_1_4 ? sizeof(float) : 0)  /* prismatic_tolerance */
-          +(this->version >= LEVEL_VERSION_1_4 ? sizeof(float) : 0)  /* pivot_tolerance */
+          +sizeof(float)  /* prismatic_tolerance */
+          +sizeof(float)  /* pivot_tolerance */
 
-          +(this->version >= LEVEL_VERSION_1_5 ? sizeof(uint64_t) : 0)  /* seed */
-          +(this->version >= LEVEL_VERSION_1_5 ? sizeof(uint32_t) : 0)  /* adventure_id */
+          /* num groups, entities, connections, cables */
+          +4 * sizeof(uint32_t)
 
-          /* num groups, entities, connections, cables, chunks, state_size, num_gentypes */
-          +(this->version >= LEVEL_VERSION_1_5 ? 7 * sizeof(uint32_t) : 4 * sizeof(uint16_t))
-
-          +(this->version >= LEVEL_VERSION_1_5 ? sizeof(float) : 0) /* linear damping */
-          +(this->version >= LEVEL_VERSION_1_5 ? sizeof(float) : 0) /* angular damping */
-          +(this->version >= LEVEL_VERSION_1_5 ? sizeof(float) : 0) /* joint friction */
-          +(this->version >= LEVEL_VERSION_1_5 ? sizeof(float) : 0)  /* dead enemy absorb time */
-          +(this->version >= LEVEL_VERSION_1_5 ? sizeof(float) : 0)  /* time before player can respawn */
-          +(this->version >= LEVEL_VERSION_1_5 ? sizeof(uint64_t) : 0)  /* compression buffer length */
+          +sizeof(float) /* linear damping */
+          +sizeof(float) /* angular damping */
+          +sizeof(float) /* joint friction */
+          +sizeof(uint64_t)  /* compression buffer length */
 
           +this->name_len
-          +(this->version >= 6 ? 128*128 : 0)
           +this->descr_len;
 }
 
 void
 lvlinfo::write(lvlbuf *lb)
 {
-    this->sanity_check();
-
     //printf("Writing a lvl with type %d", this->type);
     lb->ensure(this->get_size());
 
@@ -204,11 +153,7 @@ lvlinfo::write(lvlbuf *lb)
 
     if (this->type != LCAT_PARTIAL) {
         lb->w_uint32(this->community_id);
-
-        if (this->version >= LEVEL_VERSION_1_5) {
-            lb->w_uint32(this->autosave_id);
-        }
-
+        lb->w_uint32(this->autosave_id);
         lb->w_uint32(this->revision);
         lb->w_uint32(this->parent_id);
     }
@@ -217,70 +162,40 @@ lvlinfo::write(lvlbuf *lb)
 
     if (this->type != LCAT_PARTIAL) {
         lb->w_uint16(this->descr_len);
-        lb->w_uint8(1);
-        if (this->version >= 3) {
-            lb->w_uint8(this->visibility);
-        }
-        if (this->version >= 7) {
-            lb->w_uint32(this->parent_revision);
-            lb->w_uint8(this->pause_on_finish);
-            lb->w_uint8(this->show_score);
-        }
+        lb->w_uint8(this->visibility);
+        lb->w_uint32(this->parent_revision);
         lb->w_uint8(this->bg);
-        if (this->version >= LEVEL_VERSION_1_5) {
-            lb->w_uint32(this->bg_color);
-        }
 
-        if (this->version >= 12) {
-            lb->w_uint16(this->size_x[0]);
-            lb->w_uint16(this->size_x[1]);
-            lb->w_uint16(this->size_y[0]);
-            lb->w_uint16(this->size_y[1]);
-        } else {
-            lb->w_uint16(this->size_x[0]+this->size_x[1]);
-            lb->w_uint16(this->size_y[0]+this->size_y[1]);
-        }
+        lb->w_uint16(this->size_x[0]);
+        lb->w_uint16(this->size_x[1]);
+        lb->w_uint16(this->size_y[0]);
+        lb->w_uint16(this->size_y[1]);
 
         lb->w_uint8(this->velocity_iterations);
         lb->w_uint8(this->position_iterations);
-        lb->w_uint32(this->final_score);
         lb->w_float(this->sandbox_cam_x);
         lb->w_float(this->sandbox_cam_y);
         lb->w_float(this->sandbox_cam_zoom);
 
-        if (this->version >= 3) {
-            lb->w_float(this->gravity_x);
-            lb->w_float(this->gravity_y);
-        }
+        lb->w_float(this->gravity_x);
+        lb->w_float(this->gravity_y);
     }
 
-    if (this->version >= 13) {
-        lb->w_float(this->min_x);
-        lb->w_float(this->max_x);
-        lb->w_float(this->min_y);
-        lb->w_float(this->max_y);
-    }
+    lb->w_float(this->min_x);
+    lb->w_float(this->max_x);
+    lb->w_float(this->min_y);
+    lb->w_float(this->max_y);
 
     if (this->type != LCAT_PARTIAL) {
-        if (this->version >= 9) {
-            lb->w_uint64(this->flags);
-        }
+        lb->w_uint64(this->flags);
 
-        if (this->version >= LEVEL_VERSION_1_4) {
-            lb->w_float(this->prismatic_tolerance);
-            lb->w_float(this->pivot_tolerance);
-        }
+        lb->w_float(this->prismatic_tolerance);
+        lb->w_float(this->pivot_tolerance);
 
-        if (this->version >= LEVEL_VERSION_1_5) {
-            lb->w_uint64(this->seed);
-            lb->w_uint32(this->adventure_id);
-            lb->w_float(this->linear_damping);
-            lb->w_float(this->angular_damping);
-            lb->w_float(this->joint_friction);
-            lb->w_float(this->dead_enemy_absorb_time);
-            lb->w_float(this->time_before_player_can_respawn);
-            lb->w_uint64(this->compression_length);
-        }
+        lb->w_float(this->linear_damping);
+        lb->w_float(this->angular_damping);
+        lb->w_float(this->joint_friction);
+        lb->w_uint64(this->compression_length);
     }
 
     if (this->name_len) {
@@ -288,33 +203,14 @@ lvlinfo::write(lvlbuf *lb)
     }
 
     if (this->type != LCAT_PARTIAL) {
-        if (this->version >= 6) {
-            int nn = 0;
-            int n_max = 0;
-            for (int y=0; y<128*128; y++) {
-                if (icon[y] != 0) nn ++;
-                if (icon[y] > n_max) n_max = icon[y];
-            }
-            lb->w_buf((const char *)&this->icon, 128*128);
-        }
         if (this->descr_len)
             lb->w_buf(this->descr, this->descr_len);
     }
 
-    if (this->version >= LEVEL_VERSION_1_5) {
-        lb->w_uint32(this->num_groups);
-        lb->w_uint32(this->num_entities);
-        lb->w_uint32(this->num_connections);
-        lb->w_uint32(this->num_cables);
-        lb->w_uint32(this->num_chunks);
-        lb->w_uint32(this->state_size);
-        lb->w_uint32(this->num_gentypes);
-    } else {
-        lb->w_uint16((uint16_t)this->num_groups);
-        lb->w_uint16((uint16_t)this->num_entities);
-        lb->w_uint16((uint16_t)this->num_connections);
-        lb->w_uint16((uint16_t)this->num_cables);
-    }
+    lb->w_uint32(this->num_groups);
+    lb->w_uint32(this->num_entities);
+    lb->w_uint32(this->num_connections);
+    lb->w_uint32(this->num_cables);
 }
 
 bool
@@ -329,11 +225,7 @@ lvlinfo::read(lvlbuf *lb, bool skip_description)
 
     if (this->type != LCAT_PARTIAL) {
         this->community_id = lb->r_uint32();
-
-        if (this->version >= LEVEL_VERSION_1_5) {
-            this->autosave_id = lb->r_uint32();
-        }
-
+        this->autosave_id = lb->r_uint32();
         this->revision = lb->r_uint32();
         this->parent_id = lb->r_uint32();
     }
@@ -342,102 +234,38 @@ lvlinfo::read(lvlbuf *lb, bool skip_description)
 
     if (this->type != LCAT_PARTIAL) {
         this->descr_len = lb->r_uint16();
-        // XXX: Get rid of this value in next level version (allow_derivatives)
-        (void)lb->r_uint8();
-        if (this->version >= 3)
-            this->visibility = lb->r_uint8();
-        else
-            this->visibility = LEVEL_VISIBLE;
-        if (this->version >= 7) {
-            this->parent_revision = lb->r_uint32();
-            this->pause_on_finish = (bool)lb->r_uint8();
-            this->show_score = (bool)lb->r_uint8();
-        } else {
-            this->parent_revision = 0;
-            this->pause_on_finish = true;
-            this->show_score = 1;
-        }
+        this->visibility = lb->r_uint8();
+        this->parent_revision = lb->r_uint32();
         this->bg = lb->r_uint8();
 
-        if (this->version >= LEVEL_VERSION_1_5) {
-            this->bg_color = lb->r_uint32();
-        }
-
-        if (this->version >= 12) {
-            this->size_x[0] = lb->r_uint16();
-            this->size_x[1] = lb->r_uint16();
-            this->size_y[0] = lb->r_uint16();
-            this->size_y[1] = lb->r_uint16();
-        } else {
-            this->size_x[0] = lb->r_uint16();
-            this->size_y[0] = lb->r_uint16();
-            //tms_infof("read sizes %u %u", this->size_x[0], this->size_y[0]);
-            this->size_x[1] = this->size_x[0];
-            this->size_y[1] = this->size_y[0];
-        }
+        this->size_x[0] = lb->r_uint16();
+        this->size_x[1] = lb->r_uint16();
+        this->size_y[0] = lb->r_uint16();
+        this->size_y[1] = lb->r_uint16();
 
         this->velocity_iterations = lb->r_uint8();
         this->position_iterations = lb->r_uint8();
-        this->final_score = lb->r_uint32();
         this->sandbox_cam_x = lb->r_float();
         this->sandbox_cam_y = lb->r_float();
         this->sandbox_cam_zoom = lb->r_float();
 
-        if (this->version >= 3) {
-            this->gravity_x = lb->r_float();
-            this->gravity_y = lb->r_float();
-        } else {
-            this->gravity_x = 0.f;
-            this->gravity_y = -20.f;
-        }
+        this->gravity_x = lb->r_float();
+        this->gravity_y = lb->r_float();
     }
 
-    if (this->version >= 13) {
-        min_x = lb->r_float();
-        max_x = lb->r_float();
-        min_y = lb->r_float();
-        max_y = lb->r_float();
-    } else {
-        min_x = 0.f;
-        max_x = 0.f;
-        min_y = 0.f;
-        max_y = 0.f;
-    }
+    min_x = lb->r_float();
+    max_x = lb->r_float();
+    min_y = lb->r_float();
+    max_y = lb->r_float();
 
     if (this->type != LCAT_PARTIAL) {
-        if (this->version >= 9) {
-            this->flags = lb->r_uint64();
-        } else {
-            this->flags = 0;
-        }
-
-        if (this->version >= 26) {
-            this->prismatic_tolerance = lb->r_float();
-            this->pivot_tolerance = lb->r_float();
-        } else {
-            this->prismatic_tolerance = 0.f;
-            this->pivot_tolerance = 0.f;
-        }
-
-        if (this->version >= LEVEL_VERSION_1_5) {
-            this->seed = lb->r_uint64();
-            this->adventure_id = lb->r_uint32();
-            this->linear_damping = lb->r_float();
-            this->angular_damping = lb->r_float();
-            this->joint_friction = lb->r_float();
-            this->dead_enemy_absorb_time = lb->r_float();
-            this->time_before_player_can_respawn = lb->r_float();
-            this->compression_length = lb->r_uint64();
-        } else {
-            this->seed = 0;
-            this->adventure_id = 0xffffffff;
-            this->linear_damping = 0.f;
-            this->angular_damping = 0.f;
-            this->joint_friction = 0.f;
-            this->dead_enemy_absorb_time = 10.f;
-            this->time_before_player_can_respawn = 0.f;
-            this->compression_length = 0;
-        }
+        this->flags = lb->r_uint64();
+        this->prismatic_tolerance = lb->r_float();
+        this->pivot_tolerance = lb->r_float();
+        this->linear_damping = lb->r_float();
+        this->angular_damping = lb->r_float();
+        this->joint_friction = lb->r_float();
+        this->compression_length = lb->r_uint64();
     }
 
     if (this->name_len) {
@@ -445,12 +273,6 @@ lvlinfo::read(lvlbuf *lb, bool skip_description)
     }
 
     if (this->type != LCAT_PARTIAL) {
-        if (this->version >= 6) {
-            //tms_infof(" reading icon, pt: %d, end: %d", lb->rp, lb->size);
-            lb->r_buf((char *)&this->icon, 128*128);
-        } else
-            memset(this->icon, 0, 128*128);
-
         if (this->descr_len && !skip_description) {
             this->descr = (char*)realloc(this->descr, this->descr_len+1);
             lb->r_buf(this->descr, this->descr_len);
@@ -458,25 +280,10 @@ lvlinfo::read(lvlbuf *lb, bool skip_description)
         }
     }
 
-    if (this->version >= LEVEL_VERSION_1_5) {
-        this->num_groups = lb->r_uint32();
-        this->num_entities = lb->r_uint32();
-        this->num_connections = lb->r_uint32();
-        this->num_cables = lb->r_uint32();
-        this->num_chunks = lb->r_uint32();
-        this->state_size = lb->r_uint32();
-        this->num_gentypes = lb->r_uint32();
-    } else {
-        this->num_groups = lb->r_uint16();
-        this->num_entities = lb->r_uint16();
-        this->num_connections = lb->r_uint16();
-        this->num_cables = lb->r_uint16();
-        this->num_chunks = 0;
-        this->state_size = 0;
-        this->num_gentypes = 0;
-    }
-
-    this->sanity_check();
+    this->num_groups = lb->r_uint32();
+    this->num_entities = lb->r_uint32();
+    this->num_connections = lb->r_uint32();
+    this->num_cables = lb->r_uint32();
 
     return true;
 }
@@ -581,21 +388,14 @@ pkginfo::open(int type, uint32_t id)
 
     if (fp) {
         _fread(&this->version, 1, 1, fp);
-        if (this->version >= 2)
-            _fread(&this->community_id, 1, sizeof(uint32_t), fp);
-        else
-            this->community_id = 0;
+        if (this->version < 3)
+            return false;
 
+        _fread(&this->community_id, 1, sizeof(uint32_t), fp);
         _fread(this->name, 1, 255, fp);
-
-        if (this->version >= 3)
-            _fread(&this->unlock_count, 1, sizeof(uint8_t), fp);
-
-        if (this->version >= 1) {
-            _fread(&this->first_is_menu, 1, sizeof(uint8_t), fp);
-            _fread(&this->return_on_finish, 1, sizeof(uint8_t), fp);
-        }
-
+        _fread(&this->unlock_count, 1, sizeof(uint8_t), fp);
+        _fread(&this->first_is_menu, 1, sizeof(uint8_t), fp);
+        _fread(&this->return_on_finish, 1, sizeof(uint8_t), fp);
         _fread(&this->num_levels, 1, sizeof(uint8_t), fp);
 
         if (this->num_levels)
@@ -642,7 +442,6 @@ const char *
 pkgman::get_level_ext(int level_type)
 {
     if (level_type == LEVEL_PARTIAL) return "pobj";
-    else if (level_type >= LEVEL_LOCAL_STATE) return "psav";
     else return "plvl";
 }
 
@@ -650,17 +449,6 @@ const char *
 pkgman::get_level_path(int level_type)
 {
     if (level_type == LEVEL_PARTIAL) level_type = LEVEL_LOCAL;
-
-    if (level_type >= LEVEL_LOCAL_STATE) {
-        if (!_state_path) {
-            _state_path = (char*)malloc(1024); /* XXX free this somewhere */
-            snprintf((char*)_state_path, 1023,
-                    "%s/sav",
-                     tbackend_get_storage_path());
-        }
-
-        return _state_path;
-    }
 
     if (level_type < 0 || level_type >= 4) {
         tms_errorf("invalid level type");
@@ -692,90 +480,13 @@ const char *state_prefixes[3] = {
     "unknown",
 };
 
-const char *
-pkgman::get_state_prefix(int level_type)
-{
-    if (level_type >= LEVEL_LOCAL_STATE) {
-        level_type -= LEVEL_LOCAL_STATE;
-    }
-
-    if (level_type == LEVEL_LOCAL) {
-        return state_prefixes[0];
-    } else if (level_type == LEVEL_DB) {
-        return state_prefixes[1];
-    }
-
-    tms_errorf("Unknown state prefix for level type %d", level_type);
-
-    return state_prefixes[2];
-}
-
-const char *
-pkgman::get_cache_path(int level_type)
-{
-    if (level_type == LEVEL_PARTIAL) level_type = LEVEL_LOCAL;
-
-    if (level_type >= LEVEL_LOCAL_STATE) {
-        if (!_cache_state_path) {
-            _cache_state_path = (char*)malloc(1024);
-
-            snprintf((char*)_cache_state_path, 1023,
-                    "%s/cache/sav",
-                    tbackend_get_storage_path());
-        }
-
-        return _cache_state_path;
-    }
-
-    if (level_type < 0 || level_type >= 4) {
-        tms_errorf("invalid level type");
-        return "";
-    }
-
-    if (!_cache_path[level_type]) {
-        _cache_path[level_type] = (char*)malloc(1024); /* XXX free this somewhere */
-
-        snprintf((char*)_cache_path[level_type], 1023,
-                "%s/cache/%s",
-                tbackend_get_storage_path(),
-                _dir_names[level_type]);
-    }
-
-    return _cache_path[level_type];
-}
-
 void
 pkgman::get_level_full_path(int level_type, uint32_t id, uint32_t save_id, char *output)
 {
-    if (level_type >= LEVEL_LOCAL_STATE) {
-        snprintf(output, 1023, "%s/%s.%d.%u.%s",
-                pkgman::get_level_path(level_type),
-                pkgman::get_state_prefix(level_type),
-                id,
-                save_id,
-                pkgman::get_level_ext(level_type));
-    } else {
-        snprintf(output, 1023, "%s/%d.%s",
-                pkgman::get_level_path(level_type),
-                id,
-                pkgman::get_level_ext(level_type));
-    }
-}
-
-void
-pkgman::get_cache_full_path(int level_type, uint32_t id, uint32_t save_id, char *output)
-{
-    if (level_type >= LEVEL_LOCAL_STATE) {
-        snprintf(output, 1023, "%s/%s.%u.%u.pcache",
-                pkgman::get_cache_path(level_type),
-                pkgman::get_state_prefix(level_type),
-                id,
-                save_id);
-    } else {
-        snprintf(output, 1023, "%s/%d.pcache",
-                pkgman::get_cache_path(level_type),
-                id);
-    }
+    snprintf(output, 1023, "%s/%d.%s",
+        pkgman::get_level_path(level_type),
+        id,
+        pkgman::get_level_ext(level_type));
 }
 
 bool
@@ -906,14 +617,7 @@ filetime_to_timet(FILETIME & ft)
 lvlfile*
 pkgman::get_levels(int level_type)
 {
-    bool state = false;
-
     int orig_level_type = level_type;
-
-    if (level_type >= LEVEL_LOCAL_STATE) {
-        level_type -= LEVEL_LOCAL_STATE;
-        state = true;
-    }
 
     if (level_type < 0 || level_type >= 5) {
         tms_warnf("unknown level type");
@@ -942,24 +646,11 @@ pkgman::get_levels(int level_type)
             if (len > 5 && memcmp(&ent->d_name[len-5], ext, 5) == 0) {
                 uint32_t level_id = 0;
                 uint32_t save_id = 0;
-                uint8_t state_level_type = LEVEL_LOCAL_STATE;
 
-                if (state) {
-                    /* State format: {0:s:type}.{1:d:id}.{2:d:save_id}.{3:s:ext} */
-                    if (ent->d_name[0] == 'l') {
-                        state_level_type = LEVEL_LOCAL_STATE;
-                    } else if (ent->d_name[0] == 'd') {
-                        state_level_type = LEVEL_DB_STATE;
-                    }
-                    char *level_id_c = strchr(ent->d_name, '.');
-                    level_id = atoi(level_id_c+1);
-                    save_id = atoi(strchr(level_id_c+1, '.')+1);
-                } else {
-                    /* Regular level format: {0:d:id}.{1:s:save_id} */
-                    level_id = atoi(ent->d_name);
+                /* Regular level format: {0:d:id}.{1:s:save_id} */
+                level_id = atoi(ent->d_name);
 
-                    save_id = atoi(strchr(ent->d_name, '.')+1);
-                }
+                save_id = atoi(strchr(ent->d_name, '.')+1);
 
                 time_t mtime;
                 char date[21];
@@ -985,8 +676,8 @@ pkgman::get_levels(int level_type)
                 mtime = st.st_mtime;
 #endif
 
-                if (level_id != 0 || state) {
-                    lvlfile *ff = new lvlfile((state ? state_level_type : level_type), level_id);
+                if (level_id != 0) {
+                    lvlfile *ff = new lvlfile(level_type, level_id);
                     strcpy(ff->modified_date, date);
                     ff->mtime = mtime;
                     ff->save_id = save_id;
@@ -998,7 +689,7 @@ pkgman::get_levels(int level_type)
                      * The level type of the current state is discerned via the filename
                      * using the first "dotted" argument (level or db).
                      **/
-                    if (pkgman::get_level_data((state ? state_level_type : orig_level_type), level_id, save_id, ff->name, &ff->version)) {
+                    if (pkgman::get_level_data(orig_level_type, level_id, save_id, ff->name, &ff->version)) {
                         if (!first) {
                             first = ff;
                         } else {
@@ -1107,6 +798,8 @@ lvledit::open(int lvl_type, uint32_t lvl_id)
         this->header_size = this->lvl.get_size();
         this->lvl_type = lvl_type;
         this->lvl_id = lvl_id;
+
+        this->print_gids();
     } else {
         return false;
     }
@@ -1178,17 +871,11 @@ lvledit::print_gids()
         lb.rp += sizeof(float) /* pos.x */
                + sizeof(float) /* pos.y */
                + sizeof(float);/* angle */
-
-        if (this->lvl.version >= LEVEL_VERSION_1_5) {
-            uint32_t state_size = lb.r_uint32();
-            lb.rp += state_size;
-        }
     }
 
     for (int x=0; x<num_entities; ++x) {
         uint8_t np;
         uint8_t nc = 0;
-        uint32_t state_size = 0;
 
         uint8_t g_id = lb.r_uint8(); /* g_id */
         lb.r_uint32(); /* id */
@@ -1201,7 +888,6 @@ lvledit::print_gids()
 
         if (this->lvl.version >= LEVEL_VERSION_1_5) {
             nc = lb.r_uint8(); /* num chunks */
-            state_size = lb.r_uint32(); /* state size */
         }
 
         (void)lb.r_float(); /* pos.x */
@@ -1217,9 +903,6 @@ lvledit::print_gids()
                 lb.r_int32(); /* chunk x */
                 lb.r_int32(); /* chunk y */
             }
-
-            /* skip state buffer */
-            lb.rp += state_size;
         } else {
             (void)lb.r_uint8(); /* axisrot */
             if (this->lvl.version >= 10) {
@@ -1345,10 +1028,8 @@ lvlinfo::print() const
         printf("Community ID:        %u\n",
                 this->community_id);
 
-        if (this->version >= LEVEL_VERSION_1_5) {
-            printf("Autosave ID:         %u\n",
-                    this->autosave_id);
-        }
+        printf("Autosave ID:         %u\n",
+                this->autosave_id);
 
         printf("Revision:            %u\n",
                 this->revision);
@@ -1370,19 +1051,8 @@ lvlinfo::print() const
         printf("Visibility:          %u\n",
                 this->parent_revision);
 
-        printf("Pause on finish:     %s\n",
-                this->pause_on_finish ? "yes" : "no");
-
-        printf("Show score:          %s\n",
-                this->show_score ? "yes" : "no");
-
         printf("Background ID:       %u\n",
                 this->bg);
-
-        if (this->version >= LEVEL_VERSION_1_5) {
-            printf("Background color:    %u\n",
-                    this->bg_color);
-        }
 
         printf("Border left:         %u\n",
                 this->size_x[0]);
@@ -1402,9 +1072,6 @@ lvlinfo::print() const
         printf("Pos iterations:      %u\n",
                 this->position_iterations);
 
-        printf("Final score:         %u\n",
-                this->final_score);
-
         printf("Sandbox cam X:       %f\n",
                 this->sandbox_cam_x);
 
@@ -1414,12 +1081,10 @@ lvlinfo::print() const
         printf("Sandbox cam Z:       %f\n",
                 this->sandbox_cam_zoom);
 
-        if (this->version >= 3) {
-            printf("Gravity X:           %.6f\n",
-                    this->gravity_x);
-            printf("Gravity Y:           %.6f\n",
-                    this->gravity_y);
-        }
+        printf("Gravity X:           %.6f\n",
+                this->gravity_x);
+        printf("Gravity Y:           %.6f\n",
+                this->gravity_y);
     }
 
     printf("Min/Max X:           %.2f/%.2f\n",
@@ -1440,12 +1105,6 @@ lvlinfo::print() const
         printf("Pivot tolerance:     %.2f\n",
                 this->pivot_tolerance);
 
-        printf("Seed:                0x%016" PRIx64 "\n",
-                this->seed);
-
-        printf("Adventure ID:        0x%08" PRIx32 "\n",
-                this->adventure_id);
-
         printf("Linear damping:      %.2f\n",
                 this->linear_damping);
 
@@ -1454,12 +1113,6 @@ lvlinfo::print() const
 
         printf("Joint friction:      %.2f\n",
                 this->joint_friction);
-
-        printf("Enemy absorb time:   %.2f\n",
-                this->dead_enemy_absorb_time);
-
-        printf("Player respawn time: %.2f\n",
-                this->time_before_player_can_respawn);
     }
 
     if (this->name_len) {
@@ -1482,15 +1135,6 @@ lvlinfo::print() const
 
     printf("Num connections:     %u\n",
             this->num_connections);
-
-    printf("Num chunks:          %u\n",
-            this->num_chunks);
-
-    printf("Num gentypes:        %u\n",
-            this->num_gentypes);
-
-    printf("State size:          %u\n",
-            this->state_size);
 
     printf("Num cables:          %u\n",
             this->num_cables);

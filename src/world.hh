@@ -29,7 +29,6 @@ enum {
 enum {
     SAVE_TYPE_DEFAULT  = 0,
     SAVE_TYPE_AUTOSAVE = 1,
-    SAVE_TYPE_STATE    = 2,
 };
 
 #define WORLD_STEP 8000
@@ -186,7 +185,6 @@ class world : public b2QueryCallback
     std::map<b2Joint*, float> destructable_joints;
 
     lvlbuf lb;
-    size_t state_ptr;
 
     /* temp query stuff */
     int query_layer;
@@ -274,7 +272,7 @@ class world : public b2QueryCallback
     bool load_partial_from_buffer(lvlbuf *lb, b2Vec2 position, std::map<uint32_t, entity*> *entities, std::map<uint32_t, group*> *groups, std::set<connection*> *connections, std::set<cable*> *cables);
     bool load_partial(uint32_t id, b2Vec2 position, std::map<uint32_t, entity*> *entities, std::map<uint32_t, group*> *groups, std::set<connection*> *connections, std::set<cable*> *cables);
     void save_partial(std::set<entity*> *entity_list, const char *name, uint32_t id);
-    void fill_buffer(lvlinfo *lvl, lvlbuf *buf, std::map<uint32_t, group*> *groups, std::map<uint32_t, entity*> *entities, std::set<connection*> *connections, std::set<cable*> *cables, uint32_t id_modifier=0, b2Vec2 displacement=b2Vec2(0.f,0.f), bool fill_unloaded=false, bool fill_states=false);
+    void fill_buffer(lvlinfo *lvl, lvlbuf *buf, std::map<uint32_t, group*> *groups, std::map<uint32_t, entity*> *entities, std::set<connection*> *connections, std::set<cable*> *cables, uint32_t id_modifier=0, b2Vec2 displacement=b2Vec2(0.f,0.f), bool fill_unloaded=false);
     bool load_buffer(lvlinfo *lvl, lvlbuf *buf, uint32_t id_modifier=0, b2Vec2 displacement=b2Vec2(0.f,0.f), std::map<uint32_t, entity*> *entities=0, std::map<uint32_t, group*> *groups =0, std::set<connection*> *connections =0, std::set<cable*> *cables=0);
 
     bool write_level(const char *filename, lvlbuf *lb);

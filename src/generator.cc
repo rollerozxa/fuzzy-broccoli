@@ -52,7 +52,7 @@ generator::get_slider_value(int s)
 }
 
 void
-generator::on_load(bool created, bool has_state)
+generator::on_load(bool created)
 {
     if (this->properties[0].v.f > 24.f) this->properties[0].v.f = 24.f;
 }

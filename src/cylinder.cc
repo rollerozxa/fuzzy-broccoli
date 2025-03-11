@@ -57,7 +57,7 @@ cylinder::get_slider_snap(int s)
 }
 
 void
-cylinder::on_load(bool created, bool has_state)
+cylinder::on_load(bool created)
 {
     this->on_slider_change(-1, (float)this->properties[0].v.i / 3.f);
 }

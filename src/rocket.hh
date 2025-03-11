@@ -31,18 +31,4 @@ class rocket : public ecomp_multiconnect, b2QueryCallback
     void on_absorb();
     bool ReportFixture(b2Fixture *f);
     void set_thrustmul(float thrustmul);
-
-    void write_state(lvlinfo *lvl, lvlbuf *lb)
-    {
-        entity::write_state(lvl, lb);
-
-        lb->w_s_float(this->thrustmul);
-    }
-
-    void read_state(lvlinfo *lvl, lvlbuf *lb)
-    {
-        entity::read_state(lvl, lb);
-
-        this->thrustmul = lb->r_float();
-    }
 };

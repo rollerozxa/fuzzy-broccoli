@@ -159,12 +159,6 @@ button::ghost_update(void)
 }
 
 void
-button::restore()
-{
-    this->switch_fx->SetSensor(this->switch_sensor_status);
-}
-
-void
 button::set_layer(int z)
 {
     entity::set_layer(z);

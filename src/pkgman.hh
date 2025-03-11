@@ -170,14 +170,11 @@ class pkgman
     static uint32_t get_next_object_id();
     static uint32_t get_next_pkg_id();
     static const char *get_level_path(int level_type);
-    static const char *get_state_prefix(int level_type);
     static const char *get_level_ext(int level_type);
-    static const char *get_cache_path(int level_type);
     static const char *get_pkg_path(int type);
     static lvlfile *get_levels(int level_type);
     static uint32_t get_latest_level_id(int level_type);
     static void get_level_full_path(int level_type, uint32_t id, uint32_t save_id, char *output);
-    static void get_cache_full_path(int level_type, uint32_t id, uint32_t save_id, char *output);
     static bool get_level_name(int level_type, uint32_t id, uint32_t save_id, char *output);
     static bool get_level_data(int level_type, uint32_t id, uint32_t save_id, char *o_name, uint8_t *o_version);
     static pkginfo* get_pkgs(int type);
@@ -356,14 +353,10 @@ class lvlinfo
     uint64_t flags;
     uint8_t  visibility;
     uint32_t parent_revision;
-    bool     pause_on_finish;
-    bool     show_score;
     uint8_t  bg;
-    uint32_t bg_color;
     uint16_t size_x[2]; /* board size */
     uint16_t size_y[2];
     uint8_t  velocity_iterations, position_iterations;
-    uint32_t final_score;
     float    sandbox_cam_x;
     float    sandbox_cam_y;
     float    sandbox_cam_zoom;
@@ -380,30 +373,12 @@ class lvlinfo
     float pivot_tolerance;
 
     /* level version 28 (1.5) */
-    uint64_t seed;
     float    linear_damping;
     float    angular_damping;
     float    joint_friction;
-    float    dead_enemy_absorb_time;
-    float    time_before_player_can_respawn;
     uint64_t compression_length;
-  private:
-    uint32_t adventure_id;
-  public:
-    inline uint32_t get_adventure_id()
-    {
-        return this->adventure_id;
-    }
-
-    inline void set_adventure_id(uint32_t id)
-    {
-        this->adventure_id = id;
-    }
-
-    void sanity_check();
 
     char     name[256]; /* NOT null terminated */
-    uint8_t  icon[128*128];
     char    *descr; /* null terminated, can be null */
 
     uint32_t num_groups;
@@ -413,8 +388,6 @@ class lvlinfo
 
     /* level version 28 */
     uint32_t num_chunks;
-    uint32_t state_size;
-    uint32_t num_gentypes; /* number of occupied but pending gentypes */
 
     void create(int type, uint64_t seed=0, uint32_t version=0);
     bool read(lvlbuf *lb, bool skip_description);

@@ -31,7 +31,7 @@ ball::ball(int type)
 }
 
 void
-ball::on_load(bool created, bool has_state)
+ball::on_load(bool created)
 {
     this->saved_layer = this->get_layer();
     this->layer_new = this->get_layer();

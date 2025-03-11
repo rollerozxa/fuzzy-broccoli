@@ -514,7 +514,6 @@ class game : public pscreen
     bool autosave();
     bool save(bool force=false);
     bool save_copy(void);
-    void save_state(void);
     bool upload();
     void reselect();
     bool autosave_exists();
@@ -529,8 +528,6 @@ class game : public pscreen
     tms_wdg *w_panel_exit;
     void set_control_panel(entity *e);
     void setup_panel(panel *p);
-
-    void fit_level_borders();
 
     void set_copy_entity(uint8_t slot, entity *e);
     void copy_properties(entity *destination, entity *source, bool hl=false);
@@ -636,11 +633,6 @@ class game : public pscreen
     void create_sandbox_menu();
     void apply_level_properties();
 
-    /* game/world state saving */
-    size_t get_state_size();
-    void write_state(lvlinfo *lvl, lvlbuf *lb);
-    void load_state();
-
     int get_menu_width();
     void set_menu_width(int new_menu_width);
     float get_bmenu_x();
@@ -652,6 +644,7 @@ class game : public pscreen
     void reset(void);
 
     void init_panel_edit(void);
+    void panel_refresh_widgets();
     void init_sandbox_menu();
     struct tms_texture* get_sandbox_texture(int n);
     void add_menu_item(int cat, entity *e);
@@ -944,11 +937,10 @@ class game : public pscreen
     bool add_pair(entity *e1, entity *e2, connection *c);
     void return_tmp_conn(connection *c);
 
-    void open_state(int id_type, uint32_t id, uint32_t save_id);
     void open_sandbox(int id_type, uint32_t id);
     void open_play(int id_type, uint32_t id, pkginfo *pkg, bool test_playing=false, int is_main_puzzle=0);
 
-    void begin_play(bool has_state=false);
+    void begin_play();
 
     void finish(bool success);
     void proceed();

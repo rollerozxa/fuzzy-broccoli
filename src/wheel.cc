@@ -146,7 +146,7 @@ wheel::setup()
 }
 
 void
-wheel::on_load(bool created, bool has_state)
+wheel::on_load(bool created)
 {
     this->on_slider_change(-1, (float)this->properties[0].v.i / 2.f);
 

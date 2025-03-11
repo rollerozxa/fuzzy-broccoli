@@ -46,24 +46,6 @@ class button : public edev_multiconnect
     void update(void);
     void ghost_update(void);
 
-    void restore();
     void set_layer(int z);
     edevice* solve_electronics();
-
-    void write_state(lvlinfo *lvl, lvlbuf *lb)
-    {
-        entity::write_state(lvl, lb);
-
-        lb->w_s_bool(this->pressed);
-        lb->w_s_bool(this->switch_fx->IsSensor());
-    }
-
-    void
-    read_state(lvlinfo *lvl, lvlbuf *lb)
-    {
-        entity::read_state(lvl, lb);
-
-        this->pressed = lb->r_bool();
-        this->switch_sensor_status = lb->r_bool();
-    }
 };

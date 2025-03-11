@@ -593,7 +593,7 @@ game::menu_handle_event(tms::event *ev)
                                 e->set_moveable(this->selection.e->is_moveable());
                             }
 
-                            e->on_load(true, false);
+                            e->on_load(true);
                         } else {
                             sliding_menu[pid] = true;
                         }
@@ -1996,6 +1996,8 @@ game::refresh_gui(void)
 
     this->wm->init_areas();
     this->wm->rearrange();
+
+    this->panel_refresh_widgets();
 }
 
 void
@@ -2271,10 +2273,7 @@ game::render_gui(void)
                 int stepdiff = W->step_count - this->state.finish_step;
                 float time = (stepdiff * WORLD_STEP)/1000000.f * G->get_time_mul();
 
-                float a = 1.f - time*.5f;
-
-                if (W->level.pause_on_finish)
-                    a = 1.f;
+                float a = 1.f;
 
                 if (a > 0) {
                     this->add_text(gui_spritesheet::t_win,
@@ -2283,7 +2282,7 @@ game::render_gui(void)
                             1.f, 1.f, 1.f, a);
                 }
 
-                if (!W->level.pause_on_finish && this->state.pkg) {
+                if (this->state.pkg) {
                     this->add_text(gui_spritesheet::t_continue, _tms.window_width/2.f, 50.f);
                 }
             } else {

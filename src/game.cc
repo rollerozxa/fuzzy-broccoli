@@ -838,8 +838,6 @@ game::game()
     //this->main_fb = tms_fb_alloc(_tms.window_width, _tms.window_height, 0);
     //this->main_fb = tms_fb_alloc(_tms.window_width, _tms.window_height, 1);
 
-    this->icon_fb = 0;
-
     this->dd = tms_ddraw_alloc();
 
     this->set_scene(new tms::scene());
@@ -890,12 +888,6 @@ void
 game::init_framebuffers()
 {
     tms_infof("Initializing game framebuffers");
-
-    if (!this->icon_fb) {
-        this->icon_fb = tms_fb_alloc(512, 512, 0);
-        tms_fb_add_texture(this->icon_fb, GL_RGB, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST);
-        tms_fb_enable_depth(this->icon_fb, GL_DEPTH_COMPONENT16);
-    }
 
     if (this->main_fb) {
         tms_fb_free(this->main_fb);
@@ -2173,18 +2165,6 @@ game::render()
     ss = SDL_GetTicks();
 #endif
 
-#ifdef DEBUG
-# ifdef TMS_BACKEND_MOBILE
-    G->show_numfeed(_tms.fps_mean);
-# else
-    if (W->step_count % 120 == 0) {
-        char fps[64];
-        sprintf(fps, "Principia - FPS: %f (%f)", _tms.fps, _tms.fps_mean);
-        SDL_SetWindowTitle((SDL_Window*)_tms._window, fps);
-    }
-# endif
-#endif
-
     //glClear(GL_COLOR_BUFFER_BIT);
     //return T_OK;
     //tms_infof("RENDER");
@@ -2202,38 +2182,14 @@ game::render()
     tms_assertf((ierr = glGetError()) == 0, "gl error %d in game::render before shadow render", ierr);
     if (settings["enable_shadows"]->v.b) {
         if (!this->state.abo_architect_mode || !W->is_paused()) {
-            if (settings["shadow_quality"]->v.i == 2) {
-                P.best_variable_in_the_world2 = 0;
-                this->gi_graph->render(this->gi_cam, this);
-
-#define JKL .04f
-
-                glColorMask(1,0,0,0);
-                P.best_variable_in_the_world2 = 1337;
-                tmat4_translate(this->gi_cam->view, JKL, JKL, 0.f);
-                this->gi_graph->render(this->gi_cam, this);
-
-                glColorMask(0,0,1,0);
-                tmat4_translate(this->gi_cam->view, -JKL*2.f, -JKL*2.f, 0.f);
-                this->gi_graph->render(this->gi_cam, this);
-
-#undef JKL
-            } else {
-                P.best_variable_in_the_world2 = 0;
-                this->gi_graph->render(this->gi_cam, this);
-            }
+            P.best_variable_in_the_world2 = 0;
+            this->gi_graph->render(this->gi_cam, this);
         } else {
             tms_fb_bind(tms_pipeline_get_framebuffer(1));
             glClearColor(1.f, 1.f, 1.f, 1.f);
             glClear(GL_COLOR_BUFFER_BIT);
             tms_fb_unbind(tms_pipeline_get_framebuffer(1));
         }
-
-        /*
-        if (settings["blur_shadow_map"]->v.b) {
-            tms_fb_swap_blur3x3(tms_pipeline_get_framebuffer(1));
-        }
-        */
     }
 
     tms_assertf((ierr = glGetError()) == 0, "gl error %d in game::render after shadow render", ierr);
@@ -3877,173 +3833,11 @@ game::reset()
     this->cam->up = (tvec3){0.f, 1.f, 0.f};
 }
 
-/**
- * Apply state directly from world by reading
- **/
-void
-game::load_state()
-{
-    tms_debugf("loading game/world state");
-
-    /* copy information about the worlds buffer and set the pointer to point at
-     * the location of the state data */
-    lvlbuf lb = W->lb;
-    lb.rp = W->state_ptr;
-
-    this->state.time_mul = lb.r_float();
-    this->state.adventure_id = lb.r_uint32();
-    this->state.finished = lb.r_uint8();
-    this->state.success = lb.r_uint8();
-    W->gravity_x = lb.r_float();
-    W->gravity_y = lb.r_float();
-    W->step_count = lb.r_uint32();
-    this->state.finish_step = lb.r_uint32();
-    this->cam->_position.x = lb.r_float();
-    this->cam->_position.y = lb.r_float();
-    this->cam->_position.z = lb.r_float();
-    this->cam_vel.x = lb.r_float();
-    this->cam_vel.y = lb.r_float();
-    this->cam_vel.z = lb.r_float();
-    this->cam_rel_pos.x = lb.r_float();
-    this->cam_rel_pos.y = lb.r_float();
-    this->adv_rel_pos.x = lb.r_float();
-    this->adv_rel_pos.y = lb.r_float();
-    uint32_t follow = lb.r_uint32();
-    uint32_t cp = lb.r_uint32();
-    this->follow_options.offset.x = lb.r_float();
-    this->follow_options.offset.y = lb.r_float();
-    this->follow_options.linear = lb.r_bool();
-    this->follow_options.offset_mode = lb.r_uint8();
-    this->last_cursor_pos_x = lb.r_int32();
-    this->last_cursor_pos_y = lb.r_int32();
-    W->electronics_accum = lb.r_uint64();
-    this->state.new_adventure = lb.r_bool();
-
-    uint32_t num_events = lb.r_uint32();
-    for (int x=0; x<num_events; ++x) {
-        W->events[x] = lb.r_int32();
-    }
-
-    uint32_t num_timed_absorbs = lb.r_uint32();
-    for (int x=0; x<num_timed_absorbs; ++x) {
-        uint32_t entity_id = lb.r_uint32();
-        int64_t itime = lb.r_uint64();
-
-        W->timed_absorb.insert(std::pair<uint32_t, int64_t>(entity_id, itime));
-    }
-
-    /* further apply the read data */
-    W->b2->SetGravity(b2Vec2(W->gravity_x, W->gravity_y));
-    W->last_gravity = b2Vec2(W->gravity_x, W->gravity_y);
-
-    if (follow) {
-        entity *e = W->get_entity_by_id(follow);
-        if (e) {
-            this->follow_object = e;
-        }
-    }
-    if (cp) {
-        entity *e = W->get_entity_by_id(cp);
-        if (e) {
-            this->set_control_panel(e);
-        }
-    }
-}
-
-void
-game::write_state(lvlinfo *lvl, lvlbuf *lb)
-{
-    lb->ensure(this->get_state_size());
-
-    lb->w_float(this->state.time_mul);
-    lb->w_uint32(this->state.adventure_id);
-    lb->w_uint8(this->state.finished);
-    lb->w_uint8(this->state.success);
-    lb->w_float(W->gravity_x);
-    lb->w_float(W->gravity_y);
-    lb->w_uint32(W->step_count);
-    lb->w_uint32(this->state.finish_step);
-    lb->w_float(this->cam->_position.x);
-    lb->w_float(this->cam->_position.y);
-    lb->w_float(this->cam->_position.z);
-    lb->w_float(this->cam_vel.x);
-    lb->w_float(this->cam_vel.y);
-    lb->w_float(this->cam_vel.z);
-    lb->w_float(this->cam_rel_pos.x);
-    lb->w_float(this->cam_rel_pos.y);
-    lb->w_float(this->adv_rel_pos.x);
-    lb->w_float(this->adv_rel_pos.y);
-    lb->w_uint32(this->follow_object ? this->follow_object->id : 0);
-    lb->w_uint32(this->current_panel ? this->current_panel->id : 0);
-    lb->w_float(this->follow_options.offset.x);
-    lb->w_float(this->follow_options.offset.y);
-    lb->w_bool(this->follow_options.linear);
-    lb->w_uint8(this->follow_options.offset_mode);
-    lb->w_int32(this->last_cursor_pos_x);
-    lb->w_int32(this->last_cursor_pos_y);
-    lb->w_uint64(W->electronics_accum);
-    lb->w_bool(this->state.new_adventure);
-
-    uint32_t num_events = WORLD_EVENT__NUM;
-    lb->w_uint32(num_events);
-    for (int x=0; x<num_events; ++x) {
-        lb->w_int32(W->events[x]);
-    }
-
-    uint32_t num_timed_absorbs = W->timed_absorb.size();
-    lb->w_uint32(num_timed_absorbs);
-
-    for (std::map<uint32_t, int64_t>::iterator it = W->timed_absorb.begin();
-            it != W->timed_absorb.end(); ++it) {
-        lb->w_uint32(it->first);
-        lb->w_int64(it->second);
-    }
-}
-
-size_t
-game::get_state_size()
-{
-    return
-        sizeof(float)    /* timemul */
-        + sizeof(uint32_t) /* adventure_id */
-        + sizeof(uint32_t) /* score */
-        + sizeof(uint8_t) /* finished */
-        + sizeof(uint8_t) /* success */
-        + sizeof(float) /* gravity_x */
-        + sizeof(float) /* gravity_y */
-        + sizeof(uint32_t) /* step_count */
-        + sizeof(uint32_t) /* finish_step */
-        + sizeof(float) /* cam x */
-        + sizeof(float) /* cam y */
-        + sizeof(float) /* cam z */
-        + sizeof(float) /* cam vel x */
-        + sizeof(float) /* cam vel y */
-        + sizeof(float) /* cam vel z */
-        + sizeof(float) /* cam rel x */
-        + sizeof(float) /* cam rel y */
-        + sizeof(float) /* adv rel x */
-        + sizeof(float) /* adv rel y */
-        + sizeof(uint32_t) /* follow object */
-        + sizeof(uint32_t) /* current panel */
-        + sizeof(float) /* follow offset x */
-        + sizeof(float) /* follow offset y */
-        + sizeof(uint8_t) /* follow linear */
-        + sizeof(uint8_t) /* follow offset_mode */
-        + sizeof(int32_t) /* last cursor pos x */
-        + sizeof(int32_t) /* last cursor pos y */
-        + sizeof(uint64_t) /* electronics accum */
-        + sizeof(uint8_t) /* is new adventure */
-        + sizeof(uint32_t) /* num events */
-        + (sizeof(int32_t) * WORLD_EVENT__NUM) /* W->events */
-        + sizeof(uint32_t) /* num timed absorbs */
-        + W->timed_absorb.size() * (sizeof(uint32_t)+sizeof(int64_t))
-        ;
-}
 
 void
 game::apply_level_properties()
 {
-    this->state.adventure_id = W->level.get_adventure_id();
+    this->state.adventure_id = 1;
 
     if (this->state.abo_architect_mode) {
         this->set_architect_mode(false);
@@ -4071,8 +3865,6 @@ game::init_background()
     tms_infof("setting bg to %d", material_factory::background_id);
     material_factory::load_bg_texture(true);
 
-    ((simplebg*)this->bgent)->set_color(W->level.bg_color);
-
     bool valid = ((simplebg*)this->bgent)->set_level_size(
         W->level.size_x[0],
         W->level.size_x[1],
@@ -4081,14 +3873,6 @@ game::init_background()
 
     tms_infof("Background ID %d, adding entity.", material_factory::background_id);
     this->get_scene()->add_entity(this->bgent);
-
-    float r,g,b,a;
-    unpack_rgba(W->level.bg_color, &r, &g, &b, &a);
-
-    this->state.bg_color.r = r;
-    this->state.bg_color.g = g;
-    this->state.bg_color.b = b;
-    this->state.bg_color.a = a;
 }
 
 void
@@ -4397,7 +4181,7 @@ game::copy_properties(entity *destination, entity *source, bool hl/*=false*/)
         }
 
         if (destination->g_id == O_BOX) {
-            destination->on_load(false, false);
+            destination->on_load(false);
         }
 
         if (hl) {
@@ -4655,13 +4439,6 @@ game::handle_input_playing(tms::event *ev, int action)
 
 
         switch (ev->data.key.keycode) {
-            case TMS_KEY_O:
-                if (ev->data.key.mod & TMS_MOD_CTRL) {
-                    disable_menu = true;
-
-                    ui::open_dialog(DIALOG_OPEN_STATE);
-                }
-                break;
 
 #ifdef TMS_BACKEND_MOBILE
             case SDL_SCANCODE_AC_BACK:
@@ -5271,19 +5048,11 @@ game::finish(bool success)
 
         uint8_t level_id_type = W->level_id_type;
 
-        if (level_id_type >= LEVEL_LOCAL_STATE) {
-            level_id_type -= LEVEL_LOCAL_STATE;
-        }
-
         if (G->state.is_main_puzzle) {
             level_id_type = LEVEL_MAIN;
         }
 
-        lvl_progress *p = 0;
-
-        if (level_id_type < LEVEL_LOCAL_STATE) {
-            p = progress::get_level_progress(level_id_type, W->level.local_id);
-        }
+        lvl_progress *p = progress::get_level_progress(level_id_type, W->level.local_id);
 
         if (success) {
             if (p) {
@@ -5295,7 +5064,8 @@ game::finish(bool success)
             W->events[WORLD_EVENT_GAME_OVER] ++;
         }
 
-        if ((W->level.pause_on_finish || !success) && !W->level.flag_active(LVL_DISABLE_ENDSCREENS)) {
+        // XXX
+        if ((true || !success)) {
             sm::stop_all();
             this->state.waiting = true;
         } else {
@@ -5387,7 +5157,7 @@ game::open_play(int id_type, uint32_t id, pkginfo *pkg, bool test_playing/*=fals
  * has been opened for playing
  **/
 void
-game::begin_play(bool has_state)
+game::begin_play()
 {
 
     this->refresh_widgets();
@@ -5408,29 +5178,6 @@ game::create_level(int type)
     this->add_entities(&W->all_entities, &W->groups, &W->connections, &W->cables);
     W->begin();
 
-}
-
-void
-game::open_state(int id_type, uint32_t id, uint32_t save_id)
-{
-    if (id_type < LEVEL_LOCAL_STATE) {
-        id_type += LEVEL_LOCAL_STATE;
-    }
-
-    tms_infof("opening state %u of %d level %u", save_id, id_type, id);
-
-    bool test = this->state.test_playing;
-
-    this->reset();
-    W->open(id_type, id, false, false, save_id);
-    this->apply_level_properties();
-    this->load_state();
-    this->add_entities(&W->all_entities, &W->groups, &W->connections, &W->cables);
-    W->begin();
-    this->begin_play(true);
-
-    this->state.waiting = false;
-    this->state.test_playing = test;
 }
 
 void
@@ -5470,20 +5217,6 @@ game::delete_partial(uint32_t id)
     tms_debugf("Deleting partial %u at %s", id, path);
 
     return (unlink(path) == 0);
-}
-
-void
-game::save_state()
-{
-    if (W->level.version < LEVEL_VERSION_1_5) {
-        ui::message("State saving not supported in levels created with Principia<1.5");
-        return;
-    }
-    tms_debugf("saving state");
-    W->level.sandbox_cam_x = this->cam->_position.x;
-    W->level.sandbox_cam_y = this->cam->_position.y;
-    W->level.sandbox_cam_zoom = this->cam->_position.z;
-    W->save(SAVE_TYPE_STATE);
 }
 
 bool
@@ -5555,39 +5288,6 @@ bool
 game::player_can_build()
 {
     return W->level.type == LCAT_ADVENTURE;
-}
-
-/* resize the current level to fit the borders around the content */
-void
-game::fit_level_borders()
-{
-    float min_x = -100, max_x = 100, min_y = 100, max_y = 100;
-
-    /* calculate bounds wants a std set, we have a map... bad luck */
-    std::set<entity*> entities;
-
-    for (std::map<uint32_t, entity*>::iterator i = W->all_entities.begin();
-            i != W->all_entities.end(); i++) {
-        entities.insert(i->second);
-    }
-
-    W->calculate_bounds(&entities, &min_x, &max_x, &min_y, &max_y);
-
-    min_x = -roundf(fminf(0.f, min_x))+3;
-    max_x = roundf(fmaxf(0.f, max_x))+3;
-    min_y = -roundf(fminf(0.f, min_y))+3;
-    max_y = roundf(fmaxf(0.f, max_y))+3;
-
-    W->level.size_x[0] = (uint16_t)min_x;
-    W->level.size_x[1] = (uint16_t)max_x;
-    W->level.size_y[0] = (uint16_t)min_y;
-    W->level.size_y[1] = (uint16_t)max_y;
-
-    this->apply_level_properties();
-
-    tms_infof("borders: %f %f %f %f", min_x, max_x, min_y, max_y);
-
-    ui::emit_signal(SIGNAL_REFRESH_BORDERS);
 }
 
 void
@@ -7878,7 +7578,7 @@ game::editor_construct_entity(uint32_t g_id, int pid/*=0*/, bool force_on_pid/*=
 
     }
 
-    e->on_load(true, false);
+    e->on_load(true);
 
     W->add(e);
     this->add_entity(e);

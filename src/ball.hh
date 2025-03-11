@@ -17,7 +17,7 @@ class ball : public entity
 
     float layer_new, layer_blend, layer_old;
 
-    void on_load(bool created, bool has_state);
+    void on_load(bool created);
     void setup();
     void on_pause();
 

@@ -59,10 +59,7 @@ static pkginfo main_pkg;
 
 struct lvlcache {
     uint32_t           id;
-    struct tms_sprite *sprite;
-    uint8_t            icon[128*128];
     lvl_progress *progress;
-    bool show_score;
 };
 
 static int unlock_count = 0;
@@ -160,7 +157,6 @@ menu_pkg::set_pkg(int type, uint32_t id)
 
     for (int x=0; x<this->pkg.num_levels; x++) {
         uint32_t lvl_id = this->pkg.levels[x];
-        memset(info.icon, 0, sizeof(info.icon));
 
         snprintf(filename, 1023, "%s/%d.plvl", pkgman::get_level_path(this->pkg.type), lvl_id);
 
@@ -176,18 +172,8 @@ menu_pkg::set_pkg(int type, uint32_t id)
 
             tms_infof("read level %.*s", info.name_len, info.name);
 
-            memcpy(cache[x].icon, info.icon, 128*128);
-            int nn = 0;
-            int n_max = 0;
-            for (int y=0; y<128*128; y++) {
-                if (cache[x].icon[y] != 0) nn ++;
-                if (cache[x].icon[y] > n_max) n_max = cache[x].icon[y];
-            }
-            tms_infof("num not zero: %d, max:%d", nn, n_max);
             cache[x].id = lvl_id;
-            cache[x].sprite = tms_atlas_add_bitmap(tex_icons, 128, -128, 1, info.icon);
             cache[x].progress = progress::get_level_progress(type, lvl_id);
-            cache[x].show_score = info.show_score;
         } else {
             tms_errorf("file in package was missing");
             return false;
@@ -311,15 +297,6 @@ menu_pkg::render()
 
     tms_ddraw_set_matrices(this->dd, this->cam->view, this->cam->projection);
 
-    for (int x=0; x<this->pkg.num_levels; x++) {
-        int block = x / 9;
-        float sx = base_x + (x%3)*icon_outer + (float)block * (block_spacing + 3.f*icon_outer);
-        float sy = base_y - (x%9)/3*icon_outer;
-
-        if (UNLOCK_ALL_LVLS || this->pkg.unlock_count == 0 || x < unlock_count || cache[x].progress->completed)
-            tms_ddraw_sprite(this->dd, cache[x].sprite, sx, sy, icon_width*scale, icon_height*scale);
-    }
-
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, tex_overlay->gl_texture);
 
@@ -356,17 +333,6 @@ menu_pkg::render()
                     sx + icon_outer/2.f - 48.f*scale,
                     sy - icon_outer/2.f + 64.f*scale,
                     gui_spritesheet::get_sprite(S_CHECKMARK)->width*scale, gui_spritesheet::get_sprite(S_CHECKMARK)->height*scale);
-        }
-
-        if (UNLOCK_ALL_LVLS || this->pkg.unlock_count == 0 || x < unlock_count || cache[x].progress->completed) {
-            if (cache[x].show_score) {
-                sprintf(ss, "%d", cache[x].progress->top_score);
-
-                float x = sx - icon_width/2.f;
-                float y = sy - icon_height/2.f + _tms.yppcm*.125f;
-
-                this->add_text(ss, font::xmedium, x, y, TV_WHITE);
-            }
         }
 
         /* render the order number of this level */

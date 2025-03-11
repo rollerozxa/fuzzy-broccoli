@@ -298,7 +298,7 @@ panel::init_smallpanel()
 }
 
 void
-panel::on_load(bool created, bool has_state)
+panel::on_load(bool created)
 {
 
     for (int x=0; x<this->num_widgets; x++) {
@@ -330,7 +330,7 @@ panel::on_load(bool created, bool has_state)
 
     this->update_panel_key_labels();
 
-    entity::on_load(created, has_state);
+    entity::on_load(created);
 }
 
 void

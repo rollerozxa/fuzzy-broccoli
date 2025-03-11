@@ -508,7 +508,7 @@ world::perform_actions()
 
                 case ACTION_CALL_ON_LOAD:
                     {
-                        e->on_load(false, false);
+                        e->on_load(false);
                     }
                     break;
             }
@@ -1178,7 +1178,7 @@ world::emit_all()
 
             ee.data.single.e->emit_step = this->step_count;
 
-            ee.data.single.e->on_load(false, false);
+            ee.data.single.e->on_load(false);
             this->add(ee.data.single.e);
             ee.data.single.e->init();
             ee.data.single.e->setup();
@@ -1467,23 +1467,10 @@ world::init_level_entities(std::map<uint32_t, entity*> *entities, std::map<uint3
                 i->second->get_edevice()->begin();
             }
 
-            if (i->second->state_size) {
-                i->second->restore();
-            } else {
-                i->second->setup();
-            }
+            i->second->setup();
 
             /* XXX TODO do we need this one for state shit */
             i->second->on_entity_play();
-        }
-
-        if (groups) {
-            for (std::map<uint32_t, group*>::iterator i = groups->begin();
-                    i != groups->end(); i++) {
-                if (i->second->state_size) {
-                    i->second->restore();
-                }
-            }
         }
     }
 }
@@ -1533,14 +1520,7 @@ world::load_entity(lvlbuf *buf, int version, uint32_t id_modifier, b2Vec2 displa
     entity *e = of::read(buf, version, id_modifier, displacement, affected_chunks);
 
     if (e) {
-        e->on_load(false, e->state_size != 0);
-
-        if (e->state_size) {
-            size_t rp = buf->rp;
-            buf->rp = e->state_ptr;
-            e->read_state(0, buf);
-            buf->rp = rp;
-        }
+        e->on_load(false);
 
         if (e->gr && e->flag_active(ENTITY_IS_COMPOSABLE)) {
             uint32_t group_id = VOID_TO_UINT32(e->gr);
@@ -1576,14 +1556,7 @@ world::load_group(lvlbuf *buf, int version, uint32_t id_modifier, b2Vec2 displac
             g->set_moveable(false);
         }
 
-        g->on_load(false, g->state_size != 0);
-
-        if (g->state_size) {
-            size_t rp = buf->rp;
-            buf->rp = g->state_ptr;
-            g->read_state(0, buf);
-            buf->rp = rp;
-        }
+        g->on_load(false);
 
         this->add(g);
 
@@ -1803,14 +1776,13 @@ world::fill_buffer(lvlinfo *lvl, lvlbuf *buf,
                    std::set<connection*>       *connections,
                    std::set<cable*>            *cables,
                    uint32_t id_modifier, b2Vec2 displacement,
-                   bool fill_unloaded,
-                   bool fill_states
+                   bool fill_unloaded
                    )
 {
     for (std::map<uint32_t, group*>::iterator i = groups->begin();
             i != groups->end(); i++) {
         i->second->pre_write();
-        of::write_group(buf, lvl->version, i->second, id_modifier, displacement, fill_states);
+        of::write_group(buf, lvl->version, i->second, id_modifier, displacement);
         i->second->post_write();
     }
 
@@ -1819,7 +1791,7 @@ world::fill_buffer(lvlinfo *lvl, lvlbuf *buf,
     for (std::map<uint32_t, entity*>::iterator i = entities->begin();
             i != entities->end(); i++) {
         i->second->pre_write();
-        of::write(buf, lvl->version, i->second, id_modifier, displacement, fill_states);
+        of::write(buf, lvl->version, i->second, id_modifier, displacement);
         i->second->post_write();
     }
     if (fill_unloaded) this->cwindow->preloader.write_entities(lvl, buf);
@@ -2069,7 +2041,6 @@ world::save_partial(std::set<entity*> *entity_list, const char *name, uint32_t p
     tmp.num_connections = connections.size();
     tmp.num_cables = cables.size();
     tmp.num_chunks = 0;
-    tmp.num_gentypes = 0;
     tmp.write(&this->lb);
 
     /* TODO: make sure we're writing more than 1 entity, and that we're NOT writing the adventure robot */
@@ -2122,16 +2093,7 @@ world::save(int save_type)
     this->level.num_entities = this->all_entities.size() + this->cwindow->preloader.entities.size();
     this->level.num_connections = this->connections.size() + this->cwindow->preloader.connections.size();
     this->level.num_cables = this->cables.size() + this->cwindow->preloader.cables.size();
-    this->level.num_chunks = this->cwindow->preloader.active_chunks.size()
-                           + this->cwindow->preloader.wastebin.size()
-                           + this->cwindow->preloader.chunks.size();
-    this->level.num_gentypes = 0;
-    this->level.state_size = (save_type == SAVE_TYPE_STATE ? G->get_state_size() : 0);
     this->level.write(&this->lb);
-
-    if (save_type == SAVE_TYPE_STATE) {
-        G->write_state(&this->level, &this->lb);
-    }
 
     {
         lvlinfo *lvl = &this->level;
@@ -2139,7 +2101,7 @@ world::save(int save_type)
                 lvl->version, 0, 0.f, 0.f, lvl->num_groups, lvl->num_entities, lvl->num_connections, lvl->num_cables);
     }
     this->fill_buffer(&this->level, &this->lb, &this->groups, &this->all_entities, &this->connections, &this->cables,
-         0, b2Vec2(0.f, 0.f), true, (save_type == SAVE_TYPE_STATE));
+         0, b2Vec2(0.f, 0.f), true);
 
     char filename[1024];
 
@@ -2161,25 +2123,6 @@ world::save(int save_type)
 
         case SAVE_TYPE_AUTOSAVE:
             snprintf(filename, 1023, "%s/.autosave", pkgman::get_level_path(LEVEL_LOCAL));
-            break;
-
-        case SAVE_TYPE_STATE:
-            if (this->level.local_id == 0) {
-                //tms_errorf("can not save state for autosave shit");
-                //return false;
-            }
-
-            if (this->level.save_id == 0) {
-                this->level.save_id = (uint32_t)time(0);
-            }
-
-            uint8_t level_type = this->level_id_type;
-
-            if (level_type < LEVEL_LOCAL_STATE) {
-                level_type += LEVEL_LOCAL_STATE;
-            }
-
-            pkgman::get_level_full_path(level_type, this->level.local_id, this->level.save_id, filename);
             break;
     }
 
@@ -2386,10 +2329,6 @@ world::open(int id_type, uint32_t id, bool paused, bool sandbox, uint32_t save_i
             this->lb.zuncompress(this->level);
         }
 
-        /* save the location of the state buffer so game can load it later */
-        this->state_ptr = this->lb.rp;
-        this->lb.rp += this->level.state_size;
-
         bool result = this->load_buffer(&this->level, &this->lb);
 
         if (!result) {
@@ -2427,7 +2366,7 @@ world::begin()
     tms_assertf(this->to_be_destroyed.empty(), "Pending joint destructions not empty in world::begin");
     tms_assertf(this->post_interact.empty(),   "Post interact not empty in world::begin");
 
-    if (!paused && this->level_id_type < LEVEL_LOCAL_STATE) {
+    if (!paused) {
         /* step everything once and solve electronics once, this makes screenshots
          * look better, and things that modify game states like timemul or gravity
          * have a shot before the player begins */

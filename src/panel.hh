@@ -129,7 +129,7 @@ class panel : public brcomp_multiconnect, public activator
     void init_smallpanel();
 
     void pre_write(void);
-    void on_load(bool created, bool has_state);
+    void on_load(bool created);
     void remove_widget(int index);
     void init_widget(panel::widget *w);
     int add_widget(struct widget_decl decl, int x, int y, int z);
@@ -145,24 +145,4 @@ class panel : public brcomp_multiconnect, public activator
     }
     activator *get_activator() { return this; }
 
-    void write_state(lvlinfo *lvl, lvlbuf *lb)
-    {
-        entity::write_state(lvl, lb);
-
-        for (int x=0; x<this->num_widgets; ++x) {
-            lb->w_s_float(this->widgets[x].value[0]);
-            lb->w_s_float(this->widgets[x].value[1]);
-        }
-    }
-
-    void read_state(lvlinfo *lvl, lvlbuf *lb)
-    {
-        tms_debugf("panel read state");
-        entity::read_state(lvl, lb);
-
-        for (int x=0; x<this->num_widgets; ++x) {
-            this->widgets[x].value[0] = lb->r_float();
-            this->widgets[x].value[1] = lb->r_float();
-        }
-    }
 };

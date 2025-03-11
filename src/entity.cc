@@ -15,8 +15,6 @@ entity::entity()
     this->state[0] = 0.f;
     this->state[1] = 0.f;
     this->state[2] = 0.f;
-    this->state_size = 0;
-    this->state_ptr = 0;
     this->write_ptr = 0;
     this->write_size = 0;
     this->num_chunk_intersections = 0;
@@ -543,104 +541,6 @@ entity::remove_from_world()
     this->body = 0;
 }
 
-/**
- *
- * ENTITY STATE HANDLING
- *
- * When a level is saved, write_state is called from world. The entity can fill however
- * much data in the buffer as it wishes.
- *
- * When the level is loaded again, the following occurs:
- * 1. Entity allocates
- * 2. on_load(bool created, bool has_state)
- * 3. read_state()
- * 4. add_to_world()
- * 5. init()
- * 6. restore()
- *
- * When a level is loaded without a state buffer, the follow occurs:
- * 1. Entity allocates
- * 2. on_load(bool created, bool has_state)
- * 3. add_to_world()
- * 4. init()
- * 5. setup()
- *
- * Therefore, it is important that we ALWAYS make sure the data changed/set in
- * setup is also modified by restore() or read_state().
- *
- * read_state() is used to restore the state of an entity that is not yet added to
- * the world, we need to keep important data in temporary variables until restore()
- * is called.
- *
- * If an entity leaves and enters the chunk window, only restore() is re-called.
- * read_state() loads the state from a buffer, restore() applies the state
- *
- * read_state() must make sure the lvlbuf skips the whole state
- **/
-
-void
-entity::restore()
-{
-    if (this->flag_active(ENTITY_IS_STATIC)) {
-        return;
-    }
-
-#ifdef DEBUG
-    if (this->get_num_bodies() > 1) {
-        tms_warnf("!!! entity::restore() called on object with more than 1 body, verify this is correct");
-    }
-
-    tms_debugf("applying state for entity %u, vel %f %f, avel %f", this->id, this->state[0], this->state[1], this->state[2]);
-#endif
-    if (!this->gr && this->get_body(0)) {
-        this->get_body(0)->SetLinearVelocity(b2Vec2(this->state[0], this->state[1]));
-        this->get_body(0)->SetAngularVelocity(this->state[2]);
-    }
-}
-
-/* default state read/write saves the current velocity of the body */
-void
-entity::write_state(lvlinfo *lvl, lvlbuf *lb)
-{
-    if (this->flag_active(ENTITY_IS_STATIC)) {
-        return;
-    }
-
-#ifdef DEBUG
-    if (this->get_num_bodies() > 1) {
-        tms_warnf("!!! entity::write_state() called on object with more than 1 body, verify this is correct");
-    }
-
-    tms_debugf("writing state for entity %u", this->id);
-#endif
-
-    b2Vec2 velocity = this->get_body(0) ? this->get_body(0)->GetLinearVelocity() : b2Vec2(0.f, 0.f);
-    float avel = this->get_body(0) ? this->get_body(0)->GetAngularVelocity() : 0.f;
-
-    lb->ensure(3*sizeof(float));
-    lb->w_float(velocity.x);
-    lb->w_float(velocity.y);
-    lb->w_float(avel);
-}
-
-void
-entity::read_state(lvlinfo *lvl, lvlbuf *lb)
-{
-    if (this->flag_active(ENTITY_IS_STATIC))
-        return;
-
-#ifdef DEBUG
-    if (this->get_num_bodies() > 1) {
-        tms_warnf("!!! entity::read_state() called on object with more than 1 body, verify this is correct");
-    }
-
-    tms_debugf("reading state for %u", this->id);
-#endif
-
-    this->state[0] = lb->r_float();
-    this->state[1] = lb->r_float();
-    this->state[2] = lb->r_float();
-}
 
 void entity::set_prio(int z)
 {

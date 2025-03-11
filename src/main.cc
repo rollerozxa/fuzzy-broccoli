@@ -68,12 +68,6 @@ create_thread(int (SDLCALL *fn)(void*),
 }
 
 static void
-menu_begin(void)
-{
-
-}
-
-static void
 gi_begin(void)
 {
     time_start = SDL_GetTicks();
@@ -176,7 +170,7 @@ gi_end(void)
 {
     glColorMask(1,1,1,1);
 
-    if (settings["shadow_quality"]->v.i != 2 && !settings["shadow_map_depth_texture"]->is_true()) {
+    if (!settings["shadow_map_depth_texture"]->is_true()) {
         GLenum discards[] = {GL_DEPTH_ATTACHMENT};
 
         if (settings["discard_framebuffer"]->v.b && _glDiscardFramebufferEXT == 0) {
@@ -504,10 +498,6 @@ tproject_init_pipelines(void)
     tms_pipeline_set_begin_fn(1, gi_begin);
     tms_pipeline_set_end_fn(1, gi_end);
 
-    /* menu pipeline */
-    tms_pipeline_declare(2, "MVP", TMS_MVP, 0);
-    tms_pipeline_set_begin_fn(2, menu_begin);
-
     /* ao pipeline */
     tms_pipeline_declare(3, "M", TMS_MAT4, offsetof(struct tms_entity, M));
     tms_pipeline_declare(3, "MV", TMS_MV, 0);
@@ -720,25 +710,6 @@ tproject_step(void)
                     }
                 } break;
 
-                case ACTION_OPEN_STATE: {
-                    if (data) {
-                        uint32_t *info = (uint32_t*)data;
-
-                        tms_debugf("open state called, %u %u %u", info[0], info[1], info[2]);
-                        G->resume_action = GAME_RESUME_OPEN;
-
-                        G->open_state(info[0], info[1], info[2]);
-
-                        if (_tms.screen == &P.s_loading_screen->super) {
-                            P.s_loading_screen->set_next_screen(G);
-                        } else if (_tms.screen != &G->super){
-                            tms::set_screen(G);
-                        }
-
-                        free(data);
-                    }
-                } break;
-
                 case ACTION_OPEN: {
                     uint32_t id = VOID_TO_UINT32(data);
                     G->resume_action = GAME_RESUME_OPEN;
@@ -834,11 +805,6 @@ tproject_step(void)
 
                 case ACTION_WORLD_PAUSE:
                     G->do_pause();
-                    break;
-
-                case ACTION_AUTOFIT_LEVEL_BORDERS:
-                    G->fit_level_borders();
-                    G->state.modified = true;
                     break;
 
                 case ACTION_RELOAD_LEVEL:
@@ -1125,15 +1091,8 @@ setup_opengl_settings()
         }
     }
 
-    if (settings["shadow_map_depth_texture"]->is_uninitialized()) {
-        if (strstr(_tms.gl_extensions, "GL_ARB_depth_texture") != 0) {
-            tms_infof("GL_ARB_depth_texture: YES");
-            settings["shadow_map_depth_texture"]->v.b = 1;
-        } else {
-            tms_infof("GL_ARB_depth_texture: NO");
-            settings["shadow_map_depth_texture"]->v.b = 0;
-        }
-    }
+    // GL_ARB_depth_texture is OpenGL 1.5+, so we can always assume it to exist on desktop
+    settings["shadow_map_depth_texture"]->v.b = 1;
 #endif
 }
 
@@ -1563,10 +1522,8 @@ initial_loader(int step)
 
                 static const char *s_dirs[]={
                     "",
-                    "/cache", "/cache/db", "/cache/local", "/cache/main", "/cache/sav",
                     "/lvl", "/lvl/db", "/lvl/local", "/lvl/main",
                     "/pkg", "/pkg/db", "/pkg/local", "/pkg/main",
-                    "/sav"
                 };
 
                 for (int x=0; x<sizeof(s_dirs)/sizeof(const char*); x++) {
@@ -1635,7 +1592,12 @@ initial_loader(int step)
 
         case 7:
             {
-                bool ret = mesh_factory::load_next();
+                bool ret;
+                // Speed up model loading by not bottlenecking it from screen vsync
+                // (10 * 60fps = 600 models loaded per second, ideally)
+                for (size_t i = 0; i < 10; i++) {
+                    ret = mesh_factory::load_next();
+                }
 
                 char msg[128];
                 snprintf(msg, 127, "Loading model %d/%d", cur_mesh+1, NUM_MODELS);

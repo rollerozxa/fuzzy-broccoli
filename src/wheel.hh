@@ -31,7 +31,7 @@ class wheel : public composable, public b2QueryCallback
 
     bool ReportFixture(b2Fixture *f);
     void find_pairs();
-    void on_load(bool created, bool has_state);
+    void on_load(bool created);
     void setup();
     connection * load_connection(connection &conn);
 

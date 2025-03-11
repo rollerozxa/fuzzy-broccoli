@@ -103,7 +103,7 @@ class cable : public entity
     void ghost_update(void);
     void update(void);
     void pre_write();
-    void on_load(bool created, bool has_state);
+    void on_load(bool created);
 
     static struct tms_entity *get_entity(void);
     static void reset_counter(void);

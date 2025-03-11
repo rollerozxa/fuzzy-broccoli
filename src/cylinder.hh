@@ -27,5 +27,5 @@ class cylinder : public composable
     float get_slider_value(int s);
     const char *get_slider_label(int s){return "Size";};
     void on_slider_change(int s, float value);
-    void on_load(bool created, bool has_state);
+    void on_load(bool created);
 };

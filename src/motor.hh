@@ -24,7 +24,7 @@ class motor : public ecomp, public b2QueryCallback
          return "Simple Motor";
 
     };
-    void on_load(bool created, bool has_state);
+    void on_load(bool created);
     void toggle_axis_rot();
     bool allow_connection(entity *asker, uint8_t fr, b2Vec2 p);
     void find_pairs();

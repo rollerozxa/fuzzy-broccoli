@@ -30,10 +30,6 @@ enum {
 #define LEVEL_SYS     3
 #define LEVEL_PARTIAL 4
 
-#define LEVEL_LOCAL_STATE 100
-#define LEVEL_DB_STATE    101
-#define LEVEL_MAIN_STATE  102
-
 enum {
     SND_WOOD_METAL,
     SND_WOOD_WOOD,

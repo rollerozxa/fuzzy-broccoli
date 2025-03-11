@@ -85,7 +85,7 @@ motor::get_axis_rot_tooltip()
 }
 
 void
-motor::on_load(bool created, bool has_state)
+motor::on_load(bool created)
 {
     if (this->mtype != MOTOR_TYPE_SIMPLE) {
         this->set_mesh(mesh_factory::get_mesh(this->flag_active(ENTITY_AXIS_ROT) ? MODEL_FLATMOTOR : MODEL_DMOTOR));
@@ -98,7 +98,7 @@ void
 motor::toggle_axis_rot()
 {
     this->set_flag(ENTITY_AXIS_ROT, !this->flag_active(ENTITY_AXIS_ROT));
-    this->on_load(false, false);
+    this->on_load(false);
 }
 
 bool

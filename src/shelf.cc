@@ -45,7 +45,7 @@ shelf::get_slider_snap(int s)
 }
 
 void
-shelf::on_load(bool created, bool has_state)
+shelf::on_load(bool created)
 {
     if (this->properties[0].v.i > 3) {
         this->properties[0].v.i = 3;

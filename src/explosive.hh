@@ -51,20 +51,6 @@ class explosive : public entity, public b2QueryCallback
         }
     };
 
-    void write_state(lvlinfo *lvl, lvlbuf *lb)
-    {
-        entity::write_state(lvl, lb);
-
-        lb->w_s_float(this->hp);
-    }
-
-    void read_state(lvlinfo *lvl, lvlbuf *lb)
-    {
-        entity::read_state(lvl, lb);
-
-        this->hp = lb->r_float();
-    }
-
     bool triggered;
     uint64_t trigger_time;
 };

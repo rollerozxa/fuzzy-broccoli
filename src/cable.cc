@@ -618,7 +618,7 @@ plug::update_mesh()
 }
 
 void
-cable::on_load(bool created, bool has_state)
+cable::on_load(bool created)
 {
 }
 

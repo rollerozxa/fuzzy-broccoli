@@ -33,18 +33,18 @@ if(ANDROID)
 else()
 	if(NOT EMSCRIPTEN)
 		find_package(SDL2 REQUIRED)
-	else()
-		include(PrincipiaEmscriptenLibs)
 	endif()
 
 	set(OpenGL_GL_PREFERENCE GLVND)
 	find_package(OpenGL REQUIRED)
 endif()
 
-find_package(Freetype REQUIRED)
-find_package(JPEG REQUIRED)
-find_package(PNG REQUIRED)
-find_package(ZLIB REQUIRED)
+if(NOT EMSCRIPTEN)
+	find_package(Freetype REQUIRED)
+	find_package(JPEG REQUIRED)
+	find_package(PNG REQUIRED)
+	find_package(ZLIB REQUIRED)
+endif()
 
 
 # Determine platform and backend
@@ -139,22 +139,20 @@ if(NOT SCREENSHOT_BUILD)
 		endif()
 	endif()
 
-	find_package(CURL REQUIRED)
-	include_directories(${CURL_INCLUDE_DIR})
+	if(NOT EMSCRIPTEN)
+		find_package(CURL REQUIRED)
+		include_directories(${CURL_INCLUDE_DIR})
+		add_definitions(-DBUILD_CURL)
+	endif()
 
 	file(GLOB SDL_mixer_SRCS lib/SDL_mixer/*.c)
 	list(APPEND SRCS ${SDL_mixer_SRCS})
-
-	add_definitions(-DBUILD_CURL)
 endif()
 
 if(ANDROID)
 	set(BACKEND_SRC main_android.cc)
 elseif(SCREENSHOT_BUILD)
 	set(BACKEND_SRC main_screenshotter.cc)
-elseif(EMSCRIPTEN)
-	set(CMAKE_EXECUTABLE_SUFFIX ".html")
-	set(BACKEND_SRC main_emscripten.cc)
 else()
 	set(BACKEND_SRC main.cc)
 	list(APPEND SRCS src/tms/backend/pipe.cc)
@@ -181,29 +179,28 @@ endif()
 # Link libraries against executable
 # ---------------------------------
 
-set(LIBS
-    Freetype::Freetype
-    JPEG::JPEG
-    PNG::PNG
-    ZLIB::ZLIB
-)
-
 if(NOT EMSCRIPTEN)
+	set(LIBS
+	    Freetype::Freetype
+	    JPEG::JPEG
+	    PNG::PNG
+	    ZLIB::ZLIB)
+
 	if(WIN32)
 		list(APPEND LIBS SDL2::SDL2main)
 	endif()
 	list(APPEND LIBS SDL2::SDL2)
-endif()
 
-if(NOT SCREENSHOT_BUILD)
-	list(APPEND LIBS ${CURL_LIBRARIES})
+	if(NOT SCREENSHOT_BUILD AND NOT EMSCRIPTEN)
+		list(APPEND LIBS ${CURL_LIBRARIES})
 
-	if(NOT ANDROID)
-		list(APPEND LIBS ${GTK3_LIBRARIES})
-	endif()
+		if(NOT ANDROID)
+			list(APPEND LIBS ${GTK3_LIBRARIES})
+		endif()
 
-	if(NOT SHOULD_USE_GLES)
-		list(APPEND LIBS GLEW::GLEW)
+		if(NOT SHOULD_USE_GLES)
+			list(APPEND LIBS GLEW::GLEW)
+		endif()
 	endif()
 endif()
 
@@ -253,6 +250,14 @@ add_definitions(-DTMS_BACKEND_${TMS_FORMFACTOR} -DTMS_BACKEND_${TMS_BACKEND})
 # Use a safe subset of fast math flags
 set(COMMON_FLAGS "-fno-math-errno -fno-trapping-math -fno-signed-zeros")
 
+if(EMSCRIPTEN)
+	set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "--preload-file ../data/")
+	set(LIBRARY_FLAGS "-sUSE_FREETYPE=1 -sUSE_LIBJPEG=1 -sUSE_LIBPNG=1 -sUSE_ZLIB=1 -sUSE_SDL=2 -pthread")
+	string(APPEND COMMON_FLAGS " ${LIBRARY_FLAGS}")
+	set(CMAKE_EXE_LINKER_FLAGS " ${LIBRARY_FLAGS} -pthread -sPTHREAD_POOL_SIZE=20 -sINITIAL_MEMORY=2013265920 -sALLOW_MEMORY_GROWTH=1 -sTOTAL_STACK=16Mb")
+	set(CMAKE_EXECUTABLE_SUFFIX ".html")
+endif()
+
 set(COMMON_FLAGS_DEBUG "${COMMON_FLAGS} -O0 -ggdb -DDEBUG=1")
 set(COMMON_FLAGS_RELEASE "${COMMON_FLAGS} -DNDEBUG=1 -fomit-frame-pointer")
 
@@ -279,11 +284,6 @@ endif()
 
 # Installation
 # ------------
-
-if(EMSCRIPTEN)
-	set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "--preload-file ../data/")
-	target_link_libraries(${PROJECT_NAME} -lemsocket -lssl -lcrypto)
-endif()
 
 if(APPLE)
 	set(BUNDLE_NAME ${PROJECT_NAME}.app)

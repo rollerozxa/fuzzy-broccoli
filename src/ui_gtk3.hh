@@ -185,14 +185,6 @@ refresh_mark_menuitems()
 /** --Play menu **/
 GtkMenu         *play_menu;
 
-/** --Open state **/
-GtkWindow    *open_state_window;
-GtkTreeModel *open_state_treemodel;
-GtkTreeView  *open_state_treeview;
-GtkButton    *open_state_btn_open;
-GtkButton    *open_state_btn_cancel;
-static bool   open_state_no_testplaying = false;
-
 /** --Multi config **/
 GtkWindow    *multi_config_window;
 GtkNotebook  *multi_config_nb;
@@ -287,13 +279,6 @@ GtkRadioButton  *lvl_radio_custom;
 GtkEntry        *lvl_title;
 GtkTextView     *lvl_descr;
 GtkComboBoxText *lvl_bg;
-GtkColorButton  *lvl_bg_color;
-uint32_t         new_bg_color;
-GtkEntry        *lvl_width_left;
-GtkEntry        *lvl_width_right;
-GtkEntry        *lvl_height_down;
-GtkEntry        *lvl_height_up;
-GtkButton       *lvl_autofit;
 GtkSpinButton   *lvl_gx;
 GtkSpinButton   *lvl_gy;
 GtkScale       *lvl_pos_iter;
@@ -493,9 +478,6 @@ struct gtk_level_property gtk_level_properties[] = {
     { LVL_SNAP,
       "Snap by default",
       "For puzzle levels, when the player drags or rotates an object it will snap to a grid by default (good for easy beginner levels)." },
-    { LVL_CHUNKED_LEVEL_LOADING,
-      "Chunked level loading",
-      "Splits up the level into chunks, leading to better performance for large levels." },
 };
 
 static int num_gtk_level_properties = sizeof(gtk_level_properties) / sizeof(gtk_level_properties[0]);
@@ -1282,32 +1264,6 @@ editor_menu_activate(GtkMenuItem *i, gpointer unused)
                 W->level.descr_len = 0;
             }
 
-            uint16_t left  = (uint16_t)atoi(gtk_entry_get_text(lvl_width_left));
-            uint16_t right = (uint16_t)atoi(gtk_entry_get_text(lvl_width_right));
-            uint16_t down  = (uint16_t)atoi(gtk_entry_get_text(lvl_height_down));
-            uint16_t up    = (uint16_t)atoi(gtk_entry_get_text(lvl_height_up));
-
-            float w = (float)left + (float)right;
-            float h = (float)down + (float)up;
-
-            bool resized = false;
-
-            if (w < 5.f) {
-                resized = true;
-                left += 6-(uint16_t)w;
-            }
-            if (h < 5.f) {
-                resized = true;
-                down += 6-(uint16_t)w;
-            }
-
-            if (resized)
-                ui::message("Your level size was increased to the minimum allowed.");
-
-            W->level.size_x[0] = left;
-            W->level.size_x[1] = right;
-            W->level.size_y[0] = down;
-            W->level.size_y[1] = up;
             W->level.gravity_x = (float)gtk_spin_button_get_value(lvl_gx);
             W->level.gravity_y = (float)gtk_spin_button_get_value(lvl_gy);
 
@@ -1331,15 +1287,8 @@ editor_menu_activate(GtkMenuItem *i, gpointer unused)
             tms_infof("vel_iter: %d,  pos_iter: %d", vel_iter, pos_iter);
             W->level.velocity_iterations = vel_iter;
             W->level.position_iterations = pos_iter;
-            W->level.final_score = (uint32_t)atoi(gtk_entry_get_text(lvl_score));
-
-            if (W->level.version >= 7) {
-                W->level.show_score = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(lvl_show_score));
-                W->level.pause_on_finish = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(lvl_pause_on_win));
-            }
 
             if (W->level.version >= 9) {
-                W->level.show_score = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(lvl_show_score));
                 W->level.flags = 0;
                 for (int x=0; x<num_gtk_level_properties; ++x) {
                     W->level.flags |= ((int)gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(gtk_level_properties[x].checkbutton)) * gtk_level_properties[x].flag);
@@ -1347,7 +1296,6 @@ editor_menu_activate(GtkMenuItem *i, gpointer unused)
             }
 
             W->level.bg = gtk_combo_box_get_active(GTK_COMBO_BOX(lvl_bg));
-            W->level.bg_color = new_bg_color;
 
             if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(lvl_radio_adventure))) {
                 P.add_action(ACTION_SET_LEVEL_TYPE, (void*)LCAT_ADVENTURE);
@@ -1532,106 +1480,6 @@ on_object_show(GtkWidget *wdg, void *unused)
     gtk_tree_selection_select_path(sel, path);
 
     gtk_tree_path_free(path);
-}
-
-/** --Open state **/
-void
-on_open_state_show(GtkWidget *wdg, void *unused)
-{
-    GtkTreeIter iter;
-
-    gtk_list_store_clear(GTK_LIST_STORE(open_state_treemodel));
-
-    lvlfile *level = pkgman::get_levels(LEVEL_LOCAL_STATE);
-
-    while (level) {
-        gtk_list_store_append(GTK_LIST_STORE(open_state_treemodel), &iter);
-        gtk_list_store_set(GTK_LIST_STORE(open_state_treemodel), &iter,
-                OSC_ID, level->id,
-                OSC_NAME, level->name,
-                OSC_DATE, level->modified_date,
-                OSC_SAVE_ID, level->save_id,
-                OSC_ID_TYPE, level->id_type,
-                -1
-                );
-        lvlfile *next = level->next;
-        delete level;
-        level = next;
-    }
-
-    GtkTreePath      *path;
-    GtkTreeSelection *sel;
-
-    path = gtk_tree_path_new_from_indices(0, -1);
-    sel  = gtk_tree_view_get_selection(open_state_treeview);
-
-    gtk_tree_model_get_iter(open_state_treemodel,
-                            &iter,
-                            path);
-
-    GValue val = {0, };
-
-    gtk_tree_model_get_value(open_state_treemodel,
-                             &iter,
-                             0,
-                             &val);
-
-    gtk_tree_selection_select_path(sel, path);
-
-    tms_infof("got id: %d", g_value_get_uint(&val));
-    gtk_tree_path_free(path);
-}
-
-static void
-open_state_row(GtkTreeIter *iter)
-{
-    if (!iter) {
-        return;
-    }
-
-    guint _level_id;
-    gtk_tree_model_get(open_state_treemodel, iter,
-            OSC_ID, &_level_id,
-            -1);
-    guint _save_id;
-    gtk_tree_model_get(open_state_treemodel, iter,
-            OSC_SAVE_ID, &_save_id,
-            -1);
-
-    guint _level_id_type;
-    gtk_tree_model_get(open_state_treemodel, iter,
-            OSC_ID_TYPE, &_level_id_type,
-            -1);
-
-    uint32_t level_id = (uint32_t)_level_id;
-    uint32_t save_id = (uint32_t)_save_id;
-    uint32_t id_type = (uint32_t)_level_id_type;
-
-    tms_infof("clicked level id %u save %u ", level_id, save_id);
-
-    uint32_t *info = (uint32_t*)malloc(sizeof(uint32_t)*3);
-    info[0] = id_type;
-    info[1] = level_id;
-    info[2] = save_id;
-
-    if (open_state_no_testplaying) {
-        G->state.test_playing = false;
-        G->screen_back = P.s_menu_main;
-    }
-
-    P.add_action(ACTION_OPEN_STATE, info);
-
-    gtk_widget_hide(GTK_WIDGET(open_state_window));
-}
-
-static void
-activate_open_state_row(GtkTreeView *view, GtkTreePath *path, GtkTreeViewColumn *col, gpointer user_data)
-{
-    GtkTreeIter iter;
-    GtkTreeModel *model = gtk_tree_view_get_model(view);
-    gtk_tree_model_get_iter_from_string(model, &iter, gtk_tree_path_to_string(path));
-
-    open_state_row(&iter);
 }
 
 /** --Open level **/
@@ -1873,36 +1721,7 @@ activate_object_row(GtkTreeView *view, GtkTreePath *path, GtkTreeViewColumn *col
 }
 
 gboolean
-on_autofit_btn_click(GtkWidget *w, GdkEventButton *ev, gpointer user_data)
-{
-    if (btn_pressed(w, (GtkButton*)w, user_data)) {
-        P.add_action(ACTION_AUTOFIT_LEVEL_BORDERS, 0);
-    }
-
-    return false;
-}
-
-gboolean
 on_lvl_bg_changed(GtkWidget *w, GdkEventButton *ev, gpointer user_data) {
-
-    return false;
-}
-
-gboolean
-on_lvl_bg_color_set(GtkWidget *w, GdkEventButton *ev, gpointer user_data)
-{
-    tms_debugf("bg color button COLOR SET");
-
-    GtkColorChooser *sel = GTK_COLOR_CHOOSER(lvl_bg_color);
-
-    GdkRGBA new_color;
-    gtk_color_chooser_get_rgba(sel, &new_color);
-
-    tms_debugf("new_r: %.2f", new_color.red);
-    tms_debugf("new_g: %.2f", new_color.green);
-    tms_debugf("new_b: %.2f", new_color.blue);
-
-    new_bg_color = pack_rgba(new_color.red, new_color.green, new_color.blue, 1.f);
 
     return false;
 }
@@ -1919,29 +1738,6 @@ on_upgrade_btn_click(GtkWidget *w, GdkEventButton *ev, gpointer user_data)
         }
 
         gtk_widget_hide(GTK_WIDGET(confirm_upgrade_dialog));
-    }
-
-    return false;
-}
-
-gboolean
-on_open_state_btn_click(GtkWidget *w, GdkEventButton *ev, gpointer user_data)
-{
-    if (btn_pressed(w, open_state_btn_cancel, user_data)) {
-        gtk_widget_hide(GTK_WIDGET(open_state_window));
-    } else if (btn_pressed(w, open_state_btn_open, user_data)) {
-        /* open ! */
-        GtkTreeSelection *sel;
-        GtkTreeIter       iter;
-
-        sel = gtk_tree_view_get_selection(open_state_treeview);
-        if (gtk_tree_selection_get_selected(sel, NULL, &iter)) {
-            /* A row is selected */
-            open_state_row(&iter);
-
-        } else {
-            tms_infof("No row selected.");
-        }
     }
 
     return false;
@@ -2040,55 +1836,6 @@ on_object_keypress(GtkWidget *w, GdkEventKey *key, gpointer unused)
             uint32_t level_id = g_value_get_uint(&val);
 
             confirm_import(level_id);
-
-            gtk_widget_hide(w);
-            return true;
-        } else {
-            tms_infof("No row selected.");
-        }
-    }
-
-    return false;
-}
-
-gboolean
-on_open_state_keypress(GtkWidget *w, GdkEventKey *key, gpointer unused)
-{
-    if (key->keyval == GDK_KEY_Escape)
-        gtk_widget_hide(w);
-    else if (key->keyval == GDK_KEY_Return) {
-        GtkTreeSelection *sel;
-        GtkTreeIter       iter;
-
-        sel = gtk_tree_view_get_selection(open_state_treeview);
-        if (gtk_tree_selection_get_selected(sel, NULL, &iter)) {
-            /* A row is selected */
-            guint _level_id;
-            gtk_tree_model_get(open_state_treemodel, &iter,
-                               OSC_ID, &_level_id,
-                               -1);
-            guint _save_id;
-            gtk_tree_model_get(open_state_treemodel, &iter,
-                               OSC_SAVE_ID, &_save_id,
-                               -1);
-
-            guint _level_id_type;
-            gtk_tree_model_get(open_state_treemodel, &iter,
-                               OSC_ID_TYPE, &_level_id_type,
-                               -1);
-
-            uint32_t level_id = (uint32_t)_level_id;
-            uint32_t save_id = (uint32_t)_save_id;
-            uint32_t id_type = (uint32_t)_level_id_type;
-
-            tms_infof("clicked level id %u save %u ", level_id, save_id);
-
-            uint32_t *info = (uint32_t*)malloc(sizeof(uint32_t)*3);
-            info[0] = id_type;
-            info[1] = level_id;
-            info[2] = save_id;
-
-            P.add_action(ACTION_OPEN_STATE, info);
 
             gtk_widget_hide(w);
             return true;
@@ -2625,24 +2372,6 @@ on_properties_keypress(GtkWidget *w, GdkEventKey *key, gpointer unused)
 
 }
 
-void
-refresh_borders()
-{
-    char tmp[128];
-    sprintf(tmp, "%d", W->level.size_x[0]);
-    gtk_entry_set_text(lvl_width_left, tmp);
-
-    sprintf(tmp, "%d", W->level.size_x[1]);
-    gtk_entry_set_text(lvl_width_right, tmp);
-
-    sprintf(tmp, "%d", W->level.size_y[0]);
-    gtk_entry_set_text(lvl_height_down, tmp);
-
-    sprintf(tmp, "%d", W->level.size_y[1]);
-    gtk_entry_set_text(lvl_height_up, tmp);
-
-}
-
 /**
  * Get stuff from the currently loaded level and fill in the fields
  **/
@@ -2668,24 +2397,10 @@ on_properties_show(GtkWidget *wdg, void *unused)
 
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(publish_locked), W->level.visibility == LEVEL_LOCKED);
 
-    refresh_borders();
-
     gtk_spin_button_set_value(lvl_gx, W->level.gravity_x);
     gtk_spin_button_set_value(lvl_gy, W->level.gravity_y);
 
     /* Gameplay */
-    sprintf(tmp, "%u", W->level.final_score);
-    gtk_entry_set_text(lvl_score, tmp);
-
-    if (W->level.version >= 7) {
-        gtk_widget_set_sensitive(GTK_WIDGET(lvl_show_score), true);
-        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(lvl_show_score), W->level.show_score);
-        gtk_widget_set_sensitive(GTK_WIDGET(lvl_pause_on_win), true);
-        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(lvl_pause_on_win), W->level.pause_on_finish);
-    } else {
-        gtk_widget_set_sensitive(GTK_WIDGET(lvl_show_score), false);
-        gtk_widget_set_sensitive(GTK_WIDGET(lvl_pause_on_win), false);
-    }
 
     if (W->level.version >= 9) {
         /* TODO: Check current game mode and see if these should be enabled or not.
@@ -2728,29 +2443,8 @@ on_properties_show(GtkWidget *wdg, void *unused)
     gtk_range_set_value(GTK_RANGE(lvl_joint_friction), W->level.joint_friction);
 
     gtk_combo_box_set_active(GTK_COMBO_BOX(lvl_bg), W->level.bg);
-    new_bg_color = W->level.bg_color;
-
-    {
-        GdkRGBA bg_color;
-        float r, g, b, a;
-
-        unpack_rgba(W->level.bg_color, &r, &g, &b, &a);
-
-        bg_color.red   = r;
-        bg_color.green = g;
-        bg_color.blue  = b;
-        bg_color.alpha = 1.0;
-
-        gtk_color_chooser_set_rgba(GTK_COLOR_CHOOSER(lvl_bg_color), &bg_color);
-    }
 
     free(current_descr);
-}
-
-void
-activate_open_state(GtkMenuItem *i, gpointer unused)
-{
-    gtk_widget_show_all(GTK_WIDGET(open_state_window));
 }
 
 void
@@ -3522,58 +3216,6 @@ int _gtk_loop(void *p)
         add_text_column(object_treeview, "Modified", OC_DATE);
     }
 
-    /** --Open state **/
-    {
-        open_state_window = new_window_defaults("Load saved game", &on_open_state_show, &on_open_state_keypress);
-        gtk_window_set_default_size(GTK_WINDOW(open_state_window), 600, 600);
-        gtk_widget_set_size_request(GTK_WIDGET(open_state_window), 600, 600);
-        gtk_window_set_resizable(GTK_WINDOW(open_state_window), true);
-
-        GtkBox *content = GTK_BOX(gtk_box_new(GTK_ORIENTATION_VERTICAL, 5));
-
-        GtkListStore *store;
-
-        store = gtk_list_store_new(OSC_NUM_COLUMNS, G_TYPE_UINT, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_UINT, G_TYPE_UINT);
-
-        open_state_treemodel = GTK_TREE_MODEL(store);
-
-        gtk_tree_sortable_set_sort_column_id(GTK_TREE_SORTABLE(store), OSC_DATE, GTK_SORT_DESCENDING);
-
-        open_state_treeview = GTK_TREE_VIEW(gtk_tree_view_new_with_model(open_state_treemodel));
-        gtk_tree_view_set_search_column(open_state_treeview, OSC_NAME);
-        g_signal_connect(GTK_WIDGET(open_state_treeview), "row-activated", G_CALLBACK(activate_open_state_row), 0);
-
-        GtkWidget *ew = gtk_scrolled_window_new(0,0);
-        gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW (ew),
-                      GTK_POLICY_AUTOMATIC,
-                      GTK_POLICY_AUTOMATIC);
-
-        GtkButtonBox *button_box = GTK_BUTTON_BOX(gtk_button_box_new(GTK_ORIENTATION_HORIZONTAL));
-        gtk_button_box_set_layout(GTK_BUTTON_BOX(button_box), GTK_BUTTONBOX_END);
-        gtk_box_set_spacing(GTK_BOX(button_box), 5);
-
-        /* Open button */
-        open_state_btn_open   = GTK_BUTTON(gtk_button_new_with_label("Open"));
-        g_signal_connect(open_state_btn_open, "clicked",
-                G_CALLBACK(on_open_state_btn_click), 0);
-
-        open_state_btn_cancel = GTK_BUTTON(gtk_button_new_with_label("Cancel"));
-        g_signal_connect(open_state_btn_cancel, "clicked",
-                G_CALLBACK(on_open_state_btn_click), 0);
-
-        gtk_container_add(GTK_CONTAINER(button_box), GTK_WIDGET(open_state_btn_open));
-        gtk_container_add(GTK_CONTAINER(button_box), GTK_WIDGET(open_state_btn_cancel));
-
-        gtk_box_pack_start(content, GTK_WIDGET(ew), 1, 1, 0);
-        gtk_box_pack_start(content, GTK_WIDGET(button_box), 0, 0, 0);
-
-        gtk_container_add(GTK_CONTAINER(ew), GTK_WIDGET(open_state_treeview));
-        gtk_container_add(GTK_CONTAINER(open_state_window), GTK_WIDGET(content));
-
-        add_text_column(open_state_treeview, "Name", OSC_ID);
-        add_text_column(open_state_treeview, "Modified", OSC_NAME);
-    }
-
     /** --Open level **/
     {
         open_window = new_window_defaults("Open level", &on_open_show, &on_open_keypress);
@@ -3830,22 +3472,8 @@ int _gtk_loop(void *p)
                 gtk_combo_box_text_append_text(lvl_bg, available_bgs[x]);
             }
 
-            lvl_bg_color = GTK_COLOR_BUTTON(gtk_color_button_new());
-            gtk_color_chooser_set_use_alpha(GTK_COLOR_CHOOSER(lvl_bg_color), false);
-            g_signal_connect(lvl_bg_color, "color-set", G_CALLBACK(on_lvl_bg_color_set), 0);
-
             GtkBox* lvl_bg_box = GTK_BOX(gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5));
             gtk_container_add(GTK_CONTAINER(lvl_bg_box), GTK_WIDGET(lvl_bg));
-            gtk_container_add(GTK_CONTAINER(lvl_bg_box), GTK_WIDGET(lvl_bg_color));
-
-            lvl_width_left = GTK_ENTRY(gtk_entry_new());
-            lvl_width_right = GTK_ENTRY(gtk_entry_new());
-            lvl_height_down = GTK_ENTRY(gtk_entry_new());
-            lvl_height_up = GTK_ENTRY(gtk_entry_new());
-
-            lvl_autofit = (GtkButton*)gtk_button_new_with_label("Auto-fit borders");
-            g_signal_connect(lvl_autofit, "clicked",
-                    G_CALLBACK(on_autofit_btn_click), 0);
 
             lvl_gx = GTK_SPIN_BUTTON(gtk_spin_button_new(
                         GTK_ADJUSTMENT(gtk_adjustment_new(1, -999, 999, 1, 1, 0)),
@@ -3858,36 +3486,6 @@ int _gtk_loop(void *p)
                 tbl_world, ++y,
                 "Background",
                 GTK_WIDGET(lvl_bg_box)
-            );
-
-            add_setting_row(
-                tbl_world, ++y,
-                "Left border",
-                GTK_WIDGET(lvl_width_left)
-            );
-
-            add_setting_row(
-                tbl_world, ++y,
-                "Right border",
-                GTK_WIDGET(lvl_width_right)
-            );
-
-            add_setting_row(
-                tbl_world, ++y,
-                "Bottom border",
-                GTK_WIDGET(lvl_height_down)
-            );
-
-            add_setting_row(
-                tbl_world, ++y,
-                "Top border",
-                GTK_WIDGET(lvl_height_up)
-            );
-
-            gtk_grid_attach(
-                tbl_world,
-                GTK_WIDGET(lvl_autofit),
-                0, ++y, 3, 1
             );
 
             add_setting_row(
@@ -3965,15 +3563,6 @@ int _gtk_loop(void *p)
         GtkGrid *tbl_gameplay = create_settings_table();
         {
             int y = -1;
-
-            lvl_score = GTK_ENTRY(gtk_entry_new());
-
-            add_setting_row(
-                tbl_gameplay, ++y,
-                "Final score",
-                GTK_WIDGET(lvl_score),
-                "What score the player has to reach to win the level."
-            );
 
             add_setting_row(
                 tbl_gameplay, ++y,
@@ -4957,14 +4546,6 @@ _open_export(gpointer unused)
 }
 
 static gboolean
-_open_open_state_dialog(gpointer unused)
-{
-    activate_open_state(NULL, 0);
-
-    return false;
-}
-
-static gboolean
 _open_open_dialog(gpointer unused)
 {
     activate_open(NULL, 0);
@@ -5210,7 +4791,6 @@ _close_all_dialogs(gpointer unused)
     gtk_widget_hide(GTK_WIDGET(play_menu));
     gtk_widget_hide(GTK_WIDGET(editor_menu));
     gtk_widget_hide(GTK_WIDGET(open_window));
-    gtk_widget_hide(GTK_WIDGET(open_state_window));
     gtk_widget_hide(GTK_WIDGET(object_window));
     gtk_widget_hide(GTK_WIDGET(save_window));
     gtk_widget_hide(GTK_WIDGET(properties_dialog));
@@ -5294,16 +4874,6 @@ ui::open_dialog(int num, void *data/*=0*/)
         case DIALOG_QUICKADD:       gdk_threads_add_idle(_open_quickadd, 0); break;
         case DIALOG_SAVE:           gdk_threads_add_idle(_open_save_window, 0); break;
         case DIALOG_OPEN:           gdk_threads_add_idle(_open_open_dialog, 0); break;
-
-        case DIALOG_OPEN_STATE:
-            if (data && VOID_TO_UINT8(data) == 1) {
-                open_state_no_testplaying = true;
-            } else {
-                open_state_no_testplaying = false;
-            }
-
-            gdk_threads_add_idle(_open_open_state_dialog, 0);
-            break;
 
         case DIALOG_OPEN_OBJECT:    gdk_threads_add_idle(_open_object_dialog, 0); break;
         case DIALOG_NEW_LEVEL:      gdk_threads_add_idle(_open_new_level_dialog, 0); break; /* XXX: */
@@ -5389,10 +4959,6 @@ ui::emit_signal(int num, void *data/*=0*/)
 
         case SIGNAL_QUICKADD_REFRESH:
             refresh_quickadd();
-            break;
-
-        case SIGNAL_REFRESH_BORDERS:
-            refresh_borders();
             break;
 
         case SIGNAL_ENTITY_CONSTRUCTED:

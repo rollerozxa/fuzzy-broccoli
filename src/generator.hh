@@ -12,7 +12,7 @@ class generator : public brcomp_multiconnect
     float get_slider_snap(int s);
     void on_slider_change(int s, float value);
     const char *get_slider_label(int s){return "Voltage";};
-    void on_load(bool created, bool has_state);
+    void on_load(bool created);
 
     edevice* solve_electronics();
     const char* get_name(){return "Power Supply";};

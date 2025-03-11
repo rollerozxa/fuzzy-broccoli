@@ -466,8 +466,6 @@ class entity : public tms::entity
 
     /* default state contains velocity and angular velocity of a single body */
     float state[3];
-    size_t state_ptr;
-    size_t state_size;
 
     /* we keep track of where this entity was last written or read */
     size_t write_ptr;
@@ -703,11 +701,6 @@ class entity : public tms::entity
     virtual void connection_create_joint(connection *c){};
     virtual bool connection_destroy_joint(connection *c){return false;};
 
-    /* state reading/writing */
-    virtual void restore();
-    virtual void write_state(lvlinfo *lvl, lvlbuf *lb);
-    virtual void read_state(lvlinfo *lvl, lvlbuf *lb);
-
     virtual void toggle_axis_rot(){};
     virtual void set_locked(bool locked, bool immediate=true);
     virtual void load_flags(uint64_t f);
@@ -766,7 +759,7 @@ class entity : public tms::entity
 
     virtual void pre_write(void);
     virtual void post_write(void){};
-    virtual void on_load(bool created, bool has_state){};
+    virtual void on_load(bool created){};
     virtual connection* load_connection(connection &conn){return 0;};
 
     inline void initialize_interactive(void)

@@ -20,7 +20,7 @@ class beam : public composable
     const char* get_name(){
         return "Plank";
     }
-    void on_load(bool created, bool has_state);
+    void on_load(bool created);
 
     void find_pairs();
     connection* load_connection(connection &conn);

@@ -330,7 +330,6 @@ of::read(lvlbuf *lb, uint8_t version, uint32_t id_modifier, b2Vec2 displacement,
     entity *e;
     p_gid g_id;
     uint8_t np, nc;
-    uint32_t state_size = 0;
     uint32_t group_id;
     uint32_t id;
 
@@ -351,7 +350,6 @@ of::read(lvlbuf *lb, uint8_t version, uint32_t id_modifier, b2Vec2 displacement,
 
         if (version >= LEVEL_VERSION_1_5) {
             nc = lb->r_uint8();
-            state_size = lb->r_uint32();
         } else
             nc = 0;
 
@@ -403,10 +401,6 @@ of::read(lvlbuf *lb, uint8_t version, uint32_t id_modifier, b2Vec2 displacement,
                     affected_chunks->push_back(chunk_pos(cx, cy));
                 }
             }
-
-            e->state_size = state_size;
-            e->state_ptr = lb->rp;
-            lb->rp += state_size;
         } else {
             e->set_flag(ENTITY_AXIS_ROT, (bool)lb->r_uint8());
 
@@ -535,12 +529,6 @@ of::read_group(lvlbuf *lb, uint8_t version, uint32_t id_modifier, b2Vec2 displac
     g->_pos.y = lb->r_float() + displacement.y;
     g->_angle = lb->r_float();
 
-    if (version >= LEVEL_VERSION_1_5) {
-        g->state_size = lb->r_uint32();
-        g->state_ptr = lb->rp;
-        lb->rp += g->state_size;
-    }
-
     if (g->id >= of::_id) of::_id = g->id+1;
 
     return g;
@@ -554,7 +542,6 @@ of::write_group(lvlbuf *lb, uint8_t version, group *e, uint32_t id_modifier, b2V
             +4 /* pos x */
             +4 /* pos y */
             +4 /* angle */
-            +4 /* state_size */
             );
 
     b2Vec2 p = e->get_position();
@@ -565,26 +552,6 @@ of::write_group(lvlbuf *lb, uint8_t version, group *e, uint32_t id_modifier, b2V
     lb->w_float(p.x + displacement.x);
     lb->w_float(p.y + displacement.y);
     lb->w_float(e->get_angle());
-
-    uint32_t state_size_ptr = 0;
-    if (version >= LEVEL_VERSION_1_5) {
-        state_size_ptr = lb->size;
-        lb->w_uint32(0);
-
-        if (write_states) {
-            size_t before_state = lb->size;
-
-            e->write_state(0, lb);
-
-            size_t after_state = lb->size;
-            size_t state_size = after_state - before_state;
-
-            lb->size = state_size_ptr;
-            lb->w_uint32(state_size);
-
-            lb->size = after_state;
-        }
-    }
 
     e->write_size = lb->size - e->write_ptr;
 }
@@ -602,7 +569,6 @@ of::write(lvlbuf *lb, uint8_t version, entity *e, uint32_t id_modifier, b2Vec2 d
               +2 /* uint16_t, group id high */
               +1 /* uint8_t, num properties */
               +1 /* uint8_t, num_chunk_intersections */
-              +4 /* uint32_t, state_size */
               +4 /* float, pos.x */
               +4 /* float, pos.y */
               +4 /* float, angle */
@@ -629,13 +595,8 @@ of::write(lvlbuf *lb, uint8_t version, entity *e, uint32_t id_modifier, b2Vec2 d
 
     lb->w_uint8(e->num_properties);
 
-    uint32_t state_size_ptr = 0;
-
     if (version >= LEVEL_VERSION_1_5) {
         lb->w_uint8(e->num_chunk_intersections);
-
-        state_size_ptr = lb->size;
-        lb->w_uint32(0);
     }
 
     /* only add displacement if we're not in a group,
@@ -658,22 +619,6 @@ of::write(lvlbuf *lb, uint8_t version, entity *e, uint32_t id_modifier, b2Vec2 d
 #endif
             lb->w_int32(e->chunk_intersections[x].x);
             lb->w_int32(e->chunk_intersections[x].y);
-        }
-
-        if (write_states) {
-            size_t before_state = lb->size;
-
-            e->write_state(0, lb);
-
-            size_t after_state = lb->size;
-            size_t state_size = after_state - before_state;
-
-            /* go back and fill in the state size */
-            lb->size = state_size_ptr;
-            lb->w_uint32(state_size);
-
-            /* return to front */
-            lb->size = after_state;
         }
     } else {
         lb->w_uint8((uint8_t)e->flag_active(ENTITY_AXIS_ROT));

@@ -125,7 +125,7 @@ beam::load_connection(connection &conn)
 }
 
 void
-beam::on_load(bool created, bool has_state)
+beam::on_load(bool created)
 {
     this->update_fixture();
 }
