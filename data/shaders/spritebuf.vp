@@ -13,7 +13,6 @@ void main(void)
 {
     vec4 pos = MVP*vec4(position.xyz, 1.);
     SET_SHADOW
-    SET_AMBIENT_OCCL
     FS_texcoord = uv;
     FS_color = vcolor;
     gl_Position = pos;

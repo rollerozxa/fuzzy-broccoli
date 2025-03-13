@@ -4,7 +4,6 @@
 #include "entity.hh"
 #include "edevice.hh"
 #include "debugdraw.hh"
-#include "chunk.hh"
 #include "pkgman.hh"
 #include <set>
 #include <map>
@@ -216,8 +215,6 @@ class world : public b2QueryCallback
     int     level_id_type; /* id types (i.e. LEVEL_DB, LEVEL_LOCAL) */
 
     std::deque<struct entity_action> actions;
-
-    chunk_window    *cwindow;
 
     b2Body *ground;
     b2Fixture *ground_fx[4];

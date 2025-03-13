@@ -92,7 +92,6 @@ class ui
     static void open_dialog(int num, void *data=0);
     static void open_help_dialog(const char *title, const char *description);
     static void open_error_dialog(const char *error_string);
-    static void open_sandbox_tips();
     static void open_url(const char *url);
     static void emit_signal(int num, void *data=0);
     static void set_next_action(int action_id);
@@ -118,7 +117,3 @@ extern "C" {
 #if defined(TMS_BACKEND_PC) && !defined(NO_UI)
 extern int prompt_is_open;
 #endif
-
-extern const char* tips[];
-extern const int num_tips;
-extern int ctip;

@@ -976,7 +976,7 @@ Java_org_libsdl_app_PrincipiaBackend_getLevelInfo(JNIEnv *env, jclass _jcls)
      * float creature_absorb_time
      **/
 
-    sprintf(info,
+    /*sprintf(info,
             "%u,"
             "%u,"
             "%u,"
@@ -1012,7 +1012,7 @@ Java_org_libsdl_app_PrincipiaBackend_getLevelInfo(JNIEnv *env, jclass _jcls)
                 l->joint_friction,
                 l->dead_enemy_absorb_time,
                 l->time_before_player_can_respawn
-            );
+            );*/
 
     jstring str;
     str = env->NewStringUTF(info);
@@ -1097,7 +1097,7 @@ Java_org_libsdl_app_PrincipiaBackend_setLevelInfo(
         ui::message("Your level size was increased to the minimum allowed.");
     }
 
-    l->size_x[0] = left;
+    /*l->size_x[0] = left;
     l->size_x[1] = right;
     l->size_y[0] = down;
     l->size_y[1] = up;
@@ -1115,7 +1115,7 @@ Java_org_libsdl_app_PrincipiaBackend_setLevelInfo(
     l->angular_damping = (float)angular_damping;
     l->joint_friction = (float)joint_friction;
     l->dead_enemy_absorb_time = (float)dead_enemy_absorb_time;
-    l->time_before_player_can_respawn = (float)time_before_player_can_respawn;
+    l->time_before_player_can_respawn = (float)time_before_player_can_respawn;*/
 
     P.add_action(ACTION_RELOAD_LEVEL, 0);
 }

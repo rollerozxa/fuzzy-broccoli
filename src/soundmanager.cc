@@ -344,159 +344,7 @@ genwave_data sm::generated[SM_MAX_CHANNELS];
 
 #ifdef ENABLE_SOUND
 
-Mix_Chunk *sm::genchunk;
-
 sm_channel sm::channels[SM_MAX_CHANNELS];
-
-void genwave(int chan, void *stream, int len, void *udata)
-{
-    Sint16* pstream = (Sint16*) stream;
-
-    //int vol = roundf((65535./2. *.75) *data->volume);
-    bool did_wait = false;
-
-    for (int i = 0; i < len/2/2; i++)
-    {
-        int16_t v = 0;
-
-        for (int chan=0; chan<SM_MAX_CHANNELS; chan++) {
-            if (sm::generated[chan].available)
-                continue;
-
-            struct genwave_data *data = (struct genwave_data*)&sm::generated[chan];
-
-            if (!data->started)
-                continue;
-
-            int vol = roundf((65535./2. *.125) * data->ticks[sm::read_counter%SM_GENWAVE_NUM_TICKS].volume) * sm::volume;
-
-            if (data->bitcrushing > 0.f) {
-                int b = (int)roundf(data->bitcrushing);
-
-                data->bitcrush_counter = (data->bitcrush_counter+1)%b;
-
-                if (data->bitcrush_counter == 0) {
-                    data->phase += data->ticks[sm::read_counter%SM_GENWAVE_NUM_TICKS].freq/44100. * b;
-                }
-            } else {
-                data->phase += data->ticks[sm::read_counter%SM_GENWAVE_NUM_TICKS].freq / 44100.;
-            }
-
-            if (data->freq_vibrato > 0.f && data->freq_vibrato_width > 0.f)
-                data->phase += sin(M_PI*2. * _tms.last_time/1000000. * data->freq_vibrato) * data->freq_vibrato_width * data->ticks[sm::read_counter%SM_GENWAVE_NUM_TICKS].freq / 44100.;
-
-            double phase = data->phase;
-
-            double wave;
-
-            if (data->waveform == 3)
-                wave = fmod(phase*2., 2.) - 1.;
-            else if (data->waveform == 4) {
-                wave = fmod(phase, 1.);
-                if (wave > 0.5) wave = .5-wave;
-                wave = wave-.25 * 4.;
-            } else
-                wave = sin(M_PI*2. * phase);
-
-            if (data->waveform == 1)
-                wave = (wave >= 0.f ? 1.f : -1.f);
-            else if (data->waveform == 2) {
-                wave = (wave + 1.f) / 2.f;
-                wave = (wave >= (1.f-data->pulse_width) ? 1.f : -1.f);
-            }
-
-            if (data->volume_vibrato > 0.f)
-                wave *= .5-.5*sin(M_PI*2. * _tms.last_time/1000000. * data->volume_vibrato) * data->volume_vibrato_width;
-
-            v += wave * vol;
-        }
-
-        *pstream = v;
-        pstream++;
-        *pstream = v; /* stereo */
-        pstream++;
-
-        sm::tick_counter ++;
-
-        if ((sm::tick_counter >= 353)) {
-            sm::read_counter ++;
-
-            if (sm::read_counter >= sm::write_counter) {
-                sm::read_counter = sm::write_counter-1;
-                did_wait = true;
-            } else {
-                sm::tick_counter = (((int)sm::write_counter - (int)sm::read_counter) - SM_GENWAVE_PRETICKS)*4;
-                //sm::tick_counter = 0;
-                //sm::remainder_counter ++;
-
-                //if (sm::remainder_counter == 5) {
-                    //sm::remainder_counter = 0;
-                    //sm::tick_counter = 1 + ((int)sm::write_counter - (int)sm::read_counter) - SM_GENWAVE_PRETICKS;
-                //}
-            }
-
-            for (int chan=0; chan<SM_MAX_CHANNELS; chan++) {
-                if (sm::generated[chan].available)
-                    continue;
-                struct genwave_data *data = (struct genwave_data*)&sm::generated[chan];
-                if (!data->started) {
-                    if (data->ticks[sm::read_counter%SM_GENWAVE_NUM_TICKS].command == SM_GENWAVE_START) {
-                        data->started = true;
-                        tms_debugf("STARTING %d, read_counter %" PRIu64 " write_counter %" PRIu64 " (%d)", chan, sm::read_counter, sm::write_counter, (int)sm::write_counter - (int)sm::read_counter);
-                    } else {
-                        //tms_debugf("not started");
-                        continue;
-                    }
-                } else if (data->ticks[sm::read_counter%SM_GENWAVE_NUM_TICKS].command == SM_GENWAVE_STOP) {
-                    tms_debugf("stopping %d, read_counter %" PRIu64 " write_counter %" PRIu64 " (%d)", chan, sm::read_counter, sm::write_counter, (int)sm::write_counter - (int)sm::read_counter);
-                    for (int t=0; t<SM_GENWAVE_NUM_TICKS; t++) {
-                        data->ticks[t].command = SM_GENWAVE_NO_COMMAND;
-                    }
-                    sm::generated[chan].available = true;
-                    sm::generated[chan].started = false;
-                    continue;
-                }
-            }
-        }
-    }
-
-    if (did_wait) {
-        //tms_debugf("how the fuck");
-    }
-}
-
-void genwave_cleanup(int chan, void *udata)
-{
-  //free(udata);
-}
-
-static char genbuf[2048*20];
-
-void
-sm::play_gen(int x)
-{
-    if (!sm::gen_started) {
-        sm::gen_started = true;
-        sm::read_counter = 0;
-        sm::write_counter = 0;
-        Mix_PlayChannel(SM_MAX_CHANNELS, sm::genchunk, -1);
-        static bool reg = false;
-        Mix_RegisterEffect(SM_MAX_CHANNELS, genwave, genwave_cleanup, 0);
-
-        for (int t=1; t<SM_GENWAVE_PRETICKS; t++) {
-            sm::generated[x].ticks[t].freq = sm::generated[0].ticks[t].freq;
-            sm::generated[x].ticks[t].volume = sm::generated[0].ticks[t].volume;
-        }
-        sm::write_counter = SM_GENWAVE_PRETICKS;
-    }
-
-    for (int t=0; t<SM_GENWAVE_NUM_TICKS; t++) {
-        sm::generated[x].ticks[t].command = SM_GENWAVE_NO_COMMAND;
-    }
-    sm::generated[x].started = false;
-    sm::generated[x].ticks[sm::write_counter%SM_GENWAVE_NUM_TICKS].command = SM_GENWAVE_START;
-    sm::generated[x].available = false;
-}
 
 void
 sm::load_settings()
@@ -528,8 +376,6 @@ sm::init()
 
     Mix_AllocateChannels(SM_MAX_CHANNELS+1);
     {
-        sm::genchunk = Mix_QuickLoad_RAW((uint8_t*)genbuf, 2048*20);
-
         int x;
         for (x=0; x<SM_MAX_CHANNELS; x++) {
             sm::generated[x].available = true;
@@ -751,7 +597,6 @@ sm_channel::update_position()
 
 // Dummy functions when sound is disabled
 
-void sm::play_gen(int x) { }
 void sm::load_settings() { }
 void sm::init() {}
 void sm::play(sm_sound *snd, float x, float y, uint8_t random, float volume, bool loop, void *ident, bool global) { }

@@ -7,6 +7,6 @@ VARYINGS
 void main(void)
 {
     gl_FragColor = SHADOW * FS_color * FS_diffuse
-        + FS_color * (_AMBIENT) * AMBIENT_OCCL;
+        + FS_color * (_AMBIENT);
 }
 

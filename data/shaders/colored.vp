@@ -15,7 +15,6 @@ void main(void)
     lowp vec4 pos = MVP*vec4(position, 1.);
 
     SET_SHADOW
-    SET_AMBIENT_OCCL
 
     FS_eye = (MV*vec4(position, 1.)).xyz;
     FS_normal = N*normal;

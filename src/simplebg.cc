@@ -1,5 +1,4 @@
 #include "simplebg.hh"
-#include "model.hh"
 #include "material.hh"
 
 simplebg::simplebg()

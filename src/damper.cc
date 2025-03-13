@@ -140,7 +140,7 @@ damper_1::set_moveable(bool moveable)
 void
 damper_1::construct()
 {
-    damper_2 *d2 = (damper_2*)of::create(67);
+    damper_2 *d2 = (damper_2*)of::create(O_DAMPER_2);
 
     d2->_pos = this->_pos;
     d2->_pos -= b2Vec2(0.f, 1.f);

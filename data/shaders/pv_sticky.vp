@@ -27,7 +27,6 @@ void main(void)
     FS_diffuse_texcoord = difftex;
 
     SET_SHADOW
-    SET_AMBIENT_OCCL
 
     FS_normal = normalize(nor);
     FS_eye = normalize((MV*vec4(position, 1.)).xyz);

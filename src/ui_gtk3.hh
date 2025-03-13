@@ -350,6 +350,16 @@ struct table_setting_row settings_graphic_rows[] = {
         0,
         "gamma_correct",
         setting_row_type::create_checkbox()
+    }, {
+        "UI scale",
+        "A restart is required for this change to take effect",
+        "uiscale",
+        setting_row_type::create_hscale(0.25, 2.0, 0.05),
+    }, {
+        "Autosave screen size",
+        "Save the screen size when resizing the window.",
+        "autosave_screensize",
+        setting_row_type::create_checkbox()
     },
 };
 
@@ -369,11 +379,6 @@ struct table_setting_row settings_audio_rows[] = {
 
 struct table_setting_row settings_control_rows[] = {
     {
-        "Enable cursor jail",
-        "Enable this if you want the cursor to be locked to the game while playing a level.",
-        "jail_cursor",
-        setting_row_type::create_checkbox()
-    }, {
         "Smooth camera",
         "Whether the camera movement should be smooth or direct.",
         "smooth_cam",
@@ -394,16 +399,6 @@ struct table_setting_row settings_control_rows[] = {
         "zoom_speed",
         setting_row_type::create_hscale(0.1, 3.0, 0.5),
     }, {
-        "Smooth menu",
-        "Whether the menu scrolling should be smooth or direct.",
-        "smooth_menu",
-        setting_row_type::create_checkbox()
-    }, {
-        "Menu scroll speed",
-        "How fast you can scroll through the menu.",
-        "menu_speed",
-        setting_row_type::create_hscale(1.0, 15.0, 0.5),
-    }, {
         "Widget sensitivity",
         "Controls the mouse-movement-sensitivity used to control sliders, radials and fields using the hotkey mode.",
         "widget_control_sensitivity",
@@ -421,39 +416,9 @@ struct table_setting_row settings_control_rows[] = {
     },
 };
 
-struct table_setting_row settings_interface_rows[] = {
-    {
-        "UI scale",
-        "A restart is required for this change to take effect",
-        "uiscale",
-        setting_row_type::create_hscale(0.25, 2.0, 0.05),
-    },{
-        "Fullscreen mode",
-        "Toggle fullscreen mode",
-        "window_fullscreen",
-        setting_row_type::create_checkbox()
-    }, {
-        "Display object ID",
-        "Display ID of object on selection (bottom-left corner).",
-        "display_object_id",
-        setting_row_type::create_checkbox()
-    }, {
-        "Resizable window",
-        "Allow the window to be resized. NOTE: Principia does not support resizing while in-game. Things will break.",
-        "window_resizable",
-        setting_row_type::create_checkbox()
-    }, {
-        "Autosave screen size",
-        "Save the screen size when resizing the window.",
-        "autosave_screensize",
-        setting_row_type::create_checkbox()
-    },
-};
-
 static const int settings_num_graphic_rows = sizeof(settings_graphic_rows) / sizeof(settings_graphic_rows[0]);
 static const int settings_num_audio_rows = sizeof(settings_audio_rows) / sizeof(settings_audio_rows[0]);
 static const int settings_num_control_rows = sizeof(settings_control_rows) / sizeof(settings_control_rows[0]);
-static const int settings_num_interface_rows = sizeof(settings_interface_rows) / sizeof(settings_interface_rows[0]);
 
 struct gtk_level_property {
     uint64_t flag;
@@ -538,11 +503,6 @@ GtkMessageDialog    *alert_dialog;
 char                *_alert_text = 0;
 uint8_t              _alert_type;
 
-/** --Tips Dialog **/
-GtkDialog       *tips_dialog;
-GtkLabel        *tips_text;
-GtkCheckButton  *tips_hide;
-
 /** --Autosave Dialog **/
 GtkDialog       *autosave_dialog;
 
@@ -562,9 +522,6 @@ GtkDialog       *settings_dialog;
 GtkCheckButton  *settings_enable_shadows;
 GtkSpinButton   *settings_shadow_quality;
 GtkComboBoxText *settings_shadow_res;
-//GtkSpinButton   *settings_ao_quality;
-GtkCheckButton  *settings_enable_ao;
-GtkComboBoxText *settings_ao_res;
 
 /** --Confirm Quit Dialog **/
 GtkDialog       *confirm_quit_dialog;
@@ -1288,11 +1245,9 @@ editor_menu_activate(GtkMenuItem *i, gpointer unused)
             W->level.velocity_iterations = vel_iter;
             W->level.position_iterations = pos_iter;
 
-            if (W->level.version >= 9) {
-                W->level.flags = 0;
-                for (int x=0; x<num_gtk_level_properties; ++x) {
-                    W->level.flags |= ((int)gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(gtk_level_properties[x].checkbutton)) * gtk_level_properties[x].flag);
-                }
+            W->level.flags = 0;
+            for (int x=0; x<num_gtk_level_properties; ++x) {
+                W->level.flags |= ((int)gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(gtk_level_properties[x].checkbutton)) * gtk_level_properties[x].flag);
             }
 
             W->level.bg = gtk_combo_box_get_active(GTK_COMBO_BOX(lvl_bg));
@@ -1402,15 +1357,6 @@ on_pkg_name_show(GtkWidget *wdg, void *unused)
     gtk_entry_set_text(pkg_name_entry, "");
 }
 
-void
-on_tips_show(GtkWidget *wdg, void *unused)
-{
-    if (ctip == -1) ctip = rand()%num_tips;
-
-    gtk_label_set_markup(tips_text, tips[ctip]);
-
-    ctip = (ctip+1)%num_tips;
-}
 
 void
 on_publish_show(GtkWidget *wdg, void *unused)
@@ -1975,7 +1921,6 @@ save_settings()
 
     char tmp[64];
     settings["enable_shadows"]->v.b = (bool)gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(settings_enable_shadows));
-    settings["enable_ao"]->v.b = (bool)gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(settings_enable_ao));
     settings["shadow_quality"]->v.u8 = (uint8_t)gtk_spin_button_get_value(settings_shadow_quality);
 
     /* Graphics */
@@ -1993,12 +1938,6 @@ save_settings()
     /* Controls */
     for (int x=0; x<settings_num_control_rows; ++x) {
         struct table_setting_row *r = &settings_control_rows[x];
-        save_setting_row(r);
-    }
-
-    /* Interface */
-    for (int x=0; x<settings_num_interface_rows; ++x) {
-        struct table_setting_row *r = &settings_interface_rows[x];
         save_setting_row(r);
     }
 
@@ -2026,21 +1965,6 @@ save_settings()
         free(res_y);
     }
 
-    strcpy(tmp, get_cb_val(settings_ao_res));
-    x = strchr(tmp, 'x');
-    if (x != NULL) {
-        char *res = (char*)malloc(64);
-        int pos = x-tmp;
-
-        strncpy(res, tmp, pos);
-        res[pos] = '\0';
-
-        //tms_infof("Setting ao map to '%s'x'%s'", res, res);
-        settings["ao_map_res"]->v.i = atoi(res);
-
-        free(res);
-    }
-
     if (!settings.save()) {
         tms_errorf("Unable to save settings.");
     } else {
@@ -2064,7 +1988,6 @@ on_settings_show(GtkWidget *wdg, void *unused)
 
     gtk_spin_button_set_value(settings_shadow_quality, settings["shadow_quality"]->v.u8);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(settings_enable_shadows), settings["enable_shadows"]->v.b);
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(settings_enable_ao), settings["enable_ao"]->v.b);
 
     /* Graphics */
     for (int x=0; x<settings_num_graphic_rows; ++x) {
@@ -2084,12 +2007,6 @@ on_settings_show(GtkWidget *wdg, void *unused)
         load_setting_row(r);
     }
 
-    /* Interface */
-    for (int x=0; x<settings_num_interface_rows; ++x) {
-        struct table_setting_row *r = &settings_interface_rows[x];
-        load_setting_row(r);
-    }
-
     snprintf(tmp, 64, "%dx%d", settings["shadow_map_resx"]->v.i, settings["shadow_map_resy"]->v.i);
     if (settings["shadow_map_resx"]->v.i == _tms.window_width && settings["shadow_map_resy"]->v.i == _tms.window_height) {
         gtk_combo_box_set_active(GTK_COMBO_BOX(settings_shadow_res), 0);
@@ -2103,25 +2020,6 @@ on_settings_show(GtkWidget *wdg, void *unused)
             index = find_cb_val(settings_shadow_res, tmp);
             if (index != -1) {
                 gtk_combo_box_set_active(GTK_COMBO_BOX(settings_shadow_res), index);
-            } else {
-                tms_errorf("Unable to get index for a value we just appended");
-            }
-        }
-    }
-
-    snprintf(tmp, 64, "%dx%d", settings["ao_map_res"]->v.i, settings["ao_map_res"]->v.i);
-    if (settings["ao_map_res"]->v.i == _tms.window_width && settings["ao_map_res"]->v.i == _tms.window_height) {
-        gtk_combo_box_set_active(GTK_COMBO_BOX(settings_ao_res), 0);
-    } else {
-        gint index = find_cb_val(settings_ao_res, tmp);
-        if (index != -1) {
-            gtk_combo_box_set_active(GTK_COMBO_BOX(settings_ao_res), index);
-        } else {
-            gtk_combo_box_text_append_text(settings_ao_res, tmp);
-
-            index = find_cb_val(settings_ao_res, tmp);
-            if (index != -1) {
-                gtk_combo_box_set_active(GTK_COMBO_BOX(settings_ao_res), index);
             } else {
                 tms_errorf("Unable to get index for a value we just appended");
             }
@@ -2228,18 +2126,6 @@ on_export_keypress(GtkWidget *w, GdkEventKey *key, gpointer unused)
         } else {
             on_export_btn_click(GTK_WIDGET(export_ok), NULL, GINT_TO_POINTER(1));
         }
-    }
-
-    return false;
-}
-
-/** --Tips Dialog **/
-gboolean
-on_tips_keypress(GtkWidget *w, GdkEventKey *key, gpointer unused)
-{
-    if (key->keyval == GDK_KEY_Escape || key->keyval == GDK_KEY_Return) {
-        gtk_widget_hide(w);
-        return true;
     }
 
     return false;
@@ -2402,18 +2288,12 @@ on_properties_show(GtkWidget *wdg, void *unused)
 
     /* Gameplay */
 
-    if (W->level.version >= 9) {
-        /* TODO: Check current game mode and see if these should be enabled or not.
-         * also add an on_click to the type radio buttons which updates this */
-        tms_infof("flags: %" PRIu64, W->level.flags);
-        for (int x=0; x<num_gtk_level_properties; ++x) {
-            gtk_widget_set_sensitive(GTK_WIDGET(gtk_level_properties[x].checkbutton), true);
-            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gtk_level_properties[x].checkbutton), ((uint64_t)(W->level.flags & gtk_level_properties[x].flag) != 0));
-        }
-    } else {
-        for (int x=0; x<num_gtk_level_properties; ++x) {
-            gtk_widget_set_sensitive(GTK_WIDGET(gtk_level_properties[x].checkbutton), false);
-        }
+    /* TODO: Check current game mode and see if these should be enabled or not.
+        * also add an on_click to the type radio buttons which updates this */
+    tms_infof("flags: %" PRIu64, W->level.flags);
+    for (int x=0; x<num_gtk_level_properties; ++x) {
+        gtk_widget_set_sensitive(GTK_WIDGET(gtk_level_properties[x].checkbutton), true);
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gtk_level_properties[x].checkbutton), ((uint64_t)(W->level.flags & gtk_level_properties[x].flag) != 0));
     }
 
     char vv[32];
@@ -4162,12 +4042,6 @@ int _gtk_loop(void *p)
             gtk_combo_box_text_append_text(settings_shadow_res, "512x512");
             gtk_combo_box_text_append_text(settings_shadow_res, "512x256");
 
-            settings_enable_ao = GTK_CHECK_BUTTON(gtk_check_button_new());
-            settings_ao_res = GTK_COMBO_BOX_TEXT(gtk_combo_box_text_new());
-            gtk_combo_box_text_append_text(settings_ao_res, "512x512");
-            gtk_combo_box_text_append_text(settings_ao_res, "256x256");
-            gtk_combo_box_text_append_text(settings_ao_res, "128x128");
-
             add_setting_row(
                 tbl, ++y,
                 "Enable shadows",
@@ -4185,18 +4059,6 @@ int _gtk_loop(void *p)
                 tbl, ++y,
                 "Shadow resolution",
                 GTK_WIDGET(settings_shadow_res)
-            );
-
-            add_setting_row(
-                tbl, ++y,
-                "Enable AO",
-                GTK_WIDGET(settings_enable_ao)
-            );
-
-            add_setting_row(
-                tbl, ++y,
-                "AO map resolution",
-                GTK_WIDGET(settings_ao_res)
             );
 
             for (int x=0; x<settings_num_graphic_rows; ++x) {
@@ -4254,32 +4116,9 @@ int _gtk_loop(void *p)
             tbl_controls = tbl;
         }
 
-        GtkGrid *tbl_interface;
-        {
-            GtkGrid *tbl = create_settings_table();
-
-            int y = -1;
-
-            for (int x=0; x<settings_num_interface_rows; ++x) {
-                struct table_setting_row *r = &settings_interface_rows[x];
-
-                create_setting_row_widget(r);
-
-                add_setting_row(
-                    tbl, ++y,
-                    r->label,
-                    r->wdg,
-                    r->help
-                );
-            }
-
-            tbl_interface = tbl;
-        }
-
         gtk_notebook_append_page(nb, GTK_WIDGET(tbl_graphics),  new_lbl("<b>Graphics</b>"));
         gtk_notebook_append_page(nb, GTK_WIDGET(tbl_audio),     new_lbl("<b>Audio</b>"));
         gtk_notebook_append_page(nb, GTK_WIDGET(tbl_controls),  new_lbl("<b>Controls</b>"));
-        gtk_notebook_append_page(nb, GTK_WIDGET(tbl_interface), new_lbl("<b>Interface</b>"));
 
         gtk_widget_show_all(GTK_WIDGET(nb));
 
@@ -4604,32 +4443,6 @@ _open_autosave(gpointer unused)
 }
 
 static gboolean
-_open_tips_dialog(gpointer unused)
-{
-    do {
-         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(tips_hide), settings["hide_tips"]->v.b);
-
-        gtk_widget_hide(GTK_WIDGET(tips_dialog));
-        gint result = gtk_dialog_run(tips_dialog);
-        gtk_widget_hide(GTK_WIDGET(tips_dialog));
-
-        settings["hide_tips"]->v.b = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(tips_hide));
-
-        if (result == GTK_RESPONSE_APPLY) {
-            tms_infof("reshowing tips");
-            continue;
-        }
-
-        if (result == GTK_RESPONSE_YES)
-            ui::open_url("https://principia-web.se/wiki/");
-
-        break;
-    } while (true);
-
-    return false;
-}
-
-static gboolean
 _open_info_dialog(gpointer unused)
 {
     gtk_widget_show_all(GTK_WIDGET(info_dialog));
@@ -4895,19 +4708,6 @@ ui::open_dialog(int num, void *data/*=0*/)
             tms_warnf("Unhandled dialog ID: %d", num);
             break;
     }
-
-    gdk_display_flush(gdk_display_get_default());
-}
-
-void ui::open_sandbox_tips()
-{
-#ifdef BUILD_VALGRIND
-    if (RUNNING_ON_VALGRIND) return;
-#endif
-
-    wait_ui_ready();
-
-    gdk_threads_add_idle(_open_tips_dialog, 0);
 
     gdk_display_flush(gdk_display_get_default());
 }

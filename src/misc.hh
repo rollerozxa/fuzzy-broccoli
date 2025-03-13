@@ -79,12 +79,6 @@ file_exists(const char *path)
 
 time_t get_mtime(const char *path);
 
-inline uint8_t
-tpixel_mat_to_chunk_mat(uint8_t mat)
-{
-    return mat + 1;
-}
-
 #define GAMMA_CORRECTF(f) (_tms.gamma_correct ? powf(f, 2.2) : f)
 
 #define VEC2_INLINE(v) (v).x, (v).y

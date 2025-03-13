@@ -96,13 +96,6 @@ explosive::ReportFixture(b2Fixture *f)
         return true;
     }
 
-    entity *e = static_cast<entity*>(f->GetUserData());
-
-    if (e && e->g_id == O_BOMB) {
-        explosive *ex = (explosive*)e;
-        ex->time = ex->trigger_time-((uint64_t)rand())%120000llu;
-    }
-
     return true;
 }
 

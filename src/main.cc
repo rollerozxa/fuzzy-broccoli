@@ -49,7 +49,6 @@
 
 principia P={0};
 static struct tms_fb *gi_fb;
-static struct tms_fb *ao_fb;
 
 static bool quitting = false;
 
@@ -187,38 +186,6 @@ gi_end(void)
 }
 
 static void
-ao_begin(void)
-{
-    time_start = SDL_GetTicks();
-    glClearColor(0.f, 0.f, 0.f, 0.f);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glDisable(GL_DEPTH_TEST);
-    glDepthMask(0);
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_FRONT);
-    glDisable(GL_BLEND);
-
-    glColorMask(1,1,1,1);
-    glDisable(GL_CULL_FACE);
-    //glColorMask(0,0,0,0);
-    //glCullFace(GL_FRONT);
-}
-
-static void
-ao_end(void)
-{
-    //glColorMask(1,1,1,1);
-    //glFinish();
-    //
-    glColorMask(1,1,1,1);
-
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(1);
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
-}
-
-static void
 begin(void)
 {
     time_start = SDL_GetTicks();
@@ -250,7 +217,7 @@ begin(void)
             tms_fb_bind_current_textures(gi_fb, GL_TEXTURE3);
         }
     }
-    if (ao_fb) tms_fb_bind_current_textures(ao_fb, GL_TEXTURE4);
+
     //glBindTexture(GL_TEXTURE_2D, gi_fb->fb_texture[gi_fb->toggle][0]);
     glActiveTexture(GL_TEXTURE0);
 
@@ -278,11 +245,6 @@ init_framebuffers(void)
     if (gi_fb) {
         tms_fb_free(gi_fb);
         gi_fb = 0;
-    }
-
-    if (ao_fb) {
-        tms_fb_free(ao_fb);
-        ao_fb = 0;
     }
 
     if (settings["enable_shadows"]->v.b) {
@@ -322,17 +284,7 @@ init_framebuffers(void)
         }
     }
 
-    if (settings["enable_ao"]->v.i) {
-        tms_infof("AO!!!!!!");
-        int res = settings["ao_map_res"]->v.i == 512 ? 512 : (
-                  settings["ao_map_res"]->v.i == 256 ? 256 :
-                  128);
-        ao_fb = tms_fb_alloc(res, res, (settings["swap_ao_map"]->v.b?1:0));
-        tms_fb_add_texture(ao_fb, GL_RGB, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
-    }
-
     tms_pipeline_set_framebuffer(1, gi_fb);
-    tms_pipeline_set_framebuffer(3, ao_fb);
 }
 
 /* called by TMS when we receive the initial command
@@ -478,8 +430,6 @@ tproject_init_pipelines(void)
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
-    tms_pipeline_declare_global(0, "ao_layer", TMS_INT, offsetof(game, tmp_ao_layer));
-    tms_pipeline_declare_global(0, "ao_mask", TMS_VEC3, offsetof(game, tmp_ao_mask));
     tms_pipeline_declare_global(0, "SMVP", TMS_MAT4, offsetof(game, SMVP));
     tms_pipeline_declare_global(0, "AOMVP", TMS_MAT4, offsetof(game, AOMVP));
 
@@ -498,14 +448,6 @@ tproject_init_pipelines(void)
     tms_pipeline_set_begin_fn(1, gi_begin);
     tms_pipeline_set_end_fn(1, gi_end);
 
-    /* ao pipeline */
-    tms_pipeline_declare(3, "M", TMS_MAT4, offsetof(struct tms_entity, M));
-    tms_pipeline_declare(3, "MV", TMS_MV, 0);
-    tms_pipeline_declare(3, "MVP", TMS_MVP, 0);
-    tms_pipeline_declare(3, "N", TMS_MAT3, offsetof(struct tms_entity, N));
-
-    tms_pipeline_set_begin_fn(3, ao_begin);
-    tms_pipeline_set_end_fn(3, ao_end);
 }
 
 void

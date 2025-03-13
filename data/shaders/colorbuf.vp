@@ -16,7 +16,6 @@ void main(void)
     FS_color = vec4(color, 1.);
     vec4 pos = MVP*vec4(position, 1.);
     SET_SHADOW
-    SET_AMBIENT_OCCL
     FS_diffuse = max(dot(LIGHT, nor)*_DIFFUSE, 0.);
     gl_Position = pos;
 }

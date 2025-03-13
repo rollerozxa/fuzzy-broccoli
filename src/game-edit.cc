@@ -1,4 +1,3 @@
-#include "fxemitter.hh"
 #include "game.hh"
 #include "world.hh"
 #include "group.hh"
@@ -140,10 +139,6 @@ game::apply_connection(connection *c, int option)
 
     tms_debugf("apply connection, type %d, option %d", c->type, option);
     tms_debugf("e_id: %u, o_id: %u", c->e->id, c->o?c->o->id:0);
-
-    if (c->o->g_id == O_CHUNK) {
-        tms_debugf("creating connection to chunk");
-    }
 
     //this->drop_if_interacting(c->e);
     //this->drop_if_interacting(c->o);

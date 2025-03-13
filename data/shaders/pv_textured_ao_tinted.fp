@@ -9,6 +9,6 @@ VARYINGS
 void main(void)
 {
     vec4 c = texture2D(tex_0, FS_texcoord);
-    gl_FragColor = SHADOW * c * color * FS_diffuse + c.a * c * color * (_AMBIENT)*AMBIENT_OCCL;
+    gl_FragColor = SHADOW * c * color * FS_diffuse + c.a * c * color * (_AMBIENT);
 }
 

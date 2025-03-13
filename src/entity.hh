@@ -586,8 +586,6 @@ class entity : public tms::entity
     void sidecheck(connection *c);
     void sidecheck4(connection *cc);
 
-    void get_chunk_intersections(std::set<chunk_pos> *chunks);
-
     virtual void remove_connection(connection *cr);
     virtual void destroy_connection(connection *cr);
     virtual void disconnect_all();
@@ -701,13 +699,10 @@ class entity : public tms::entity
     virtual void connection_create_joint(connection *c){};
     virtual bool connection_destroy_joint(connection *c){return false;};
 
-    virtual void toggle_axis_rot(){};
     virtual void set_locked(bool locked, bool immediate=true);
     virtual void load_flags(uint64_t f);
     virtual uint64_t save_flags();
     virtual bool get_axis_rot(){return this->flag_active(ENTITY_AXIS_ROT);};
-    virtual const char *get_axis_rot_tooltip() { return "Toggle axis rotation"; }
-    virtual struct tms_sprite * get_axis_rot_sprite(){return 0;};
 
     /* "editor" events */
     /* XXX */

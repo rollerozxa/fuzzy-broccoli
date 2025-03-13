@@ -167,7 +167,7 @@ game::add_menu_item(int cat, entity *e)
     //e->_pos = b2Vec2(0.f, -o.pos * 2.f);
     e->_pos = e->menu_pos;
 
-    if (e->g_id == O_SIGNAL_CABLE || e->g_id == O_POWER_CABLE || e->g_id == O_INTERFACE_CABLE) {
+    if (e->g_id == O_SIGNAL_CABLE || e->g_id == O_POWER_CABLE) {
         e->set_position(e->menu_pos);
     }
     e->_angle = 0.0f;
@@ -738,11 +738,8 @@ game::menu_handle_event(tms::event *ev)
 
                         pending_ent[pid]->ghost_update();
                     } else if (sliding_menu[pid]) {
-                        if (settings["smooth_menu"]->v.b) {
-                            menu_cam_vel -= (_tms.yppcm / 1000.f) * (tdown_p[pid].y - sp.y);
-                        } else {
-                            menu_cam_vel -= tdown_p[pid].y - sp.y;
-                        }
+                        menu_cam_vel -= (_tms.yppcm / 1000.f) * (tdown_p[pid].y - sp.y);
+
                         tdown_p[pid].y = sp.y;
                     } else {
                         /* not added yet, determine whether we are sliding the menu or
@@ -779,11 +776,8 @@ game::menu_handle_event(tms::event *ev)
 
         case TMS_EV_POINTER_SCROLL:
             if (W->is_paused() && this->state.sandbox && ev->data.scroll.mouse_x > (_tms.window_width-this->get_menu_width())) {
-                if (settings["smooth_menu"]->v.b) {
-                    menu_cam_vel -= (float)ev->data.scroll.y * (settings["menu_speed"]->v.f * 4.0f);
-                } else {
-                    menu_cam_vel -= (float)ev->data.scroll.y * (settings["menu_speed"]->v.f * 40.0f);
-                }
+                menu_cam_vel -= (float)ev->data.scroll.y * (4.0f);
+
                 return EVENT_DONE;
             }
             break;
@@ -1029,17 +1023,6 @@ game::widget_clicked(principia_wdg *w, uint8_t button_id, int pid)
             }
             break;
 
-        case GW_TOGGLE_AXIS_ROT:
-            if (G->selection.e) {
-                G->selection.e->toggle_axis_rot();
-                G->state.modified = true;
-
-                G->refresh_axis_rot();
-
-                return true;
-            }
-            break;
-
         case GW_LAYER_DOWN_CYCLE:
             if (G->selection.e && (left || right)) {
                 if (!(!G->state.sandbox && W->is_puzzle() && W->level.flag_active(LVL_DISABLE_LAYER_SWITCH))) {
@@ -1072,9 +1055,7 @@ game::widget_clicked(principia_wdg *w, uint8_t button_id, int pid)
             /* FIXME: Damper, Open pivot and Rubberband can't be moveable right now. fix sometime */
         case GW_TOGGLE_MOVEABLE:
             if (G->selection.e) {
-                if (G->selection.e->g_id == O_OPEN_PIVOT || G->selection.e->g_id == O_OPEN_PIVOT_2) {
-                    ui::message("Can't set the Pivot to moveable.");
-                } else if (G->selection.e->g_id == O_DAMPER || G->selection.e->g_id == O_DAMPER_2) {
+                if (G->selection.e->g_id == O_DAMPER || G->selection.e->g_id == O_DAMPER_2) {
                     ui::message("Can't set the Damper to moveable.");
                 } else if (G->selection.e->g_id == O_RUBBERBAND || G->selection.e->g_id == O_RUBBERBAND_2) {
                     ui::message("Can't set the Rubberband to moveable.");
@@ -1501,13 +1482,6 @@ game::init_gui(void)
     this->wdg_unplug->priority = 1500;
     this->wdg_unplug->set_tooltip("Unplug cable");
 
-    this->wdg_axis = this->wm->create_widget(
-            this->get_surface(), TMS_WDG_BUTTON,
-            GW_TOGGLE_AXIS_ROT, AREA_BOTTOM_LEFT,
-            gui_spritesheet::get_sprite(S_AXIS), 0);
-    this->wdg_axis->priority = 1400;
-    this->wdg_axis->set_tooltip("Toggle axis rotation");
-
     this->wdg_moveable = this->wm->create_widget(
             this->get_surface(), TMS_WDG_BUTTON,
             GW_TOGGLE_MOVEABLE, AREA_BOTTOM_LEFT,
@@ -1670,31 +1644,6 @@ game::refresh_info_label()
     }
 }
 
-void
-game::refresh_axis_rot()
-{
-    bool ui = W->is_paused();
-
-    if (this->selection.enabled() && this->selection.e && this->selection.e->get_property_entity() && ui) {
-        entity *e = this->selection.e->get_property_entity();
-        this->wdg_axis->faded = !e->get_axis_rot();
-
-        struct tms_sprite *spr = 0;
-        if ((spr = e->get_axis_rot_sprite())) {
-            this->wdg_axis->s[0] = spr;
-        } else {
-            this->wdg_axis->s[0] = gui_spritesheet::get_sprite(S_AXIS);
-        }
-
-        const char *new_tooltip = e->get_axis_rot_tooltip();
-        if (new_tooltip) {
-            this->wdg_axis->set_tooltip(new_tooltip);
-        } else {
-            this->wdg_axis->set_tooltip("Toggle axis rotation");
-        }
-    }
-}
-
 /* REFRESH WIDGETS */
 void
 game::refresh_widgets()
@@ -1774,7 +1723,6 @@ game::refresh_widgets()
         /* Detach */
         if (((W->is_paused() && this->state.sandbox) || !W->level.flag_active(LVL_DISABLE_CONNECTIONS)) &&
                 (e->allow_connections() || e->flag_active(ENTITY_IS_COMPOSABLE)
-                    || e->g_id == O_BALL_PIPELINE || e->g_id == O_SHAPE_EXTRUDER
                     || e->g_id == O_WEIGHT)) {
             this->wdg_detach->add();
 
@@ -1811,13 +1759,6 @@ game::refresh_widgets()
                     }
                 }
             }
-        }
-
-        /* Axis rotation */
-        if (e->flag_active(ENTITY_ALLOW_AXIS_ROT) && (W->is_paused() && this->state.sandbox)) {
-            this->wdg_axis->add();
-
-            this->refresh_axis_rot();
         }
 
         /* Moveable */
@@ -1952,8 +1893,7 @@ game::refresh_widgets()
         this->wdg_mode->add();
     }
 
-    if (!this->state.sandbox && !this->state.test_playing && this->get_mode() != GAME_MODE_INVENTORY
-        && W->level.type != LCAT_ADVENTURE) {
+    if (!this->state.sandbox && !this->state.test_playing && W->level.type != LCAT_ADVENTURE) {
         if (W->level.descr_len) {
             this->wdg_help->add();
         }
@@ -2440,10 +2380,6 @@ game::render_sandbox_menu()
         //menu_cam_vel *= powf(_tms.dt, CAM_DAMPING);
         menu_cam_vel *= powf(CAM_DAMPING, _tms.dt);
         menu_cam->_position.y += menu_cam_vel;
-
-        if (!settings["smooth_menu"]->v.b) {
-            menu_cam_vel = 0.f;
-        }
     }
 
     if (menu_cam->_position.y < 0.f) menu_cam->_position.y *= .8f;
@@ -2750,13 +2686,6 @@ game::render_noselection_gui(void)
 void
 game::render_selection_gui(void)
 {
-}
-
-void
-game::render_num(float x, float y, int iw, int ih, float num, int precision/*=2*/, float extra_scale/*=0.f*/, bool render_background/*=true*/)
-{
-    /* FIXME: add a scale argument to add_text */
-    this->add_text(num, font::small, x+iw, y, TV_WHITE, precision);
 }
 
 void

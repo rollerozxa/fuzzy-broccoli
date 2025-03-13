@@ -1,5 +1,4 @@
 #include "cable.hh"
-#include "chunk.hh"
 #include "connection.hh"
 #include "font.hh"
 #include "game-message.hh"
@@ -566,12 +565,6 @@ render_foreground(struct tms_rstate *state, void *value)
 {
     int val = VOID_TO_INT(value);
 
-    if (val == 3) {
-        glColorMask(1,1,1,1);
-        G->tmp_ao_mask = (tvec3){.0f, 0.f, 0.0f};
-        return T_OK;
-    }
-
     return 1;
 }
 
@@ -579,25 +572,6 @@ int
 render_next_prio(struct tms_rstate *state, void *value)
 {
     int val = VOID_TO_INT(value);
-
-    switch (val) {
-        case 2:
-            G->tmp_ao_mask = (tvec3){.0f, 0.f, 0.0f};
-            glColorMask(1,1,1,1);
-            break;
-
-        case 1:
-            G->tmp_ao_mask = (tvec3){.0f, 0.f, 1.0f};
-            glColorMask(1,1,1,1);
-            break;
-
-        case 0:
-            G->tmp_ao_mask = (tvec3){.0f, 1.f, 0.0f};
-            glColorMask(1,1,1,1);
-            break;
-
-        default: return 1;
-    }
 
     if (!((1 << val) & G->layer_vis)) {
         return 1;
@@ -610,14 +584,6 @@ int
 render_hidden_prio(struct tms_rstate *rstate, void *value)
 {
     int val = VOID_TO_INT(value);
-
-    switch (val) {
-        case 2: G->tmp_ao_mask = (tvec3){.0f, 0.f, 0.0f}; break;
-        case 1: G->tmp_ao_mask = (tvec3){.0f, 0.f, 1.0f}; break;
-        case 0: G->tmp_ao_mask = (tvec3){.0f, 1.f, 0.0f}; break;
-
-        default: return 1;
-    }
 
     if (!((1 << val) & G->layer_vis)) {
         glEnable(GL_BLEND);
@@ -636,31 +602,6 @@ void
 post_fn(struct tms_rstate *state)
 {
 
-}
-
-void
-ao_post_fn(struct tms_rstate *state)
-{
-
-}
-
-int ao_mask_color(struct tms_rstate *state, void *value)
-{
-    int val = VOID_TO_INT(value);
-
-    switch (val) {
-        case 2:
-            glColorMask(0,0,1,0);
-            break;
-        case 1:
-            glColorMask(0,1,0,0);
-            break;
-        case 0:
-            glColorMask(1,0,0,0); break;
-        default: return 1;
-    }
-
-    return T_OK;
 }
 
 int sort_blending(struct tms_rstate *rstate, void *value)
@@ -768,8 +709,6 @@ game::game()
     this->hov_ent = 0;
 #endif
 
-    this->inventory_highest_y = 0.f;
-    this->inventory_scroll_offset = 0.f;
     this->dropping = -1;
     this->drop_step = 0;
     this->drop_amount = 0;
@@ -794,8 +733,6 @@ game::game()
     this->numfeed_timer = 0.f;
     this->numfeed_text = new p_text(font::small);
     this->numfeed_text->set_position(_tms.window_width/2.f, _tms.window_height-_tms.yppcm/2.f/2.f);
-    this->tmp_ao_layer = 1;
-    this->tmp_ao_mask = (tvec3){.0f, 0.f, 0.f};
     this->cam_vel = (tvec3){0,0,0};
 
     for (unsigned x=0; x<NUM_ACTIVATOR_BINDINGS; ++x) {
@@ -950,16 +887,6 @@ game::init_graphs()
     this->gi_graph->sort_depth = 4;
     tms_graph_enable_culling(this->gi_graph, enable_culling);
 
-    this->ao_graph = this->get_scene()->create_graph(3);
-    this->ao_graph->sorting[0] = TMS_SORT_PRIO_BIASED;
-    this->ao_graph->sorting[1] = TMS_SORT_SHADER;
-    this->ao_graph->sorting[2] = TMS_SORT_VARRAY;
-    this->ao_graph->sorting[3] = TMS_SORT_MESH;
-    this->ao_graph->sort_depth = 4;
-    this->ao_graph->post_fn = ao_post_fn;
-    tms_graph_set_sort_callback(this->ao_graph, TMS_SORT_PRIO_BIASED, ao_mask_color);
-    tms_graph_enable_culling(this->ao_graph, enable_culling);
-
     this->outline_graph = new tms::graph(0);
     this->outline_graph->scene_pos = 3;
     tms_graph_init(this->outline_graph, 0, 0);
@@ -987,13 +914,6 @@ game::init_camera()
 
     this->cam->set_direction(0, 0, -1);
     this->cam->calculate();
-
-    this->ao_cam = new tms::camera();
-    this->ao_cam->width = 1024.f/50.f;
-    this->ao_cam->height = 1024.f/50.f;
-
-    this->ao_cam->near = 0.0f - 2.0f;
-    this->ao_cam->far = LAYER_DEPTH*3 + .5f;// + .75f;
 
     this->gi_cam = new tms::camera();
     this->gi_cam->width = 1024.f/50.f;
@@ -1049,10 +969,6 @@ game::pause()
     tms_debugf("game::pause");
     sm::stop_all();
     ui::open_dialog(CLOSE_ABSOLUTELY_ALL_DIALOGS);
-
-#ifdef TMS_BACKEND_PC
-    SDL_SetWindowGrab((SDL_Window*)_tms._window, SDL_FALSE);
-#endif
 
     return T_OK;
 }
@@ -1180,7 +1096,7 @@ game::step(double dt)
         W->query(this->cam, (int)move_pos.x, (int)move_pos.y, &this->hov_ent, &_b, &_o, &_f, this->layer_vis, false, 0, true);
 
         hov_fadeout = true;
-        if (this->hov_ent && this->hov_ent->g_id != O_CHUNK) {
+        if (this->hov_ent) {
             char tooltip_text[512];
             tooltip_text[0] = '\0';
             this->hov_ent->write_tooltip(tooltip_text);
@@ -1459,7 +1375,6 @@ game::step(double dt)
 
     tvec3_mul(&l, LAYER_DEPTH*3);
 
-    this->ao_cam->set_direction(0,0,-1.f);//TVEC3_INLINE_N(l));
     this->gi_cam->set_direction(0,0,-1.f);//TVEC3_INLINE_N(l));
 
     l.x += roundf(this->cam->_position.x);
@@ -1470,18 +1385,9 @@ game::step(double dt)
     this->gi_cam->width = 1024.f/50.f * fmaxf(this->cam->_position.z/11.f, .1f);
     this->gi_cam->height = 1024.f/50.f * fmaxf(this->cam->_position.z/11.f, .1f);
 
-    //this->ao_cam->width = 1024.f/50.f * this->cam->_position.z/11.f;
-    //this->ao_cam->height = 1024.f/50.f * this->cam->_position.z/11.f;
-
-    this->ao_cam->width = this->gi_cam->width;
-    this->ao_cam->height = this->gi_cam->height;
-
     this->gi_cam->set_position(l.x, l.y, l.z);
-    this->ao_cam->set_position(l.x, l.y, l.z);
-    //this->ao_cam->set_position(l.x-l_to_c.x*3.f, l.y-l_to_c.y*3.f, l.z);
     //this->gi_cam->set_position(0, 0, l.z);
     this->gi_cam->up = (tvec3){0.f, 1.f, 0.f};
-    this->ao_cam->up = (tvec3){0.f, 1.f, 0.f};
     //tvec3_normalize(&this->gi_cam->up);
 
     if (this->state.abo_architect_mode && W->is_paused()) {
@@ -1522,90 +1428,35 @@ game::step(double dt)
     tmat4_multiply(this->cam->combined, this->cam->view);
 
     this->gi_cam->calculate();
-    this->ao_cam->calculate();
 
-    if (settings["shadow_ao_combine"]->v.b) {
-        /* GI */
-        float skew[16];
-        tmat4_load_identity(skew);
-        //tvec3_normalize(&l_to_c);
-        skew[8] = -l_to_c.x / this->light.z;
-        skew[9] = -l_to_c.y / this->light.z;
-        tmat4_multiply(this->gi_cam->projection, skew);
+    /* create SMVP and AOMVP separately */
 
-        tmat4_copy(this->gi_cam->combined, this->gi_cam->projection);
-        tmat4_multiply(this->gi_cam->combined, this->gi_cam->view);
+    /* create the ao matrix */
+    static float bias[] = {
+        .5f, 0, 0, 0,
+        0, .5f, 0, 0,
+        0, 0, .5f, 0,
+        .5f, .5f, .5f, 1.f
+    };
 
-        /* AO */
+    float inv[16];
+    tmat4_copy(inv, this->cam->combined);
+    tmat4_invert(inv);
 
-        skew[8] = -l_to_c.x / this->light.z;
-        skew[9] = -l_to_c.y / this->light.z;
-        tmat4_multiply(this->ao_cam->projection, skew);
+    /* shadow matrix */
+    float skew[16];
+    tmat4_load_identity(skew);
+    //tvec3_normalize(&l_to_c);
+    skew[8] = -l_to_c.x / this->light.z;
+    skew[9] = -l_to_c.y / this->light.z;
+    tmat4_multiply(this->gi_cam->projection, skew);
 
-        tmat4_load_identity(skew);
-        //skew[10] = 0;
-        skew[14] = -LAYER_DEPTH;
-        tmat4_multiply(this->ao_cam->view, skew);
+    tmat4_copy(this->gi_cam->combined, this->gi_cam->projection);
+    tmat4_multiply(this->gi_cam->combined, this->gi_cam->view);
+    tmat4_copy(this->SMVP, bias);
+    tmat4_multiply(this->SMVP, this->gi_cam->combined);
 
-        tmat4_copy(this->ao_cam->combined, this->ao_cam->projection);
-        /*this->ao_cam->view[11] = 0.f;
-        this->ao_cam->view[10] = 0.f;
-        this->ao_cam->view[9] = 0.f;*/
-        //this->ao_cam->view[10] = 0.0f;
-        //this->ao_cam->view[12] = -1.0f;
-        //this->ao_cam->view[14] = -1.f;
-        tmat4_multiply(this->ao_cam->combined, this->ao_cam->view);
-
-        /* create the shadow matrix */
-        static float shadow_bias[] = {
-            .5f, 0, 0, 0,
-            0, .5f, 0, 0,
-            0, 0, .5f, 0,
-            .5f, .5f, .5f, 1.f
-        };
-
-        tmat4_copy(this->SMVP, shadow_bias);
-        tmat4_multiply(this->SMVP, this->gi_cam->combined);
-
-        float tmp[16];
-        tmat4_copy(tmp, this->cam->combined);
-        tmat4_invert(tmp);
-
-        tmat4_multiply(this->SMVP, tmp);
-    } else {
-        /* create SMVP and AOMVP separately */
-
-        /* create the ao matrix */
-        static float bias[] = {
-            .5f, 0, 0, 0,
-            0, .5f, 0, 0,
-            0, 0, .5f, 0,
-            .5f, .5f, .5f, 1.f
-        };
-
-        float inv[16];
-        tmat4_copy(inv, this->cam->combined);
-        tmat4_invert(inv);
-
-        tmat4_copy(this->AOMVP, bias);
-        tmat4_multiply(this->AOMVP, this->ao_cam->combined);
-        tmat4_multiply(this->AOMVP, inv);
-
-        /* shadow matrix */
-        float skew[16];
-        tmat4_load_identity(skew);
-        //tvec3_normalize(&l_to_c);
-        skew[8] = -l_to_c.x / this->light.z;
-        skew[9] = -l_to_c.y / this->light.z;
-        tmat4_multiply(this->gi_cam->projection, skew);
-
-        tmat4_copy(this->gi_cam->combined, this->gi_cam->projection);
-        tmat4_multiply(this->gi_cam->combined, this->gi_cam->view);
-        tmat4_copy(this->SMVP, bias);
-        tmat4_multiply(this->SMVP, this->gi_cam->combined);
-
-        tmat4_multiply(this->SMVP, inv);
-    }
+    tmat4_multiply(this->SMVP, inv);
 
     /* XXX place this somewhere else? */
     if (W->is_paused()) {
@@ -1683,7 +1534,6 @@ game::step(double dt)
             tmat4_dump(this->cam->combined);
             */
 
-            W->cwindow->set(b2min, b2max);
         }
     }
 
@@ -1876,7 +1726,6 @@ static inline void _uncull(struct tms_entity *e)
         tms_scene_uncull_entity(G->get_scene(), (struct tms_entity*)e);
         tms_graph_uncull_entity(G->graph, (struct tms_entity*)e);
         tms_graph_uncull_entity(G->gi_graph, (struct tms_entity*)e);
-        tms_graph_uncull_entity(G->ao_graph, (struct tms_entity*)e);
     }
 }
 
@@ -1920,9 +1769,6 @@ _uncull_handler::ReportFixture(b2Fixture *f)
     entity *e;
 
     if ((e = static_cast<entity*>(f->GetUserData()))) {
-        if (e->g_id == O_CHUNK) {
-            return true;
-        }
         if (W->is_paused() && e->type == ENTITY_PLUG && e->flag_active(ENTITY_IS_OWNED)) {
             _uncull_full(static_cast<entity*>(e->parent));
             _uncull(e);
@@ -1947,7 +1793,6 @@ _box_select_handler::ReportFixture(b2Fixture *f)
     entity *e;
 
     if ((e = static_cast<entity*>(f->GetUserData()))) {
-        if (e->g_id == O_CHUNK) return true;
         if (e->is_static()) return true;
         if (e->flag_active(ENTITY_IS_PLUG)) {
             e = e->get_property_entity();
@@ -2002,7 +1847,6 @@ game::render()
 
     tms_graph_enable_culling(this->graph, enable_culling);
     tms_graph_enable_culling(this->gi_graph, enable_culling);
-    tms_graph_enable_culling(this->ao_graph, enable_culling);
 
     tvec3 vdist = this->cam->_position;
     vdist.x -= this->last_static_update.x;
@@ -2026,7 +1870,6 @@ game::render()
         tms_scene_cull_all(this->get_scene());
         tms_graph_cull_all(this->graph);
         tms_graph_cull_all(this->gi_graph);
-        tms_graph_cull_all(this->ao_graph);
 
         if (W->is_paused()) {
             if (this->selection.e)
@@ -2041,8 +1884,6 @@ game::render()
         tms_graph_uncull_entity(this->graph, textbuffer::get_entity2());
         tms_graph_uncull_entity(this->graph, spritebuffer::get_entity());
         tms_graph_uncull_entity(this->graph, spritebuffer::get_entity2());
-
-        _uncull(W->cwindow);
 
         _uncull(cable::get_entity());
 
@@ -2194,19 +2035,6 @@ game::render()
 
     tms_assertf((ierr = glGetError()) == 0, "gl error %d in game::render after shadow render", ierr);
 
-    //tms_debugf("cam before render ao %f", this->cam->_position.z);
-    if (settings["enable_ao"]->v.b) {
-        glDisable(GL_BLEND);
-        this->ao_graph->render(this->ao_cam, this);
-
-        if (tms_pipeline_get_framebuffer(3)->width == 512) {
-            tms_fb_swap_blur5x5(tms_pipeline_get_framebuffer(3));
-        } else {
-            tms_fb_swap_blur3x3(tms_pipeline_get_framebuffer(3));
-        }
-    }
-
-    tms_assertf((ierr = glGetError()) == 0, "gl error %d in game::render after shadow/ao", ierr);
     glDisable(GL_BLEND);
 
     //ss = SDL_GetTicks();
@@ -2561,12 +2389,6 @@ game::render()
         tms_assertf((ierr = glGetError()) == 0, "gl error %d after fb swap shadows", ierr);
     }
 
-    /*
-    if (settings["enable_ao"]->v.b && settings["swap_ao_map"]->v.b
-            && tms_pipeline_get_framebuffer(3))
-        tms_fb_swap(tms_pipeline_get_framebuffer(3), 0);
-        */
-
     if (this->main_fb) {
         tms_fb_swap(this->main_fb, 0);
         tms_assertf((ierr = glGetError()) == 0, "gl error %d after fb swap main", ierr);
@@ -2678,8 +2500,6 @@ game::render_starred(void)
         if ((*i)->type == ENTITY_CABLE) {
             p = ((cable*)(*i))->p[0]->get_position() + ((cable*)(*i))->p[1]->get_position();
             p *= .5f;
-        } else if ((*i)->g_id == O_COMMAND_PAD) {
-            p.x += .25f;
         }
 
         float s = _tms.xppcm * 0.01f;
@@ -3738,7 +3558,6 @@ game::reset()
     this->selection.disable();
     this->reset_touch(true);
     this->clear_entities();
-    W->cwindow->preloader.clear_chunks();
 
     this->state.is_main_puzzle = false;
 
@@ -3805,7 +3624,6 @@ game::reset()
     this->state.edit_layer = 0;
     this->state.submitted_score = false;
     this->state.new_adventure = false;
-    this->get_scene()->add_entity(W->cwindow);
     this->get_scene()->add_entity(linebuffer::get_entity());
     this->get_scene()->add_entity(linebuffer::get_entity2());
     this->get_scene()->add_entity(textbuffer::get_entity());
@@ -3892,10 +3710,6 @@ static bool just_paused = false;
 void
 game::do_pause()
 {
-
-#ifdef TMS_BACKEND_PC
-    SDL_SetWindowGrab((SDL_Window*)_tms._window, SDL_FALSE);
-#endif
     if (this->state.test_playing) {
         tms_infof("returning to sandbox");
         /* When returning from the sandbox, i.e. when we've finished testing our level,
@@ -4180,9 +3994,9 @@ game::copy_properties(entity *destination, entity *source, bool hl/*=false*/)
             }
         }
 
-        if (destination->g_id == O_BOX) {
+        /*WTF? if (destination->g_id == O_BOX) {
             destination->on_load(false);
-        }
+        }*/
 
         if (hl) {
             P.add_action(ACTION_HIGHLIGHT_SELECTED, 0);
@@ -4367,13 +4181,6 @@ game::handle_input_playing(tms::event *ev, int action)
                 }
 
                 this->state.waiting = false;
-#ifdef TMS_BACKEND_PC
-                if (settings["jail_cursor"]->v.b == true) {
-                    SDL_SetWindowGrab((SDL_Window*)_tms._window, SDL_TRUE);
-                } else {
-                    SDL_SetWindowGrab((SDL_Window*)_tms._window, SDL_FALSE);
-                }
-#endif
 
                 if (ev->type == TMS_EV_KEY_PRESS && ev->data.key.keycode == TMS_KEY_SPACE) {
                     return T_OK;
@@ -5281,7 +5088,7 @@ game::select_random_entity()
         } else {
             return;
         }
-    } while (!e || e->g_id != O_MINI_TRANSMITTER);
+    } while (!e);
 }
 
 bool
@@ -5528,16 +5335,6 @@ game::handle_input_paused(tms::event *ev, int action)
                         entity *e = static_cast<entity*>(c);
                         if (!c->p[0]->s && !c->p[1]->s) {
                             entities_to_remove.insert(e);
-                        }
-                    }
-
-                    for (std::map<uint32_t, entity*>::iterator it = W->all_entities.begin(); it != W->all_entities.end(); ++it) {
-                        entity *e = it->second;
-                        if (e->g_id == O_JUMPER || e->g_id == O_RECEIVER || e->g_id == O_MINI_TRANSMITTER) {
-                            plug_base *pb = static_cast<plug_base*>(e);
-                            if (!pb->is_connected()) {
-                                entities_to_remove.insert(e);
-                            }
                         }
                     }
 
@@ -6086,24 +5883,6 @@ game::handle_input_paused(tms::event *ev, int action)
                 return T_OK;
             }
 
-            if (this->selection.e->g_id == O_SERVO_MOTOR || this->selection.e->g_id == O_DC_MOTOR) {
-                motor *s = (motor*)this->selection.e;
-                tvec3 pt;
-                W->get_layer_point(this->cam, (int)ev->data.motion.x, (int)ev->data.motion.y, this->selection.e->get_layer(), &pt);
-                b2Vec2 r = this->selection.e->local_to_world(b2Vec2(cosf(s->properties[1].v.f) * 3.f, sinf(s->properties[1].v.f)*3.f), this->selection.frame);
-
-                if ((r - b2Vec2(pt.x, pt.y)).Length() < .5f) {
-                    rotating[pid] = 2;
-                    b2Vec2 p = this->selection.e->get_position();
-
-                    float a1 = atan2f(r.y - p.y, r.x - p.x);
-                    float a2 = atan2f(pt.y - p.y, pt.x - p.x);
-
-                    this->rot_offs = tmath_adist(a2, a1);
-                    W->query(this->cam, (int)ev->data.motion.x, (int)ev->data.motion.y, &this->sel_p_ent, &this->sel_p_body, &this->sel_p_offs, &this->sel_p_frame, this->layer_vis);
-                    return T_OK;
-                }
-            }
         } else if (this->get_mode() == GAME_MODE_MULTISEL
 #ifdef TMS_BACKEND_PC
                 && pid == 0
@@ -6379,18 +6158,10 @@ game::handle_input_paused(tms::event *ev, int action)
                             } else {
 
                                 if (simple_snap) {
-                                    /* Shift-dragging pixels remove them from their grid */
-                                    if (this->selection.e->g_id == O_PIXEL || this->selection.e->g_id == O_TPIXEL) {
-                                        this->selection.e->entity::set_position(
-                                                roundf(pos.x/state.gridsize)*state.gridsize,
-                                                roundf(pos.y/state.gridsize)*state.gridsize,
-                                                this->selection.frame);
-                                    } else {
-                                        this->selection.e->set_position(
-                                                roundf(pos.x/state.gridsize)*state.gridsize,
-                                                roundf(pos.y/state.gridsize)*state.gridsize,
-                                                this->selection.frame);
-                                    }
+                                    this->selection.e->set_position(
+                                            roundf(pos.x/state.gridsize)*state.gridsize,
+                                            roundf(pos.y/state.gridsize)*state.gridsize,
+                                            this->selection.frame);
                                 } else {
 #define BORDER_SCROLL_SIZE 80
                                     int border_x = BORDER_SCROLL_SIZE;
@@ -6607,38 +6378,6 @@ game::handle_input_paused(tms::event *ev, int action)
 
                         if (e->is_edevice()) {
                             /* Add all jumpers/mini-emitters/receivers */
-                            edevice *edev = e->get_edevice();
-
-                            if (edev) {
-                                for (int x=0; x<edev->num_s_in; ++x) {
-                                    const isocket &s = edev->s_in[x];
-
-                                    if (s.p) {
-                                        entity *p = static_cast<entity*>(s.p);
-
-                                        switch (p->g_id) {
-                                            case O_RECEIVER:
-                                            case O_JUMPER:
-                                                loop->insert(p);
-                                                break;
-                                        }
-                                    }
-                                }
-
-                                for (int x=0; x<edev->num_s_out; ++x) {
-                                    const isocket &s = edev->s_out[x];
-
-                                    if (s.p) {
-                                        entity *p = static_cast<entity*>(s.p);
-
-                                        switch (p->g_id) {
-                                            case O_MINI_TRANSMITTER:
-                                                loop->insert(p);
-                                                break;
-                                        }
-                                    }
-                                }
-                            }
                         }
                     }
 
@@ -6807,7 +6546,6 @@ game::interact_select(entity *e)
     if (!e) return -1;
     if (e->flag_active(ENTITY_IS_STATIC)) return -1;
     if (e->flag_active(ENTITY_IS_BULLET)) return -1;
-    if (e->g_id == O_CHUNK) return -1;
 
     for (int ip=0; ip<MAX_INTERACTING; ip++) {
         found = ip;
@@ -7534,8 +7272,6 @@ game::editor_construct_entity(uint32_t g_id, int pid/*=0*/, bool force_on_pid/*=
         g_id = O_DAMPER;
     } else if (g_id == O_RUBBERBAND_2) {
         g_id = O_RUBBERBAND;
-    } else if (g_id == O_OPEN_PIVOT_2) {
-        g_id = O_OPEN_PIVOT;
     }
 
     tvec3 pos;
@@ -7567,7 +7303,7 @@ game::editor_construct_entity(uint32_t g_id, int pid/*=0*/, bool force_on_pid/*=
 
     e->ghost_update();
 
-    if (this->selection.e && e->compatible_with(this->selection.e) && this->selection.e->g_id != O_ROPE && (this->selection.e->g_id != O_TPIXEL)) {
+    if (this->selection.e && e->compatible_with(this->selection.e)) {
         /* copy properties from the selected object */
         this->copy_properties(e, this->selection.e);
 
@@ -7767,30 +7503,11 @@ selection_handler::select(entity *e, b2Body *b, tvec2 offs, uint8_t frame, bool 
         tms_infof("selection: entity %s:%p (g_id: %d, id: %u, pos: %4.2f/%4.2f, grouped:%s(%u,%d,%d)). sensor:%s",
                 e->get_name(), e, e->g_id, e->id, e->get_position().x, e->get_position().y, e->gr?"YES":"NO", e->gr?e->gr->id:0, e->gr?(int)e->gr->entities.size():0, e->gr?(int)e->gr->connections.size():0,
                 (e->get_body(0) ? (e->get_body(0)->GetFixtureList() ? (e->get_body(0)->GetFixtureList()->IsSensor() ? "YES" : "NO") : "NO") : "NO"));
-
-        if (e->g_id == O_GOAL && G->state.pkg && G->state.pkg->type == LEVEL_MAIN) {
-            G->finish(true);
-        }
     }
 #endif
 
     if (e) {
         e->set_flag(ENTITY_CONNECTED_TO_BREADBOARD, false);
-
-        connection *c = e->conn_ll;
-
-        if (c) {
-            do {
-                connection **ccn = &c->next[(c->e == e) ? 0 : 1];
-                entity *o = c->e == e ? c->o : c->e;
-                c = *ccn;
-                if (!o) continue;
-                if (o->g_id == O_BREADBOARD) {
-                    e->set_flag(ENTITY_CONNECTED_TO_BREADBOARD, true);
-                    break;
-                }
-            } while (c);
-        }
     }
 
     G->refresh_widgets();
@@ -7969,71 +7686,6 @@ game::set_mode(int new_mode)
         this->_mode = new_mode;
         this->refresh_widgets();
     }
-}
-
-static struct tms_wdg *inventory_widgets[NUM_RESOURCES];
-static bool inventory_widgets_initialized = false;
-
-void
-inventory_widget_on_change(struct tms_wdg *w, float values[2])
-{
-
-}
-
-static void
-init_inventory_widgets()
-{
-    if (inventory_widgets_initialized) return;
-
-    int iw = _tms.xppcm*.375f;
-    int ih = _tms.yppcm*.375f;
-
-
-    inventory_widgets_initialized = true;
-}
-
-void
-game::show_inventory_widgets()
-{
-
-}
-
-void
-game::hide_inventory_widgets()
-{
-
-}
-
-void
-game::refresh_inventory_widgets()
-{
-
-}
-
-void
-game::draw_entity_bar(entity *e, float v, float y_offset, const tvec3 &color, float alpha)
-{
-    b2Vec2 p = e->get_position() + b2Vec2(0.f, y_offset);
-    float barw = v * (BAR_WIDTH-.05f);
-    float mv[16];
-
-    tmat4_copy(mv, this->cam->view);
-    tmat4_translate(mv, 0, 0, e->get_layer()*LAYER_DEPTH);
-    tms_ddraw_set_matrices(this->dd, mv, this->cam->projection);
-
-    tms_ddraw_set_color(this->dd, 0.f, 0.f, 0.f, alpha);
-    tms_ddraw_square(this->dd,
-            p.x, p.y,
-            BAR_WIDTH,
-            BAR_HEIGHT
-            );
-
-    tms_ddraw_set_color(this->dd, TVEC3_INLINE(color), alpha);
-    tms_ddraw_square(this->dd,
-            p.x, p.y,
-            barw,
-            BAR_HEIGHT * 0.75f
-            );
 }
 
 /**

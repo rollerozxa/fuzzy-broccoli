@@ -9,6 +9,6 @@ void main(void)
 {
     lowp vec4 albedo = texture2D(tex_0, FS_texcoord);
     gl_FragColor = SHADOW*albedo*FS_diffuse +
-        albedo*(_AMBIENT)*AMBIENT_OCCL;
+        albedo*(_AMBIENT);
 }
 

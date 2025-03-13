@@ -1053,6 +1053,8 @@ tms_fb_render(struct tms_fb *f,
 {
     tms_assertf(tms.framebuffer != f, "can not render framebuffer to itself");
 
+    if (!_i) init();
+
     for (int x=0; x<f->num_textures; x++) {
         glActiveTexture(GL_TEXTURE0+x);
         glBindTexture(GL_TEXTURE_2D, f->fb_texture[f->toggle][x]);

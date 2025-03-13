@@ -13,7 +13,6 @@
 #include "rocket.hh"
 #include "rubberband.hh"
 #include "shelf.hh"
-#include "tpixel.hh"
 #include "weight.hh"
 #include "wheel.hh"
 #include "ysplitter.hh"
@@ -21,7 +20,7 @@
 static entity* new_thinplank(void){return new beam(BEAM_THIN);};
 static entity* new_shelf(void){return new shelf();};
 
-static entity* new_ball_wood(void){return new ball(0);};
+static entity* new_ball_wood(void){return new ball();};
 static entity* new_generator(void){return new generator();};
 static entity* new_powercable(void){return new cable(CABLE_BLACK);};
 static entity* new_signalcable(void){return new cable(CABLE_RED);};
@@ -30,7 +29,7 @@ static entity* new_button(void){return new button(0);};
 static entity* new_wheel(void){return new wheel();};
 static entity* new_cylinder(void){return new cylinder(0);};
 static entity* new_smallpanel(void){return new panel();};
-static entity* new_simplemotor(void){return new motor(MOTOR_TYPE_SIMPLE);};
+static entity* new_simplemotor(void){return new motor();};
 
 static entity* new_damper1(void){return new damper_1();};
 static entity* new_damper2(void){return new damper_2();};
@@ -46,169 +45,25 @@ static entity* new_weight(void){return new weight();};
 uint32_t of::_id = 1;
 
 static entity* (*c_creator[])(void) = {
-    &new_thinplank, /* 0 */
-    NULL,
+    &new_thinplank,
     &new_ball_wood,
     &new_cylinder,
-    NULL,
-    &new_shelf, /* 5 */
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL, /* 10 */
-    NULL,
-    NULL,
+    &new_shelf,
     &new_wheel,
-    NULL,
-    NULL, /* 15 */
-    NULL,
-    NULL,
-    NULL,
     &new_damper1,
-    NULL, /* 20 */
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL, /* 25 */
-    NULL,
     &new_smallpanel,
-    NULL,
-    NULL,
-    NULL, /* 30 */
-    NULL,
     &new_generator,
     &new_powercable,
     &new_signalcable,
-    NULL, /* 35 */
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL, /* 40 */
     &new_button,
-    NULL,
-    NULL,
-    NULL,
-    NULL, /* 45 */
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL, /* 50 */
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL, /* 55 */
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL, /* 60 */
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL, /* 65 */
-    NULL,
     &new_damper2,
-    NULL,
-    NULL,
-    NULL, /* 70 */
-    NULL,
-    NULL,
-    NULL,
     &new_rocket,
-    NULL, /* 75 */
     &new_ysplitter,
-    NULL,
-    NULL,
-    NULL,
-    NULL, /* 80 */
     &new_interactive_cylinder,
-    NULL,
-    NULL,
     &new_landmine,
-    NULL, /* 85 */
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL, /* 90 */
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    &new_rubberband1, /* 95 */
+    &new_rubberband1,
     &new_rubberband2,
-    NULL,
-    NULL,
-    NULL,
-    NULL, /* 100 */
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL, /* 105 */
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL, /* 110 */
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL, /* 115 */
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL, /* 120 */
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL, /* 125 */
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL, /* 130 */
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,  /* 135 */
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL, /* 140 */
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,     /* 145 */
-    NULL,
-    NULL,
-    NULL,
     &new_simplemotor,
-    NULL, /* 150 */
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,    /* 155 */
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL, /* 160 */
-    NULL,
-    NULL,
     &new_weight,
 };
 

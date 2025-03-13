@@ -19,7 +19,6 @@ void main(void)
     vec4 pos = MVP*vec4(position, 1.);
 
     SET_SHADOW
-    SET_AMBIENT_OCCL
 
     FS_diffuse_texcoord = vec4(
             clamp(dot(LIGHT, nor)*_DIFFUSE, 0., 1.),

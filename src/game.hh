@@ -114,8 +114,6 @@ enum {
     GAME_MODE_QUICK_PLUG,
     GAME_MODE_ROTATE,
     GAME_MODE_GRAB,
-    GAME_MODE_FACTORY,
-    GAME_MODE_INVENTORY,
     GAME_MODE_CONN_EDIT,
 };
 
@@ -392,7 +390,6 @@ class game : public pscreen
     void refresh_widgets();
     bool widget_clicked(principia_wdg *w, uint8_t button_id, int pid);
     void refresh_info_label();
-    void refresh_axis_rot();
     /** Widgets **/
     principia_wdg *wdg_username;
     principia_wdg *wdg_playpause;
@@ -416,7 +413,6 @@ class game : public pscreen
     principia_wdg *wdg_lock;
     principia_wdg *wdg_detach;
     principia_wdg *wdg_unplug;
-    principia_wdg *wdg_axis;
     principia_wdg *wdg_moveable;
     principia_wdg *wdg_config;
     principia_wdg *wdg_cwccw;
@@ -448,7 +444,6 @@ class game : public pscreen
 
   protected:
     tms::camera *gi_cam;
-    tms::camera *ao_cam;
 
   public:
     tvec3 cam_vel;
@@ -456,7 +451,6 @@ class game : public pscreen
     b2Vec2 adv_rel_pos;
     tms::graph *graph;
     tms::graph *gi_graph;
-    tms::graph *ao_graph;
 
     /* Activator points waiting to be rendered */
     std::deque<activator*> pending_activators;
@@ -500,8 +494,6 @@ class game : public pscreen
     inline void unlock(){SDL_UnlockMutex(_lock);};
 
     uint32_t previous_level;
-    int tmp_ao_layer;
-    tvec3 tmp_ao_mask;
     tvec2 tmp_ambientdiffuse;
     tms::camera *cam;
 
@@ -659,11 +651,6 @@ class game : public pscreen
     float numfeed_timer;
     char numfeed_str[32];
 
-    float inventory_highest_y;
-    float inventory_scroll_offset;
-    void show_inventory_widgets();
-    void hide_inventory_widgets();
-
     /* add a connection animation, dir -1 or 1 */
     inline void add_ca(float dir, b2Vec2 p)
     {
@@ -690,7 +677,6 @@ class game : public pscreen
 
     int delete_entity(entity *e);
     int delete_selected_entity(bool multi=false);
-    void refresh_inventory_widgets();
     void post_play_cleanup();
     void post_interact_select(entity *e);
     tvec3 light;
@@ -969,9 +955,6 @@ class game : public pscreen
     void clamp_entities();
 #endif
 
-    void render_num(float x, float y, int iw, int ih, float num, int precision=2, float extra_scale=0.f, bool render_background=true);
-
-    void draw_entity_bar(entity *e, float v, float y_offset, const tvec3 &color, float alpha);
     void _multidelete();
 
     bool _restart_level;

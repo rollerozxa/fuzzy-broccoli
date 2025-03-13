@@ -15,6 +15,6 @@ void main(void)
     vec3 R = normalize(reflect(LIGHT, n));
     float shadow = SHADOW;
     float specular = pow(clamp(dot(R, e), .0, 2.), 3.);
-    gl_FragColor = specular*shadow*vec4(0.5) + shadow * color * FS_diffuse + color.a * color * (_AMBIENT)*AMBIENT_OCCL;
+    gl_FragColor = specular*shadow*vec4(0.5) + shadow * color * FS_diffuse + color.a * color * (_AMBIENT);
 }
 

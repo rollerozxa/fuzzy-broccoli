@@ -8,21 +8,7 @@ class ball : public entity
     int btype;
 
   public:
-    float z;
-    float target_z;
-
-    ball(int type);
-
-    int saved_layer;
-
-    float layer_new, layer_blend, layer_old;
-
-    void on_load(bool created);
-    void setup();
-    void on_pause();
-
-    void construct();
-    void set_layer(int l);
+    ball();
 
     void add_to_world();
     const char* get_name(){

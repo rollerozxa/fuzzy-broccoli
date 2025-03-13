@@ -21,15 +21,6 @@ void main(void)
 
     SET_SHADOW
 
-#ifdef ENABLE_AO
-#ifdef SHADOW_AO_COMBINE
-    FS_ao = (SMVP * (pos - .5*MVP[2])).xy;
-#else
-    FS_ao = (AOMVP * (pos)).xy;
-#endif
-#endif
-
-
     gl_Position = pos;
 }
 

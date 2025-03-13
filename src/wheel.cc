@@ -11,11 +11,7 @@ wheel::wheel()
     this->set_flag(ENTITY_ALLOW_AXIS_ROT, true);
     this->set_flag(ENTITY_DO_TICK, true);
 
-    if (W->level.version >= LEVEL_VERSION_1_1_6) {
-        m_wheel.friction = 2.5f;
-    } else {
-        m_wheel.friction = 1.5f;
-    }
+    m_wheel.friction = 2.5f;
 
     this->set_mesh(mesh_factory::get_mesh(MODEL_WHEEL));
     this->rubber_material = m_wheel;
@@ -198,31 +194,16 @@ wheel::on_slider_change(int s, float value)
 void
 wheel::update()
 {
-    //if (this->body) {
-        b2Vec2 p = this->get_position();
-        float a = this->get_angle();
+    b2Vec2 p = this->get_position();
+    float a = this->get_angle();
 
-        tmat4_load_identity(this->M);
-        tmat4_translate(this->M, p.x, p.y, this->get_layer()*LAYER_DEPTH);
-        tmat4_rotate(this->M, a*(180.f/M_PI), 0.f, 0.f, -1.f);
-        if (this->flag_active(ENTITY_AXIS_ROT))
-            tmat4_rotate(this->M, 180, 1.f, 0.f, 0.f);
+    tmat4_load_identity(this->M);
+    tmat4_translate(this->M, p.x, p.y, this->get_layer()*LAYER_DEPTH);
+    tmat4_rotate(this->M, a*(180.f/M_PI), 0.f, 0.f, -1.f);
+    if (this->flag_active(ENTITY_AXIS_ROT))
+        tmat4_rotate(this->M, 180, 1.f, 0.f, 0.f);
 
-        tmat3_copy_mat4_sub3x3(this->N, this->M);
+    tmat3_copy_mat4_sub3x3(this->N, this->M);
 
-        tmat4_scale(this->M, (1.f+this->properties[0].v.i*.5f), (1.f+this->properties[0].v.i*.5f), 1.f);
-        /*
-    } else {
-        tmat4_load_identity(this->M);
-        tmat4_translate(this->M, this->_pos.x, this->_pos.y, 0);
-        tmat4_rotate(this->M, this->_angle * (180.f/M_PI), 0, 0, -1);
-        tmat3_copy_mat4_sub3x3(this->N, this->M);
-    }
-*/
-}
-
-void
-wheel::toggle_axis_rot()
-{
-    this->set_flag(ENTITY_AXIS_ROT, !this->flag_active(ENTITY_AXIS_ROT));
+    tmat4_scale(this->M, (1.f+this->properties[0].v.i*.5f), (1.f+this->properties[0].v.i*.5f), 1.f);
 }

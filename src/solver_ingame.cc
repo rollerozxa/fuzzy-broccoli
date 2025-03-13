@@ -4,7 +4,6 @@
 #include "explosive.hh"
 #include "button.hh"
 #include "soundmanager.hh"
-#include "ud2.hh"
 
 #include <tms/bindings/cpp/cpp.hh>
 
@@ -102,19 +101,6 @@ void solver_ingame::BeginContact(b2Contact *contact)
     contact->rel_speed = i;
 
     if (ea && eb) {
-        if (ea->g_id == O_RESOURCE && eb->is_bullet()) {
-            contact->SetEnabled(false);
-            return;
-        } else if (eb->g_id == O_RESOURCE && ea->is_bullet()) {
-            contact->SetEnabled(false);
-            return;
-        }
-
-        if (ea->g_id == O_PIXEL && ea->properties[4].v.i8 != 0)
-            b->GetBody()->SetSleepingAllowed(false);
-        if (eb->g_id == O_PIXEL && eb->properties[4].v.i8 != 0)
-            a->GetBody()->SetSleepingAllowed(false);
-
         if (ea->flag_active(ENTITY_IS_EXPLOSIVE) && eb->flag_active(ENTITY_TRIGGER_EXPLOSIVES)) {
             ((explosive*)ea)->triggered = true;
         }
@@ -266,22 +252,12 @@ void solver_ingame::EndContact(b2Contact *contact)
         eb->on_untouch(b, a);
         G->unlock();
     }
-
-    if (ea && eb) {
-        if (ea->g_id == O_PIXEL && ea->properties[4].v.i8 != 0)
-            b->GetBody()->SetSleepingAllowed(true);
-        if (eb->g_id == O_PIXEL && eb->properties[4].v.i8 != 0)
-            a->GetBody()->SetSleepingAllowed(true);
-    }
 }
 
 void solver_ingame::PreSolve(b2Contact *contact, const b2Manifold *manifold)
 {
     b2Fixture *a = contact->GetFixtureA();
     b2Fixture *b = contact->GetFixtureB();
-
-    struct ud2_info *a_ud2 = static_cast<struct ud2_info*>(a->GetUserData2());
-    struct ud2_info *b_ud2 = static_cast<struct ud2_info*>(b->GetUserData2());
 
     b2WorldManifold wm;
     contact->GetWorldManifold(&wm);
@@ -292,14 +268,6 @@ void solver_ingame::PreSolve(b2Contact *contact, const b2Manifold *manifold)
     eb = static_cast<entity*>(b->GetUserData());
 
     if (ea && eb) {
-
-        if (ea->g_id == O_RESOURCE && eb->is_bullet()) {
-            contact->SetEnabled(false);
-            return;
-        } else if (eb->g_id == O_RESOURCE && ea->is_bullet()) {
-            contact->SetEnabled(false);
-            return;
-        }
 
         if (!a->IsSensor() && !b->IsSensor()) {
             if (!enable_emitted_contact(ea, eb)) {
@@ -343,7 +311,7 @@ void solver_ingame::PostSolve(b2Contact *contact, const b2ContactImpulse *impuls
     float bullet_modifier = 5.f;
 
     if (ea) {
-        if ((ea->g_id == O_BUTTON || ea->g_id == O_TOGGLE_BUTTON)) {
+        if (ea->g_id == O_BUTTON) {
             button *bt = static_cast<button*>(ea);
 
             if (bt->switch_fx == a || bt->body->GetLocalVector(wm.normal).y > 0.8f) {
@@ -368,7 +336,7 @@ void solver_ingame::PostSolve(b2Contact *contact, const b2ContactImpulse *impuls
     }
     if (eb) {
 
-        if ((eb->g_id == O_BUTTON || eb->g_id == O_TOGGLE_BUTTON)) {
+        if (eb->g_id == O_BUTTON) {
             button *bt = static_cast<button*>(eb);
 
             b2WorldManifold wm;

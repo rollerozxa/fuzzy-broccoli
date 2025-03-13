@@ -297,44 +297,6 @@ entity::update()
     entity_fast_update(static_cast<struct tms_entity*>(this));
 }
 
-/**
- * Get all chunks that this entity is intersecting with
- * We can get that info by looping through all bodies and checking their
- * contacts.
- *
- * Static bodies don't collide with the sensors so for static bodies
- * we instead calculate chunk intersection using width and height
- **/
-void
-entity::get_chunk_intersections(std::set<chunk_pos> *chunks)
-{
-    for (int x=0; x<this->get_num_bodies(); x++) {
-        b2Body *b = this->get_body(x);
-
-        if (b) {
-            b2ContactEdge *c;
-            for (c=b->GetContactList(); c; c = c->next) {
-                b2Fixture *f = 0, *my;
-                if (c->contact->GetFixtureA()->GetBody() == b) {
-                    f = c->contact->GetFixtureB();
-                    my = c->contact->GetFixtureA();
-                } else {
-                    f = c->contact->GetFixtureA();
-                    my = c->contact->GetFixtureB();
-                }
-
-                if (this->fx && my != this->fx)
-                    continue;
-
-                entity *o;
-                if (f->IsSensor() && c->contact->IsTouching() && (o = (entity*)f->GetUserData()) && o->g_id == O_CHUNK && f->GetUserData2() == 0) {
-                    chunks->insert(((level_chunk*)o)->get_chunk_pos());
-                }
-            }
-        }
-    }
-}
-
 void
 entity::set_locked(bool locked, bool immediate/*=true*/)
 {
@@ -437,10 +399,6 @@ entity::gather_connected_entities(std::set<entity*> *entities, bool include_cabl
     connection *c = this->conn_ll;
 
     if (!this->get_body(0)) {
-        return;
-    }
-
-    if (this->g_id == O_CHUNK) {
         return;
     }
 
@@ -1342,7 +1300,7 @@ entity::reset_flags(void)
 bool
 entity::is_motor()
 {
-    return this->g_id == O_DC_MOTOR || this->g_id == O_SERVO_MOTOR || this->g_id == O_SIMPLE_MOTOR;
+    return this->g_id == O_SIMPLE_MOTOR;
 }
 
 bool
@@ -1366,14 +1324,7 @@ entity::update_protection_status()
         /* First pass: Check if the group should be protected or not. */
         for (std::set<entity*>::iterator it = loop->begin(); it != loop->end(); ++it) {
             entity *e = *it;
-            if (e->g_id == O_AUTO_PROTECTOR) {
-                new_status |= ENTITY_PROT_AUTOPROTECTOR;
-
-                if (new_status & ENTITY_PROT_PLATFORM) {
-                    /* break out if we're already protected by the other form */
-                    break;
-                }
-            } else if (e->g_id == O_PLATFORM) {
+            if (e->g_id == O_PLATFORM) {
                 new_status |= ENTITY_PROT_PLATFORM;
 
                 if (new_status & ENTITY_PROT_AUTOPROTECTOR) {

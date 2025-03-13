@@ -1,7 +1,5 @@
 #include "misc.hh"
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 time_t
 get_mtime(const char *path)

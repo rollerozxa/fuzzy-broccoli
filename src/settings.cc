@@ -1,7 +1,8 @@
 #include <tms/core/tms.h>
 #include "settings.hh"
+#include "tms/core/backend.h"
+#include "tms/math/misc.h"
 #include <cmath>
-#include "game.hh"
 
 #ifdef BUILD_VALGRIND
 #include <valgrind/valgrind.h>
@@ -38,49 +39,31 @@ _settings::init()
     this->add("window_height",      S_INT32,   _tms.window_height);
     this->add("window_maximized",   S_BOOL,  0);
     this->add("window_fullscreen",  S_BOOL, false);
-    this->add("window_resizable", S_BOOL, false);
     this->add("autosave_screensize",S_BOOL,  true);
 #endif
 
     this->add("shadow_quality",     S_UINT8,  1);
 
-#ifdef TMS_BACKEND_MOBILE
-    this->add("ao_map_res",         S_INT32,   256);
-#else
-    this->add("ao_map_res",         S_INT32,   512);
-#endif
-
     this->add("discard_framebuffer",        S_BOOL, -1);
     this->add("shadow_map_depth_texture",   S_BOOL, -1);
     this->add("shadow_map_precision",       S_BOOL, -1);
 
-    this->add("swap_ao_map",        S_BOOL,  true);
 #ifdef TMS_BACKEND_MOBILE
     this->add("gamma_correct",      S_BOOL,  false);
 #else
     this->add("gamma_correct",      S_BOOL,  -1);
-#endif
-    this->add("enable_ao",          S_BOOL,  true);
-
-#ifdef TMS_BACKEND_MOBILE
-    this->add("shadow_ao_combine",         S_BOOL, 0);
-#else
-    this->add("shadow_ao_combine",         S_BOOL, 0);
 #endif
 
     this->add("render_gui",         S_BOOL,  true);
 
 
     this->add("fv",                 S_INT32,   2); /* settings file version */
-    this->add("jail_cursor",        S_BOOL,  false);
     this->add("smooth_cam",         S_BOOL,  false);
     this->add("cam_speed_modifier", S_FLOAT, 1.f);
     this->add("smooth_zoom",        S_BOOL,  false);
     this->add("zoom_speed",         S_FLOAT, 1.f);
-    this->add("smooth_menu",        S_BOOL,  true);
     this->add("border_scroll_enabled",  S_BOOL,  true);
     this->add("border_scroll_speed",    S_FLOAT, 1.f);
-    this->add("menu_speed",         S_FLOAT, 1.f);
     this->add("always_reload_data", S_BOOL,  false);
     /* TODO: Add setting for enabling or disabling menu sliding */
 
@@ -101,8 +84,6 @@ _settings::init()
 
     this->add("num_workers", S_UINT8, SDL_GetCPUCount());
     tms_infof("num workers (real): %d", SDL_GetCPUCount());
-
-    this->add("dna_sandbox_back", S_BOOL, false);
 
     char filename[1024];
     sprintf(filename, "%s/settings.ini", tbackend_get_storage_path());
@@ -216,14 +197,12 @@ _settings::load(void)
     if (RUNNING_ON_VALGRIND) {
         tms_debugf("Running on valgrind, forcing settings to bad!");
         settings["num_workers"]->v.i = 0;
-        settings["ao_map_res"]->v.i = 256;
         settings["shadow_quality"]->v.u8 = 0;
         settings["shadow_map_resx"]->v.i = 256;
         settings["shadow_map_resy"]->v.i = 256;
         settings["shadow_map_precision"]->v.i = 0;
         settings["debug"]->v.b = false;
         settings["enable_shadows"]->v.b = false;
-        settings["enable_ao"]->v.b = false;
     }
 #endif
 

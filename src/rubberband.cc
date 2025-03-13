@@ -274,7 +274,7 @@ rubberband::setup()
 void
 rubberband_1::construct()
 {
-    rubberband_2 *d2 = static_cast<rubberband_2*>(of::create(96));
+    rubberband_2 *d2 = static_cast<rubberband_2*>(of::create(O_RUBBERBAND_2));
 
     d2->_pos = this->_pos;
     d2->_pos -= b2Vec2(0.f, 1.f);

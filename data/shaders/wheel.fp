@@ -20,6 +20,6 @@ void main(void)
 
     vec4 color = texture2D(tex_0, FS_diffuse_texcoord.zw);
 
-    gl_FragColor = color*specular*shadow + shadow * color * FS_diffuse_texcoord.x + (color.a+.3) * color * _AMBIENT*AMBIENT_OCCL;
+    gl_FragColor = color*specular*shadow + shadow * color * FS_diffuse_texcoord.x + (color.a+.3) * color * _AMBIENT;
 }
 

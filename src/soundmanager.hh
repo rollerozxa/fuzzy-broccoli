@@ -121,7 +121,6 @@ class sm
     static uint64_t write_counter;
 
     static genwave_data generated[SM_MAX_CHANNELS];
-    static Mix_Chunk *genchunk;
 
     /* all sound effects */
     static sm_sound       test;
@@ -181,7 +180,6 @@ class sm
     static bool gen_started;
     static void pause_all(void);
     static void resume_all(void);
-    static void play_gen(int x);
     static void step();
     static void init();
     static bool stop(sm_sound *snd, void *ident);

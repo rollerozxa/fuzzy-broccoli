@@ -4,15 +4,12 @@
 #include "world.hh"
 #include "model.hh"
 #include "material.hh"
-#include "gui.hh"
 
 #define SPEED 1.25f
 #define TORQUE 40.f
 
-motor::motor(int mtype)
+motor::motor()
 {
-    this->mtype = mtype;
-
     this->layer_mask = 7;
 
     tmat4_load_identity(this->M);
@@ -68,37 +65,9 @@ motor::motor(int mtype)
     this->query_sides[3].Set( qw, 0.f); /* right */
 }
 
-struct tms_sprite*
-motor::get_axis_rot_sprite()
-{
-    return gui_spritesheet::get_sprite(S_MOTOR_AXISROT);
-}
-
-const char*
-motor::get_axis_rot_tooltip()
-{
-    if (this->flag_active(ENTITY_AXIS_ROT)) {
-        return "Unflatten";
-    } else {
-        return "Flatten";
-    }
-}
-
 void
 motor::on_load(bool created)
 {
-    if (this->mtype != MOTOR_TYPE_SIMPLE) {
-        this->set_mesh(mesh_factory::get_mesh(this->flag_active(ENTITY_AXIS_ROT) ? MODEL_FLATMOTOR : MODEL_DMOTOR));
-        this->layer_mask = this->flag_active(ENTITY_AXIS_ROT) ? 8 : 7;
-        this->recreate_shape();
-    }
-}
-
-void
-motor::toggle_axis_rot()
-{
-    this->set_flag(ENTITY_AXIS_ROT, !this->flag_active(ENTITY_AXIS_ROT));
-    this->on_load(false);
 }
 
 bool
@@ -229,18 +198,8 @@ motor::solve_electronics()
     if (j) {
         float s = j->GetJointSpeed();
 
-        if (W->level.version >= LEVEL_VERSION_1_5) {
-            if (s/speed > 1.f) {
-                torque = W->level.joint_friction;
-            }
-        } else {
-            if (speed == 0.f) {
-                torque = 0.f;
-            } else {
-                if (s/speed > 1.f) {
-                    torque = .02f; /* friction */
-                }
-            }
+        if (s/speed > 1.f) {
+            torque = W->level.joint_friction;
         }
 
         j->SetMotorSpeed(speed);
@@ -254,5 +213,4 @@ motor::on_slider_change(int s, float value)
 {
     this->properties[0].v.f = value;
     G->show_numfeed(value - 0.5f);
-
 }

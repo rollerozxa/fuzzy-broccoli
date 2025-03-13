@@ -81,9 +81,7 @@ generator::solve_electronics()
         mul = this->s_in[0].get_value();
     }
 
-    if (W->level.version >= LEVEL_VERSION_1_3_0_3) {
-        mul *= 3.f;
-    }
+    mul *= 3.f;
 
     for (int x=0; x<9; x++) {
         this->s_out[x].write(this->properties[0].v.f*mul);// * v);

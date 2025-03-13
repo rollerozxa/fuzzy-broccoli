@@ -176,11 +176,6 @@ group::create_mesh(void)
     for (int x=0; x<this->connections.size(); x++) {
         connection *c = this->connections[x];
 
-        /* dont render connection for brdevices on breadboard */
-        if (c->e->g_id == O_BREADBOARD && c->o->flag_active(ENTITY_IS_BRDEVICE)) {
-            continue;
-        }
-
         if (c->render_type == CONN_RENDER_HIDE) {
             continue;
         }

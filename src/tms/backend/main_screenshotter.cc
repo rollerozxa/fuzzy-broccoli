@@ -20,7 +20,6 @@
 #include "game.hh"
 #include "main.hh"
 #include "pkgman.hh"
-#include "screenshot_marker.hh"
 
 #include <png.h>
 

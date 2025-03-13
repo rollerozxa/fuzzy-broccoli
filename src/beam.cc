@@ -2,7 +2,6 @@
 #include "material.hh"
 #include "model.hh"
 #include "game.hh"
-#include "ui.hh"
 
 class beam_ray_cb : public b2RayCastCallback
 {
@@ -45,7 +44,7 @@ class beam_ray_cb : public b2RayCastCallback
                     this->result_point = pt;
                 }
                 ret = fraction;
-            } else if (r->get_layer() == ignore->get_layer()+1  || (r->g_id == O_LASER_BOUNCER && r->get_layer() == ignore->get_layer()-1)
+            } else if (r->get_layer() == ignore->get_layer()+1
                     /* && (r->group == 0 ||
                      r->group != ignore->group
                      )*/) { /* XXX */

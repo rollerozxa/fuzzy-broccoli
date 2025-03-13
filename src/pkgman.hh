@@ -321,7 +321,6 @@ class pkginfo
 #define LVL_DISABLE_ZOOM                        (1ULL << 7)  /* disable zoom */ /* TODO: What modes and states should this be enabled in? */
 #define LVL_DISABLE_CAM_MOVEMENT                (1ULL << 8)  /* disable camera movement */ /* TODO: What modes and states should this be enabled in? */
 #define LVL_DISABLE_INITIAL_WAIT                (1ULL << 9)  /* disable the initial waiting time when starting a level */
-#define LVL_ENABLE_INTERACTIVE_DESTRUCTION      (1ULL << 11) /* enable shooting interactive objects to destroy them */
 #define LVL_SNAP                                (1ULL << 13) /* snap object by default for puzzle levels */
 #define LVL_NAIL_CONNS                          (1ULL << 14) /* Use nail-shaped connections for planks and beams */
 #define LVL_SINGLE_LAYER_EXPLOSIONS             (1ULL << 16) /* Explosives reach only one layer */

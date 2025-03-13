@@ -20,7 +20,6 @@ class wheel : public composable, public b2QueryCallback
     b2Vec2 q_point;
 
     void update(void);
-    void toggle_axis_rot(void);
     const char* get_name(){return "Wheel";}
 
     float get_slider_snap(int s);

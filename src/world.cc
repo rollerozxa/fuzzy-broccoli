@@ -44,8 +44,6 @@ world::world()
 
     this->contacts_playing = new solver_ingame();
     this->contacts_paused = new solver();
-
-    this->cwindow = new chunk_window();
 }
 
 void
@@ -673,21 +671,6 @@ world::ReportFixture(b2Fixture *f)
     }
 
     if (f->GetFilterData().categoryBits & (15 << (this->query_layer*4))) {
-        if (this->is_paused() && e && e->g_id == O_CHUNK) {
-            return true;
-        }
-
-        if (!this->is_paused() && e && e->g_id == O_CURSOR_FIELD) {
-            if (f->TestPoint(this->query_point)) {
-                this->query_exact = true;
-                this->query_nearest_b = f->GetBody();
-                this->query_nearest = e;
-                this->query_nearest_fx = f;
-                return false;
-            }
-        }
-
-
         if (e && (!f->IsSensor() || this->is_paused())) {
 
             if (this->is_paused() && !G->state.sandbox && !e->get_property_entity()->is_moveable() && !this->query_force) {
@@ -1271,7 +1254,6 @@ world::reset()
     this->gravity_y = 0;
     this->last_gravity = b2Vec2(0.f, 0.f);
 
-    this->cwindow->preloader.reset();
     this->timed_absorb.clear();
 
     this->to_be_absorbed.clear();
@@ -1674,14 +1656,7 @@ world::load_connection(lvlbuf *buf, int version, uint64_t flags, uint32_t id_mod
 
     c.relative_angle = (version >= 22 ? buf->r_float() : -(c.o->get_angle(c.f[1]) - c.e->get_angle(c.f[0])));
 
-    if (version >= LEVEL_VERSION_1_5) {
-        if (_o_id == 0) { /* this is a chunk */
-            c.o = this->cwindow->get_chunk(chunk_pos_x, chunk_pos_y);
-            c.o->add_to_world();
-        } else {
-            c.o = this->get_entity_by_id(_o_id + id_modifier);
-        }
-    }
+    c.o = this->get_entity_by_id(_o_id + id_modifier);
 
     if (!c.e || !c.o) {
         tms_errorf("invalid entity ids <%u,%u>", _e_id, _o_id);
@@ -1786,15 +1761,12 @@ world::fill_buffer(lvlinfo *lvl, lvlbuf *buf,
         i->second->post_write();
     }
 
-    if (fill_unloaded) this->cwindow->preloader.write_groups(lvl, buf);
-
     for (std::map<uint32_t, entity*>::iterator i = entities->begin();
             i != entities->end(); i++) {
         i->second->pre_write();
         of::write(buf, lvl->version, i->second, id_modifier, displacement);
         i->second->post_write();
     }
-    if (fill_unloaded) this->cwindow->preloader.write_entities(lvl, buf);
 
     for (std::set<cable*>::iterator i = cables->begin();
             i != cables->end(); i++) {
@@ -1835,7 +1807,6 @@ world::fill_buffer(lvlinfo *lvl, lvlbuf *buf,
 
         c->write_size = buf->size - c->write_ptr;
     }
-    if (fill_unloaded) this->cwindow->preloader.write_cables(lvl, buf);
 
     for (std::set<connection*>::iterator i = connections->begin();
             i != connections->end(); i++) {
@@ -1866,17 +1837,11 @@ world::fill_buffer(lvlinfo *lvl, lvlbuf *buf,
         (*i)->write_ptr = buf->size;
         buf->w_uint8((*i)->type);
         buf->w_uint32((*i)->e->id + id_modifier);
-        buf->w_uint32((!(*i)->o || (*i)->o->g_id == O_CHUNK) ? 0 : ((*i)->o->id + id_modifier));
+        buf->w_uint32((!(*i)->o) ? 0 : ((*i)->o->id + id_modifier));
 
         if (lvl->version >= LEVEL_VERSION_1_5) {
-            if ((*i)->o->g_id == O_CHUNK) {
-                level_chunk *c = static_cast<level_chunk*>((*i)->o);
-                buf->w_int32(c->pos_x);
-                buf->w_int32(c->pos_y);
-            } else {
-                buf->w_int32(0);
-                buf->w_int32(0);
-            }
+            buf->w_int32(0);
+            buf->w_int32(0);
             buf->w_uint32((*i)->e_data);
             buf->w_uint32((*i)->o_data);
         }
@@ -1918,8 +1883,6 @@ world::fill_buffer(lvlinfo *lvl, lvlbuf *buf,
 
         (*i)->write_size = buf->size - (*i)->write_ptr;
     }
-
-    if (fill_unloaded) this->cwindow->preloader.write_connections(lvl, buf);
 }
 
 /**
@@ -2087,12 +2050,10 @@ world::save(int save_type)
         this->level.autosave_id = this->level.local_id;
     }
 
-    this->cwindow->preloader.prepare_write();
-
-    this->level.num_groups = this->groups.size() + this->cwindow->preloader.groups.size();
-    this->level.num_entities = this->all_entities.size() + this->cwindow->preloader.entities.size();
-    this->level.num_connections = this->connections.size() + this->cwindow->preloader.connections.size();
-    this->level.num_cables = this->cables.size() + this->cwindow->preloader.cables.size();
+    this->level.num_groups = this->groups.size();
+    this->level.num_entities = this->all_entities.size();
+    this->level.num_connections = this->connections.size();
+    this->level.num_cables = this->cables.size();
     this->level.write(&this->lb);
 
     {

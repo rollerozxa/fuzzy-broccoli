@@ -25,6 +25,6 @@ void main(void)
     //}
 
     gl_FragColor = SHADOW * (color+color*specular) * FS_diffuse +
-        color * (_AMBIENT)*AMBIENT_OCCL;
+        color * (_AMBIENT);
 }
 

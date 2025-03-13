@@ -3,9 +3,7 @@
 #include "model.hh"
 #include "world.hh"
 #include "spritebuffer.hh"
-#include "linebuffer.hh"
 #include "soundmanager.hh"
-#include "ui.hh"
 
 #define DEBRIS_FORCE 300.f
 
